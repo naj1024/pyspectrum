@@ -1,0 +1,16 @@
+# compiled python files
+*.pyc
+
+# Pycharm
+__pycache__/
+.idea/
+
+# local python environment
+venv/
+
+# digitised sample files
+*.8t
+*.80
+*.16tle
+*.16tbe
+*.wav
