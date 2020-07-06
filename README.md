@@ -38,7 +38,7 @@ There is a separate plugin architecture for dealing with FFT results. With this 
 to look for spectral spikes etc on the FFT bin results. Currently it only finds peaks and sends results
 to stdout or an mqtt server.
 
-##Tested with the following:
+## Tested with the following:
 
     Windows: audio, file, pluto (IP), rtltcp, socket
     Linux  : audio, file, pluto (IP), rtlsdr, rtltcp, soapy(audio, rtlsdr, sdrplay), socket
