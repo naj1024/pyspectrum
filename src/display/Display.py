@@ -34,6 +34,7 @@ class Display:
     """
 
     def __init__(self,
+                 name: str,
                  width: int,
                  sps: float,
                  centre_frequency: float,
@@ -42,6 +43,7 @@ class Display:
                  spectrogram_flag: bool):
         """
         The initialisation of a Display
+        :param name: A string that will be appended to the window title string
         :param width: The number of points on the x axes
         :param sps: The digitisation rate used
         :param centre_frequency: The centre of the spectrum in Hz
@@ -66,6 +68,7 @@ class Display:
             print("Display backend now: ", matplotlib.get_backend())
 
         # things that define our display window
+        self._window_title = f"Spectrum Analyser from {name}"
         self._display_width = width
         self._sps = sps
         self._centre_frequency = centre_frequency
@@ -174,7 +177,7 @@ class Display:
 
     def new_create_plots(self):
         # create matplotlib figure and subplots
-        number = "Spectrum Analyser"
+        number = self._window_title
         # use previous figure number if we have one
         if self._figure:
             number = plt.gcf().number
@@ -219,12 +222,12 @@ class Display:
         )
 
         if self._spectrogram_flag:
-            figure = plt.figure(figsize=(9, 5), num="Spectrum analyser")
+            figure = plt.figure(figsize=(9, 5), num=self._window_title)
             spectrums = plt.subplot(211)
             spectrogram = plt.subplot(212, sharex=spectrums)
             plt.subplots_adjust(bottom=0.06, left=0.07, right=0.95, top=0.94, hspace=0.16)
         else:
-            figure = plt.figure(figsize=(9, 3), num="Spectrum analyser")
+            figure = plt.figure(figsize=(9, 3), num=self._window_title)
             spectrums = plt.subplot(111)
             spectrogram = None
             plt.subplots_adjust(bottom=0.08, left=0.07, right=0.95, top=0.92, hspace=0.16)
@@ -461,4 +464,5 @@ class Display:
 
 
 if __name__ == '__main__':
-    Display(1024, 10000.0, 0.0, -40.0, -10.0, False)
+    Display("test", 1024, 10000.0, 0.0, -40.0, -10.0, False)
+

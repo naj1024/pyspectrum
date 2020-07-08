@@ -44,6 +44,7 @@ class DataSource:
 
         """
         self._source = source
+        self._display_name = source
         self._number_complex_samples = number_complex_samples
         self._data_type = data_type
         self._sample_rate = sample_rate
@@ -72,6 +73,9 @@ class DataSource:
     def reconnect(self) -> bool:
         # Override in derived class if required
         return self._connected
+
+    def get_display_name(self):
+        return self._display_name
 
     def get_sample_rate(self):
         return self._sample_rate
@@ -145,9 +149,7 @@ class DataSource:
         elif self._data_type == '8t':
             # signed 8bit binary, 2s complement
             num_samples = len(data)  # 1 signed byte per inb
-            print(data)
             data_ints = np.ndarray(np.shape(1), dtype=f'{num_samples}b', buffer=data)
-            print(data_ints)
             data_floats = data_ints / 127.5
             complex_data = np.array(data_floats[0::2], dtype=np.complex64)
             complex_data.imag = data_floats[1::2]

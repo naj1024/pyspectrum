@@ -234,7 +234,7 @@ def initialise(configuration: Variables):
         # the display
         data_queue = multiprocessing.Queue()
         control_queue = multiprocessing.Queue()
-        display = display_create(configuration, data_queue, control_queue)
+        display = display_create(configuration, data_queue, control_queue, data_source.get_display_name())
 
         # plugins, pass in all the variables as we don't know what the plugin may require
         plugin_manager = PluginManager.PluginManager(plugin_init_arguments=vars(configuration))
@@ -459,30 +459,32 @@ def list_sources() -> None:
 
 def time_spectral(configuration: Variables):
     """
-    Time how long it takes to compute various FFT spectrums and show results
+    Time how long it takes to compute various things and show results
 
-    Show results as max sps that would be possible all other things ignored
+    For FFT sizes Show results as max sps that would be possible all other things ignored
     :return: None
     """
+
+    print("data conversion time")
+    print("data \tusec \tnsec/sample\ttype")
+    print("===================================")
+    for data_type in DataSource.supported_data_types:
+        data_size = 2048
+        bytes_d = bytearray(data_size * 4)  # max of 4bytes per complex sample
+        converter = DataSource.DataSource("null", data_size, data_type, 1e6, 1e6)
+        iterations = 50
+
+        time_start = time.perf_counter()
+        for loop in range(iterations):
+            _ = converter.unpack_data(bytes_d)
+        time_end = time.perf_counter()
+
+        processing_time = (time_end - time_start) / iterations
+        processing_time_per_sample = processing_time / data_size
+        print(f"{data_size} \t{processing_time * 1e6:0.1f} \t{processing_time_per_sample * 1e9:0.1f} \t\t{data_type}")
+
     # only measuring powers of two, not limited to that though
     fft_sizes = [256, 512, 1024, 2048, 4096, 8192, 16384, 32768]
-    print("data conversion time")
-    print("data \tnsec per sample")
-    print("========================")
-    for data_type in DataSource.supported_data_types:
-        for fft_size in fft_sizes:
-            bytes_d = bytearray(fft_size * 4)  # max of 4bytes per complex sample
-            converter = DataSource.DataSource("null", fft_size, data_type, 1e6, 1e6)
-            iterations = 50
-
-            time_start = time.perf_counter()
-            for loop in range(iterations):
-                _ = converter.unpack_data(bytes_d)
-            time_end = time.perf_counter()
-
-            processing_time = (time_end - time_start) / (fft_size * iterations)
-            print(f"{fft_size} \t{processing_time * 1e9:0.1f} \t{data_type}")
-
     print("\nSpectral processing time")
     print("fft \tusec  \tMsps")
     print("========================")
@@ -570,16 +572,20 @@ def update_display(configuration: Variables,
 
 def display_create(configuration: Variables,
                    display_queue: multiprocessing.Queue,
-                   control_queue: multiprocessing.Queue) -> DisplayProcessor:
+                   control_queue: multiprocessing.Queue,
+                   input_name: str) -> DisplayProcessor:
     """
     Create the display process (NOT a thread)
 
     :param configuration: Our state
     :param display_queue: The queue we will use for talking to the created display process
     :param control_queue: The queue we will use for the display to send back control
+    :param input_name: What the input is called
     :return: The handle to the display process
     """
-    display = DisplayProcessor.DisplayProcessor(display_queue,
+    window_title = f"{configuration.input_type} {input_name}"
+    display = DisplayProcessor.DisplayProcessor(window_title,
+                                                display_queue,
                                                 control_queue,
                                                 configuration.fft_size,
                                                 configuration.sample_rate,

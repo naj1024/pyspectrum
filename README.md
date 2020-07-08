@@ -94,7 +94,7 @@ The following python modules should be installed. Optional ones provide specific
 
 ## Raspberry Pi
 
-This will run a raspberry Pi, but **very** slowly. Much better solution is to run something like rtl_tcp 
+This will run on a raspberry Pi, but **very** slowly. Much better solution is to run something like rtl_tcp 
 on the Pi and stream the samples to the machine running the python. See DataSource_rtltcp.py about making
 sure the Pi won't run out of memory if the python can not keep up.
 
@@ -124,7 +124,7 @@ The following was done on a not very clean V4.2 image from https://github.com/lu
     python3 ./src/SpectrumAnalyser.py -i?
     Available sources: ['file', 'pluto', 'rtlsdr', 'socket', 'audio']
     file:Filename 	- Filename, binary or wave, e.g. file:./xyz.cf123.4.cplx.200000.16tbe
-    pluto:IP 	    - The Ip or resolvable name of the Pluto device, e.g. pluto:192.168.2.1
+    pluto:IP        - The Ip or resolvable name of the Pluto device, e.g. pluto:192.168.2.1
     rtlsdr:Name 	- Name is anything, e.g. rtlsdr:abc
     socket:IP@port 	- The Ip or resolvable name and port on a server, e.g. socket:192.168.2.1@12345
     audio:Number 	- number of the input device e.g. audio:1, '?' for list

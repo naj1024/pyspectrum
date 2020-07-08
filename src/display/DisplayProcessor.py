@@ -27,6 +27,7 @@ class DisplayProcessor(multiprocessing.Process):
     """
 
     def __init__(self,
+                 name: str,
                  data_queue: multiprocessing.Queue,
                  control_queue: multiprocessing.Queue,
                  display_width: int,
@@ -35,6 +36,7 @@ class DisplayProcessor(multiprocessing.Process):
                  spectrogram_flag: bool):
         """
 
+        :param name: A string that will be appended to the window title of the display
         :param data_queue: Where we get our data from
         :param control_queue: For controls back from the display
         :param display_width: The number of elements in the display, i.e. the fft size
@@ -44,6 +46,8 @@ class DisplayProcessor(multiprocessing.Process):
         """
         multiprocessing.Process.__init__(self)
         self._exit_now = multiprocessing.Event()
+
+        self._name = name
 
         self._data_queue = data_queue
         self._control_queue = control_queue
@@ -99,7 +103,7 @@ class DisplayProcessor(multiprocessing.Process):
         self._display_width = display_width
 
         # 50dB initial range
-        display = Display.Display(self._display_width, self._sps, self._centre_frequency,
+        display = Display.Display(self._name, self._display_width, self._sps, self._centre_frequency,
                                   nearest_mean - 10, nearest_mean + 40.0,
                                   self._spectrogram_flag)
         return display

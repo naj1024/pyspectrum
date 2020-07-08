@@ -67,6 +67,10 @@ def is_available() -> Tuple[str, str]:
     return module_type, ""
 
 
+# The following must match the rtl_sdr C source code definitions in rtl_sdr.h for enum rtlsdr_tuner{}
+allowed_tuner_types = ["Unknown", "E4000", "FC0012", "FC0013", "FC2580", "R820T", "R828D"]
+
+
 class Input(DataSource.DataSource):
 
     def __init__(self,
@@ -108,6 +112,7 @@ class Input(DataSource.DataSource):
 
         self._socket = None
         self._connected = False
+        self._tuner_type_str = "NotFound"
 
     def reconnect(self) -> bool:
         """
@@ -139,11 +144,16 @@ class Input(DataSource.DataSource):
             self._connected = True
             logger.debug(f"Connected to rtltcp {self._ip_address} on port {self._ip_port}")
 
+            # recover the type of tuner we have from the server
+            self._tuner_type_str = self.get_tuner_type()
+            self._display_name += f" {self._tuner_type_str}"
+
             # say what we want
             self.set_sample_rate(int(self._sample_rate))
             self.set_center_frequency(int(self._centre_frequency))
             # not found a description of gain_mode / agc_mode ...
             self.set_tuner_gain_mode(1)
+
             # TODO: what's the difference between set_tuner_gain_by_index() and set_tuner_gain() ?
             self.set_tuner_gain_by_index(17)  # ignored unless set_tuner_gain_mode is 1
             self.set_agc_mode(0)
@@ -151,6 +161,80 @@ class Input(DataSource.DataSource):
             raise
 
         return self._connected
+
+    def get_tuner_type(self) -> str:
+        """
+        Read the first bytes after a rtl_tcp connection to recover the tuner type
+
+        The initial bytes contain the dongle_info_t defined in rtl_tcp.c
+
+        magic is 'RTL0'
+
+        typedef struct { /* structure size must be multiple of 2 bytes */
+                char magic[4];
+                uint32_t tuner_type;
+                uint32_t tuner_gain_count;
+            } dongle_info_t;
+
+            rtl_sdr.h
+            enum rtlsdr_tuner {
+                RTLSDR_TUNER_UNKNOWN = 0,
+                RTLSDR_TUNER_E4000,
+                RTLSDR_TUNER_FC0012,
+                RTLSDR_TUNER_FC0013,
+                RTLSDR_TUNER_FC2580,
+                RTLSDR_TUNER_R820T,
+                RTLSDR_TUNER_R828D
+            };
+
+        :return The tuner type as a string:
+        """
+        tuner_type_str = ""
+        dongle_info, _ = self.get_bytes(12)  # 12 bytes, 4 chars + 2 unint32
+        # unpack as network order, 4 chars and 2 unsigned integers
+        try:
+            magic, tuner_type, tuner_gain_count = struct.unpack('!4s2I', dongle_info)
+            if magic == b"RTL0" and tuner_type < len(allowed_tuner_types):
+                tuner_type_str = allowed_tuner_types[tuner_type]
+            else:
+                logger.error(f"Unknown RTL tuner {magic} or type {tuner_type}")
+        except Exception as fff:
+            raise ValueError(fff)
+
+        logger.info(f"{tuner_type_str} tuner")
+        return tuner_type_str
+
+    def get_bytes(self, bytes_to_get: int) -> Tuple[bytearray, float]:
+        """
+        Read bytes_to_get bytes from the server
+
+        :param bytes_to_get: Number of bytes to get from the server
+        :return: A Tuple of bytearray of the bytes and time the bytes were received
+        """
+        rx_time = 0
+        try:
+            raw_bytes = bytearray()
+            while bytes_to_get > 0:
+                got: bytearray = self._socket.recv(bytes_to_get)  # will get a MAXIMUM of this number of bytes
+                if rx_time == 0:
+                    rx_time = time.time_ns()
+                if len(got) == 0:
+                    self._socket.close()
+                    self._connected = False
+                    logger.info('rtltcp connection closed')
+                    raise ValueError('rtltcp connection closed')
+                raw_bytes += got
+                bytes_to_get -= len(got)
+
+        except OSError as msg1:
+            if self._socket:
+                self._socket.close()
+            msgs = f'OSError, {msg1}'
+            logger.error(msgs)
+            self._connected = False
+            raise ValueError(msgs)
+
+        return raw_bytes, rx_time
 
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """
@@ -161,37 +245,10 @@ class Input(DataSource.DataSource):
         if not self._connected:
             raise ValueError
 
-        rx_time = 0
-        try:
-            num_bytes_to_get = self._bytes_per_snap
-            raw_bytes = bytearray()
-            while len(raw_bytes) != self._bytes_per_snap:
-                got: bytearray = self._socket.recv(num_bytes_to_get)  # will get a MAXIMUM of this number of bytes
-                if rx_time == 0:
-                    rx_time = time.time_ns()
-                if len(got) == 0:
-                    self._socket.close()
-                    self._connected = False
-                    logger.info('rtltcp connection closed')
-                    raise ValueError('rtltcp connection closed')
-                raw_bytes += got
-                num_bytes_to_get -= len(got)
-
-        except OSError as msg1:
-            if self._socket:
-                self._socket.close()
-            msgs = f'OSError, {msg1}'
-            logger.error(msgs)
-            self._connected = False
-            raise ValueError(msgs)
+        num_bytes_to_get = self._bytes_per_snap
+        raw_bytes, rx_time = self.get_bytes(num_bytes_to_get)
 
         if len(raw_bytes) == self._bytes_per_snap:
-            zeros = 0
-            for i in range(len(raw_bytes)):
-                if raw_bytes[i] == 128:
-                    zeros += 1
-            if zeros >= (len(raw_bytes) // 2):
-                print("zeros")
             complex_data = self.unpack_data(raw_bytes)
         else:
             complex_data = np.empty(0)
@@ -216,7 +273,7 @@ class Input(DataSource.DataSource):
         command = struct.pack('!BI', command & 0xff, value)  # command:bytes
         return self._socket.sendall(command)
 
-    def set_center_frequency(self, value: int) -> int:
+    def set_center_frequency(self, frequency: int) -> int:
         # limits depend on tuner type: from https://wiki.radioreference.com/index.php/RTL-SDR
         # Tuner 	             Frequency Range
         # =======================================
@@ -226,16 +283,43 @@ class Input(DataSource.DataSource):
         # Fitipower FC0012 	     22 - 948.6 MHz
         # FCI FC2580 	         146 – 308 MHz / 438 – 924 MHz
 
-        # We can't see what type is plugged in, default to R820T ranges
-        if (value <= 22e6) or (value > 1.766e9):
-            err = f"{module_type} invalid centre frequency, {value}Hz"
-            logger.error(err)
-            value = int(433.92e6)
-        logger.info(f"Set frequency {value / 1e6:0.6f}MHz")
-        self._centre_frequency = value
-        return self.send_command(0x01, value)
+        # what type of tuner do we have ?
+        freq_ok = True
+        if self._tuner_type_str == allowed_tuner_types[1]:
+            # E4000
+            if (frequency < 52e6) or (frequency > 2200e6):
+                freq_ok = False
+            elif (frequency > 1100e6) and (frequency < 1250e6):
+                freq_ok = False
+        elif self._tuner_type_str == allowed_tuner_types[2]:
+            # FC0012
+            if (frequency < 22e6) or (frequency > 948.6e6):
+                freq_ok = False
+        elif self._tuner_type_str == allowed_tuner_types[3]:
+            # FC0013
+            if (frequency < 22e6) or (frequency > 1100e6):
+                freq_ok = False
+        elif self._tuner_type_str == allowed_tuner_types[4]:
+            # FC2580
+            if (frequency < 146e6) or (frequency > 924e6):
+                freq_ok = False
+            elif (frequency > 308e6) and (frequency < 438e6):
+                freq_ok = False
+        elif self._tuner_type_str == allowed_tuner_types[5] or self._tuner_type_str == allowed_tuner_types[6]:
+            # R820T or R828D
+            if (frequency < 24e6) or (frequency > 1.766e9):
+                freq_ok = False
 
-    def set_sample_rate(self, value: int) -> int:
+        if not freq_ok:
+            err = f"{module_type} {self._tuner_type_str} invalid centre frequency, {frequency}Hz"
+            logger.error(err)
+            frequency = int(433.92e6)
+
+        logger.info(f"Set frequency {frequency / 1e6:0.6f}MHz")
+        self._centre_frequency = frequency
+        return self.send_command(0x01, frequency)
+
+    def set_sample_rate(self, sample_rate: int) -> int:
         # rtlsdr has limits on allowed sample rates
         # from librtlsdr.c data_source.get_bytes_per_sample()
         # 	/* check if the rate is supported by the resampler */
@@ -245,13 +329,13 @@ class Input(DataSource.DataSource):
         # 		return -EINVAL;
         # 	}
         # We have no way of knowing if a command completes on the remote platform
-        if (value <= 225000) or (value > 3200000) or ((value > 300000) and (value <= 900000)):
-            err = f"{module_type} invalid sample rate, {value}sps"
+        if (sample_rate <= 225000) or (sample_rate > 3200000) or ((sample_rate > 300000) and (sample_rate <= 900000)):
+            err = f"{module_type} invalid sample rate, {sample_rate}sps"
             logger.error(err)
-            value = int(1e6)
-        self._sample_rate = value
-        logger.info(f"Set sample rate {value}sps")
-        return self.send_command(0x02, value)
+            sample_rate = int(1e6)
+        self._sample_rate = sample_rate
+        logger.info(f"Set sample rate {sample_rate}sps")
+        return self.send_command(0x02, sample_rate)
 
     def set_tuner_gain_mode(self, value: int) -> int:
         return self.send_command(0x03, value)
