@@ -166,7 +166,8 @@ class DataSource:
             complex_data.imag = data_floats[1::2]
 
         else:
-            logger.error(f'Unsupported data type {self._data_type}')
-            raise ValueError(f'Unsupported data type {self._data_type}')
+            err_msg = f'Unsupported data type {self._data_type}'
+            logger.error(err_msg)
+            raise ValueError(err_msg)
 
         return complex_data
