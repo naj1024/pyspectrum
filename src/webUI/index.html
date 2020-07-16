@@ -1,51 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <title>Spectrum Analyser</title>
+  <head>
+    <meta charset="utf-8" />
+    <title>Spectrum Analyser</title>
 
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+  </head>
 
-    </head>
+  <body>
+    <p>Hello</p>
 
-    <body>
-        <p>Hello</p>
+    <script>
+      async function onMessageArrived(binary_blob_data) {
+        let buffer = await binary_blob_data.arrayBuffer();
+        let length = buffer.byteLength;
 
-        <script>
-            function onMessageArrived(binary_blob_data) {
-                let length = binary_blob_data.size;
-                let buffer = binary_blob_data.arrayBuffer()
+        let uint = new Uint8Array(buffer);
+        for (let i = 0; i < 16; i++) {
+          console.log(`uint - index: ${i}, value: ${uint[i]}`);
+        }
+        let dataView = new DataView(uint.buffer);
+        length = 16;
+        for (let i = 0; i < length / 4; i++) {
+          let value = dataView.getFloat32(i * 4, false);
+          console.log(`dataview - index: ${i}, value: ${value}`);
+        }
+      }
 
-                var uint = new Uint8Array(buffer);
-                for (let i=0; i<length; i++) {
-                    uint[i] = binary_blob_data[i];
-                }
-                for (var i=0; i<16; i++) {
-                    console.log(i + " " + uint[i]);
-                }
-                var dataView = new DataView(uint.buffer);
-                length = 16;
-                for (let i=0; i<length/4; i++) {
-                    let value = dataView.getFloat32((i*4), false);
-                    console.log(i + " " + value);
-                }
-            };
+      var ws = new WebSocket("ws://127.0.0.1:5555/"),
+        messages = document.createElement("ul");
+      ws.onmessage = function (event) {
+        onMessageArrived(event.data);
 
-            var ws = new WebSocket("ws://127.0.0.1:5555/"),
-                messages = document.createElement('ul');
-            ws.onmessage = function (event) {
-                onMessageArrived(event.data)
-
-                var messages = document.getElementsByTagName('ul')[0],
-                    message = document.createElement('li'),
-                    content = document.createTextNode(event.data);
-                message.appendChild(content);
-                messages.appendChild(message);
-            };
-            document.body.appendChild(messages);
-        </script>
-
-    </body>
+        var messages = document.getElementsByTagName("ul")[0],
+          message = document.createElement("li"),
+          content = document.createTextNode(event.data);
+        message.appendChild(content);
+        messages.appendChild(message);
+      };
+      document.body.appendChild(messages);
+    </script>
+  </body>
 </html>
