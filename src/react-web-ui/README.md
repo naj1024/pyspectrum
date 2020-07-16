@@ -1,4 +1,32 @@
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# React UI
+
+This is a simple (really really simple...) react ui with a chart to compliment the test data generator.
+
+To run this you will need to install nodejs - I recommend doing this using `nvm` https://github.com/nvm-sh/nvm. Follow the guide to install the relevant versions of node for this web app to run.
+
+## Versions tested
+
+I suspect this will work with newer versions but these are the versions that I had installed at the time.
+
+node == v8.12.0, npm == v6.4.1.
+
+## Dependency installation
+
+Navigate to the directory containing the `package.json` and run
+
+```
+  npm install
+```
+
+This will install your dependencies. To start the app in dev mode run:
+
+```
+  npm start
+```
+
+This will build and serve the web app and allow hot reloading (rebuilds on saving).
+
+---
 
 ## Available Scripts
 

@@ -1,27 +1,11 @@
 import React, { useState, useEffect } from "react";
-import io from "socket.io-client";
-const customParser = require("socket.io-msgpack-parser");
+import { Chart } from "react-charts";
 
 const ENDPOINT = "ws://127.0.0.1:5555/ws";
 const socket = new WebSocket(ENDPOINT);
 
-async function onMessageArrived(binary_blob_data) {
-  let buffer = await binary_blob_data.arrayBuffer();
-  let length = buffer.byteLength;
-
-  let uint = new Uint8Array(buffer);
-  for (let i = 0; i < 16; i++) {
-    console.log(`uint - index: ${i}, value: ${uint[i]}`);
-  }
-  let dataView = new DataView(uint.buffer);
-  length = 16;
-  for (let i = 0; i < length / 4; i++) {
-    let value = dataView.getFloat32(i * 4, false);
-    console.log(`dataview - index: ${i}, value: ${value}`);
-  }
-}
 function App() {
-  const [socketData, setSocketData] = useState("");
+  const [socketData, setSocketData] = useState([{ data: [] }]);
 
   useEffect(() => {
     socket.onmessage = async (data) => {
@@ -31,7 +15,42 @@ function App() {
     };
   }, []);
 
-  return <p>Data WOOO {socketData}</p>;
+  const data = React.useMemo(
+    () => [
+      {
+        showpoints: false,
+        label: "Series 1",
+        data: [...socketData].map((datum, idx) => [idx, datum]),
+      },
+    ],
+    [socketData]
+  );
+
+  const series = React.useMemo(
+    () => ({
+      showPoints: false,
+    }),
+    []
+  );
+
+  const axes = React.useMemo(
+    () => [
+      { primary: true, type: "linear", position: "bottom" },
+      { type: "linear", position: "left" },
+    ],
+    []
+  );
+
+  return (
+    <div
+      style={{
+        width: "1000px",
+        height: "500px",
+      }}
+    >
+      <Chart data={data} series={series} axes={axes} />
+    </div>
+  );
 }
 
 export default App;
