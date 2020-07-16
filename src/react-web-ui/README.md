@@ -4,6 +4,8 @@ This is a simple (really really simple...) react ui with a chart to compliment t
 
 To run this you will need to install nodejs - I recommend doing this using `nvm` https://github.com/nvm-sh/nvm. Follow the guide to install the relevant versions of node for this web app to run.
 
+Most of this is boilerplate - the important bit (for now) is in `App.js`.
+
 ## Versions tested
 
 I suspect this will work with newer versions but these are the versions that I had installed at the time.
