@@ -14,27 +14,38 @@
         <p>Hello</p>
 
         <script>
-            function onMessageArrived(binary_blob_data) {
-                let length = binary_blob_data.size;
-                let buffer = binary_blob_data.arrayBuffer()
+            async function onMessageArrived(binary_blob_data) {
+                let buffer = await binary_blob_data.arrayBuffer();
+                let length = buffer.byteLength;
 
-                var uint = new Uint8Array(buffer);
-                for (let i=0; i<length; i++) {
-                    uint[i] = binary_blob_data[i];
+                let uint = new Uint8Array(buffer);
+                let dataView = new DataView(uint.buffer);
+
+                // data is network order, i.e. big endian
+
+                // 5 integers
+                let sps = dataView.getInt32((0), false);
+                let cf = dataView.getInt32((4), false);
+                let time_start = dataView.getInt32((8), false);
+                let time_end = dataView.getInt32((12), false);
+                let num_floats = dataView.getInt32((16), false);
+                console.log(sps+" "+cf+" "+time_start+" "+time_end+" "+num_floats);
+
+                // floats
+                let start_index=20 // after 5 4 byte integers
+                let spectrum = new Float32Array(num_floats);
+                for (var i=0; i<num_floats; i++){
+                    spectrum[i]=dataView.getFloat32((start_index+4*i), false);
                 }
-                for (var i=0; i<16; i++) {
-                    console.log(i + " " + uint[i]);
-                }
-                var dataView = new DataView(uint.buffer);
-                length = 16;
-                for (let i=0; i<length/4; i++) {
-                    let value = dataView.getFloat32((i*4), false);
-                    console.log(i + " " + value);
+                start_index = start_index+num_floats*4;
+                let peaks = new Float32Array(num_floats);
+                for (var i=0; i<num_floats; i++){
+                    peaks[i]=dataView.getFloat32((start_index+4*i), false);
                 }
             };
 
-            var ws = new WebSocket("ws://127.0.0.1:5555/"),
-                messages = document.createElement('ul');
+            var ws = new WebSocket("ws://127.0.0.1:5555/"), messages = document.createElement('ul');
+
             ws.onmessage = function (event) {
                 onMessageArrived(event.data)
 

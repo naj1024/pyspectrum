@@ -30,26 +30,25 @@ class TestWebSocketServer(multiprocessing.Process):
     async def time_processor(self, websocket, path):
         while True:
             try:
-                # timeout on queue read so we can, if we wanted to, exit our forever loop
                 sps: int = 123
                 centre: int = 456
                 spec = np.random.rand(7)
                 peak = np.random.rand(7)
-                time_start: int = 24 << 32
-                time_end: int = 36 << 34
+                time_start: int = 24
+                time_end: int = 36
 
                 # pack the data up in binary, watch out for sizes
-                message = struct.pack(f"!2i2qi{spec.size}f{spec.size}f",
+                message = struct.pack(f"!5i{spec.size}f{spec.size}f",
                                       sps,  # 4bytes
                                       centre,  # 4bytes
-                                      time_start,  # 8bytes
-                                      time_end,  # 8bytes
+                                      time_start,  # 4bytes
+                                      time_end,  # 4bytes
                                       spec.size,  # 4bytes (N)
                                       *spec,  # N * 4byte floats (32bit)
                                       *peak)  # N * 4byte floats (32bit)
 
                 await websocket.send(message)
-                await asyncio.sleep(1 / 20.0)  # max 20fps, so wait around this long before checking again
+                await asyncio.sleep(1)
             except queue.Empty:
                 # unlikely to every keep up so shouldn't end up here
                 await asyncio.sleep(0.1)
