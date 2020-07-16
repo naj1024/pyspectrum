@@ -26,6 +26,11 @@ This will install your dependencies. To start the app in dev mode run:
 
 This will build and serve the web app and allow hot reloading (rebuilds on saving).
 
+## Chart library used
+
+- https://www.npmjs.com/package/react-charts
+- https://react-charts.js.org/examples/brushing
+
 ---
 
 ## Available Scripts
