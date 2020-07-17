@@ -60,8 +60,7 @@ def main() -> None:
         quit()
 
     # configure us
-    data_source, display, display_queue, control_queue, processor, plugin_manager, source_factory = initialise(
-        configuration)
+    data_source, display, display_queue, control_queue, processor, plugin_manager, source_factory = initialise(configuration)
 
     # expected time to get samples
     expected_samples_receive_time = configuration.fft_size / configuration.sample_rate
@@ -80,9 +79,6 @@ def main() -> None:
     process_time = Ewma.Ewma(0.01)
     debug_time = 0
     reconnect_count = 0
-
-    web = WebServer.WebServer(display_queue, control_queue)
-    web.start()
 
     # keep processing until told to stop or an error occurs
     loop_count = 0
@@ -236,10 +232,15 @@ def initialise(configuration: Variables):
         # The main processor for producing ffts etc
         processor = ProcessSamples.ProcessSamples(configuration)
 
-        # the display
+        # Queues for display
         data_queue = multiprocessing.Queue()
         control_queue = multiprocessing.Queue()
-        display = display_create(configuration, data_queue, control_queue, data_source.get_display_name())
+
+        if configuration.web_display:
+            display = WebServer.WebServer(data_queue, control_queue)
+            display.start()
+        else:
+            display = display_create(configuration, data_queue, control_queue, data_source.get_display_name())
 
         # plugins, pass in all the variables as we don't know what the plugin may require
         plugin_manager = PluginManager.PluginManager(plugin_init_arguments=vars(configuration))
@@ -345,7 +346,9 @@ def parse_command_line(configuration: Variables) -> None:
     misc_opts = parser.add_argument_group('Misc')
     misc_opts.add_argument('-F', '--fftSize', type=int, help=f'Size of FFT (default: {configuration.fft_size})',
                            default=configuration.fft_size, required=False)
-    misc_opts.add_argument('-E', '--spectrogram', help=f'Add a spectrogram display',
+    misc_opts.add_argument('-E', '--spectrogram', help=f'Add a spectrogram display to the matplot lib display',
+                           default=False, required=False, action='store_true')
+    misc_opts.add_argument('-w', '--web', help=f'Webserver display instead of the local matplotlib display',
                            default=False, required=False, action='store_true')
     misc_opts.add_argument('-k', '--nopeak', help=f'No peak hold for spectrums dropped before display',
                            default=False, required=False, action='store_true')
@@ -409,6 +412,9 @@ def parse_command_line(configuration: Variables) -> None:
 
     if args['spectrogram']:
         configuration.spectrogram_flag = args['spectrogram']
+
+    if args['web']:
+        configuration.web_display = args['web']
 
     if args['nopeak']:
         configuration.spectral_peak_hold = not args['nopeak']

@@ -1,6 +1,9 @@
 'use strict';
 
 async function handleData(spectrum, binary_blob_data) {
+    // extract the data out of the binary blob, been packed up by the [ython in astruct.
+    // See the python WebSocketServer code for the format of the blob
+
     let buffer = await binary_blob_data.arrayBuffer();
 
     // data is network order, i.e. big endian
@@ -34,12 +37,15 @@ async function handleData(spectrum, binary_blob_data) {
         index += 4;
     }
 
-    // console.log(sps+" "+cf+" "+time_start+" "+time_end+" "+num_floats+" "+magnitudes[0]);
-    spectrum.addData(magnitudes);
+    // tell the spectrum how the data is configured
+    spectrum.setSpanHz(sps);
+    spectrum.setCenterHz(cf);
+    spectrum.addData(magnitudes, peaks);
 }
 
 function connectWebSocket(spectrum) {
-    var ws = new WebSocket("ws://127.0.0.1:5555/")
+    let server_hostname = window.location.hostname;
+    let ws = new WebSocket("ws://"+server_hostname+":5555/")
     ws.onopen = function(event) {
         console.log("WebSocket connected");
     }
@@ -61,13 +67,13 @@ function main() {
     // Create spectrum object on canvas with ID "waterfall"
     var spectrum = new Spectrum(
         "spectrumanalyser", {
-            spectrumPercent: 20
+            spectrumPercent: 50
     });
 
     // Connect to websocket
     connectWebSocket(spectrum);
 
-    // Bind keypress handler
+    // Bind keypress handler, lots of key options for controlling the spectrum, TODO: convert to buttons
     window.addEventListener("keydown", function (e) {
         spectrum.onKeypress(e);
     });

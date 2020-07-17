@@ -21,7 +21,7 @@ class WebSocketServer(multiprocessing.Process):
         self._control_queue = control_queue
 
     def run(self):
-        start_server = websockets.serve(self.time_processor, "127.0.0.1", 5555)
+        start_server = websockets.serve(self.serve_connection, "0.0.0.0", 5555)
 
         asyncio.get_event_loop().run_until_complete(start_server)
         asyncio.get_event_loop().run_forever()
@@ -29,19 +29,22 @@ class WebSocketServer(multiprocessing.Process):
         print("WebSocket server process exited")
         return
 
-    async def time_processor(self, websocket, path):
+    async def serve_connection(self, websocket, path):
+        print(f"Serving client at {websocket.remote_address}")
         while True:
             try:
                 # timeout on queue read so we can, if we wanted to, exit our forever loop
                 display_on, sps, centre, spec, peak, time_start, time_end = self._data_queue.get(timeout=0.1)
 
+                num_floats=int(spec.size)
                 # pack the data up in binary, watch out for sizes
-                message = struct.pack(f"!5i{spec.size}f{spec.size}f",
+                # ignoring times for now as still to handle 8byte ints in javascript
+                message = struct.pack(f"!5i{num_floats}f{num_floats}f",
                                       int(sps),  # 4bytes
                                       int(centre),  # 4bytes
                                       int(1000),  # 4bytes
                                       int(2000),  # 4bytes
-                                      spec.size,  # 4bytes (N)
+                                      num_floats,  # 4bytes (N)
                                       *spec,  # N * 4byte floats (32bit)
                                       *peak)  # N * 4byte floats (32bit)
 

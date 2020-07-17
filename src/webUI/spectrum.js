@@ -2,6 +2,8 @@
  * Copyright (c) 2019 Jeppe Ledet-Pedersen
  * This software is released under the MIT license.
  * See the LICENSE file for further details.
+ *
+ * Modified from original, not a lot though
  */
 
 'use strict';
@@ -151,7 +153,7 @@ Spectrum.prototype.updateAxes = function() {
         this.ctx_axes.beginPath();
         this.ctx_axes.moveTo(20, y);
         this.ctx_axes.lineTo(width, y);
-        this.ctx_axes.strokeStyle = "rgba(200, 200, 200, 0.10)";
+        this.ctx_axes.strokeStyle = "rgba(200, 200, 200, 0.90)";
         this.ctx_axes.stroke();
     }
 
@@ -187,17 +189,24 @@ Spectrum.prototype.updateAxes = function() {
     }
 }
 
-Spectrum.prototype.addData = function(data) {
+Spectrum.prototype.addData = function(magnitudes, peaks) {
     if (!this.paused) {
-        if (data.length != this.wf_size) {
-            this.wf_size = data.length;
-            this.ctx_wf.canvas.width = data.length;
+        // magnitudes are frOm a single fft, peaks are from all the fft magnitudes since the last update
+        // both magnitudes and peaks are same length
+        if (magnitudes.length != this.wf_size) {
+            this.wf_size = magnitudes.length;
+            this.ctx_wf.canvas.width = magnitudes.length;
             this.ctx_wf.fillStyle = "black";
             this.ctx_wf.fillRect(0, 0, this.wf.width, this.wf.height);
-            this.imagedata = this.ctx_wf.createImageData(data.length, 1);
+            this.imagedata = this.ctx_wf.createImageData(magnitudes.length, 1);
         }
-        this.drawSpectrum(data);
-        this.addWaterfallRow(data);
+        if (this.live_magnitudes) {
+            this.drawSpectrum(magnitudes);
+            this.addWaterfallRow(magnitudes);
+        } else {
+            this.drawSpectrum(peaks);
+            this.addWaterfallRow(peaks);
+        }
         this.resize();
     }
 }
@@ -327,6 +336,14 @@ Spectrum.prototype.toggleMaxHold = function() {
     this.setMaxHold(!this.maxHold);
 }
 
+Spectrum.prototype.setLiveMags = function(live) {
+    this.live_magnitudes = live
+}
+
+Spectrum.prototype.toggleLive = function() {
+    this.setLiveMags(!this.live_magnitudes);
+}
+
 Spectrum.prototype.toggleFullscreen = function() {
     if (!this.fullscreen) {
         if (this.canvas.requestFullscreen) {
@@ -378,6 +395,8 @@ Spectrum.prototype.onKeypress = function(e) {
         this.decrementAveraging();
     } else if (e.key == "m") {
         this.toggleMaxHold();
+    } else if (e.key == "l") {
+        this.toggleLive();
     }
 }
 
@@ -392,16 +411,19 @@ function Spectrum(id, options) {
     this.averaging = (options && options.averaging) ? options.averaging : 0;
     this.maxHold = (options && options.maxHold) ? options.maxHold : false;
 
+    // live magnitude spectrum or default of peaks over all spectrums seen since last spectrum
+    this.live_magnitudes = (options && options.live_magnitudes) ? options.live_magnitudes : false;
+
     // Setup state
     this.paused = false;
     this.fullscreen = false;
-    this.min_db = -60;
+    this.min_db = -70;
     this.max_db = 20;
     this.spectrumHeight = 0;
 
     // Colors
     this.colorindex = 0;
-    this.colormap = colormaps[0];
+    this.colormap = colormaps[2];
 
     // Create main canvas and adjust dimensions to match actual
     this.canvas = document.getElementById(id);
