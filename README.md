@@ -73,6 +73,10 @@ Some examples for running from command line, drop the --ignore-gooey if you don'
     python ./src/SpectrumAnalyser.py -isoapy:audio -s48000 -c0 -E
 
     python ./src/SpectrumAnalyser.py -isoapy:sdrplay -s2e6 c433.92e6 -F2048 -E
+    
+    python ./src/SpectrumAnalyser.py -isoapy:sdrplay -s2e6 c433.92e6 -F2048 -w  
+          
+          this last oneis the WEB interface on 127.0.0.1:8080
 
 
 ## Dependencies
