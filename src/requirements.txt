@@ -26,5 +26,6 @@ scipy==1.5.1
 six==1.15.0
 sounddevice==0.3.15
 wcwidth==0.2.5
+websockets==8.1
 wxPython==4.0.7
 zipp==3.1.0
