@@ -18,6 +18,9 @@ class Variables:
         self.spectrogram_flag = False  # default, no spectrogram
         self.spectral_peak_hold = True  # default is to peak hold on spectrums NOT sent to the display
 
+        # web display
+        self.web_display = False
+
         # where the data comes from
         self.input_type = "?"  # the source type e.g. file, socket, pluto, soapy, rtlsdr, audio ....
         self.input_name = ""  # the parameters for the source, e.g. filename or ip address ...
