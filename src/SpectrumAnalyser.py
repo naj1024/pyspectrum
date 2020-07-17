@@ -27,6 +27,7 @@ from misc import Ewma
 from misc import PluginManager
 from misc import Variables
 from commandlineUI import gooey_ui
+from webUI import WebServer
 
 processing = True  # global to be set to False from ctrl-c
 
@@ -79,6 +80,9 @@ def main() -> None:
     process_time = Ewma.Ewma(0.01)
     debug_time = 0
     reconnect_count = 0
+
+    web = WebServer.WebServer(display_queue, control_queue)
+    web.start()
 
     # keep processing until told to stop or an error occurs
     loop_count = 0

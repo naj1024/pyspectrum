@@ -112,7 +112,7 @@ class Input(DataSource.DataSource):
 
         self._socket = None
         self._connected = False
-        self._tuner_type_str = "NotFound"
+        self._tuner_type_str = "Unknown_Tuner"
 
     def reconnect(self) -> bool:
         """

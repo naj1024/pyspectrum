@@ -10,7 +10,7 @@ venv/
 
 # digitised sample files
 *.8t
-*.80
+*.8o
 *.16tle
 *.16tbe
 *.wav

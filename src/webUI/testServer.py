@@ -4,6 +4,7 @@ import asyncio
 import multiprocessing
 import queue
 import struct
+import math
 
 import numpy as np
 import websockets
@@ -32,20 +33,23 @@ class TestWebSocketServer(multiprocessing.Process):
             try:
                 sps: int = 123
                 centre: int = 456
-                spec = np.random.rand(7)
-                peak = np.random.rand(7)
-                time_start: int = 24
+                num_floats = 2048
+                mags = np.random.rand(num_floats)
+                mags = 10 * np.log10(mags)
+                peaks = np.random.rand(num_floats)
+                peaks = 10 * np.log10(peaks)
+                time_start: int = 24  # supposed to be 8bytes but js doesn't have a converter for things that big
                 time_end: int = 36
 
                 # pack the data up in binary, watch out for sizes
-                message = struct.pack(f"!5i{spec.size}f{spec.size}f",
+                message = struct.pack(f"!5i{num_floats}f{num_floats}f",
                                       sps,  # 4bytes
                                       centre,  # 4bytes
                                       time_start,  # 4bytes
                                       time_end,  # 4bytes
-                                      spec.size,  # 4bytes (N)
-                                      *spec,  # N * 4byte floats (32bit)
-                                      *peak)  # N * 4byte floats (32bit)
+                                      num_floats,  # 4bytes (N)
+                                      *mags,  # N * 4byte floats (32bit)
+                                      *peaks)  # N * 4byte floats (32bit)
 
                 await websocket.send(message)
                 await asyncio.sleep(1)
