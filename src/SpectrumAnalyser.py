@@ -346,9 +346,9 @@ def parse_command_line(configuration: Variables) -> None:
     misc_opts = parser.add_argument_group('Misc')
     misc_opts.add_argument('-F', '--fftSize', type=int, help=f'Size of FFT (default: {configuration.fft_size})',
                            default=configuration.fft_size, required=False)
-    misc_opts.add_argument('-E', '--spectrogram', help=f'Add a spectrogram display to the matplot lib display',
+    misc_opts.add_argument('-E', '--spectrogram', help=f'Add a spectrogram display to the matplotlib display',
                            default=False, required=False, action='store_true')
-    misc_opts.add_argument('-w', '--web', help=f'Webserver display instead of the local matplotlib display',
+    misc_opts.add_argument('-w', '--web', help=f'Web browser display instead of the matplotlib display',
                            default=False, required=False, action='store_true')
     misc_opts.add_argument('-k', '--nopeak', help=f'No peak hold for spectrums dropped before display',
                            default=False, required=False, action='store_true')

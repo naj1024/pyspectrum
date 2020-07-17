@@ -56,7 +56,7 @@ function connectWebSocket(spectrum) {
         }, 1000);
     }
     ws.onerror = function(event) {
-        console.log("WebSocket error: " + evt.message);
+        console.log("WebSocket error: " + event.message);
     }
     ws.onmessage = function (event) {
         handleData(spectrum, event.data)

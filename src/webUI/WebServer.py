@@ -13,6 +13,9 @@ web_root = os.path.dirname(__file__)
 
 
 class _Handler(http.server.SimpleHTTPRequestHandler):
+    """
+    Handle a connection
+    """
     def __init__(self, *args, **kwargs):
         global web_root
         super().__init__(*args, directory=web_root, **kwargs)
@@ -27,6 +30,12 @@ class WebServer(multiprocessing.Process):
     def __init__(self,
                  data_queue: multiprocessing.Queue,
                  control_queue: multiprocessing.Queue):
+        """
+        Initialise the web server
+
+        :param data_queue: The queue data will arrive on, we do not use it but pass it to a web socket server
+        :param control_queue: Data back from whatever is the UI, not used yet
+        """
         multiprocessing.Process.__init__(self)
 
         # queues are for the web socket, not used in the web server
@@ -34,7 +43,11 @@ class WebServer(multiprocessing.Process):
         self._control_queue = control_queue
 
     def run(self):
-        #  must be done here not in __init__
+        """
+        Run the web server process
+        :return: None
+        """
+        #  must be done here not in __init__ as otherwise fork/etc would stop it working as expected
         web_socket_server = WebSocketServer.WebSocketServer(self._data_queue, self._control_queue)
         web_socket_server.start()
 
@@ -45,7 +58,3 @@ class WebServer(multiprocessing.Process):
 
         print("Web server process exited")
         return
-
-
-if __name__ == '__main__':
-    WebServer()

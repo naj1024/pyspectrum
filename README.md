@@ -17,6 +17,11 @@ The display is fairly rudimentary, implemented in matplotlib. There are  mouse c
 The display runs as a separate process (not thread) so that we don't have problems with the display 
 taking processing time from the input data.
 
+There is a second display option with pages being served from an inbuilt webserver. A websocket
+interface is then used to pass data from the python to the javascript in the browser. The web server
+and the websocket servers run as separate processes and we use the same queue as we did for the matplotlib
+display.
+
 Speed wise it will depend on your machine. I have certainly kept up with streams of data at over 2Msps.
 The display gets updated between 10 and 20fps. The idea is to run real time, i.e. we are going to 
 compute an FFT for the sample rate given and just update the display when we can. We remember all 
@@ -140,7 +145,7 @@ The following was done on a not very clean V4.2 image from https://github.com/lu
 ## TODO
  
     * Convert inputs to a streaming interfaces.
-    * Make a proper GUI, maybe web based.
+    * Make a proper GUI, maybe web based - beginings are done.
     * Add control back from the display process.
     * Allow retune of CF, sample rate and FFT size. FFT size changes cause my matplotlib code to get horribly confused. 
     * Drop receiver outputs

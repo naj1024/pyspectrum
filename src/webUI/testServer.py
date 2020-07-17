@@ -4,7 +4,6 @@ import asyncio
 import multiprocessing
 import queue
 import struct
-import math
 
 import numpy as np
 import websockets
@@ -12,14 +11,14 @@ import websockets
 
 class TestWebSocketServer(multiprocessing.Process):
     """
-    The websocket server.
+    The web socket server.
     """
 
     def __init__(self):
         multiprocessing.Process.__init__(self)
 
     def run(self):
-        print("Starting test websocket server")
+        print("Starting test web socket server")
         start_server = websockets.serve(self.time_processor, "127.0.0.1", 5555)
 
         asyncio.get_event_loop().run_until_complete(start_server)
@@ -28,7 +27,7 @@ class TestWebSocketServer(multiprocessing.Process):
         print("WebSocket server process exited")
         return
 
-    async def time_processor(self, websocket, path):
+    async def time_processor(self, web_socket, path):
         while True:
             try:
                 sps: int = 123
@@ -51,7 +50,7 @@ class TestWebSocketServer(multiprocessing.Process):
                                       *mags,  # N * 4byte floats (32bit)
                                       *peaks)  # N * 4byte floats (32bit)
 
-                await websocket.send(message)
+                await web_socket.send(message)
                 await asyncio.sleep(1)
             except queue.Empty:
                 # unlikely to every keep up so shouldn't end up here
