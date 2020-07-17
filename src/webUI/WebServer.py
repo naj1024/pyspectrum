@@ -4,18 +4,24 @@ import http.server
 import socketserver
 import os
 import multiprocessing
+import logging
+import time
+import signal
 
 from webUI import WebSocketServer
 
-PORT = 8080
 # root is directory relative to our source file
-web_root = os.path.dirname(__file__)
+web_root = f"{os.path.dirname(__file__)}/webroot/"
+
+logger = logging.getLogger('web_server_logger')
+logger.setLevel(logging.ERROR)
 
 
 class _Handler(http.server.SimpleHTTPRequestHandler):
     """
     Handle a connection
     """
+
     def __init__(self, *args, **kwargs):
         global web_root
         super().__init__(*args, directory=web_root, **kwargs)
@@ -29,32 +35,56 @@ class WebServer(multiprocessing.Process):
 
     def __init__(self,
                  data_queue: multiprocessing.Queue,
-                 control_queue: multiprocessing.Queue):
+                 control_queue: multiprocessing.Queue,
+                 log_level: int):
         """
         Initialise the web server
 
         :param data_queue: The queue data will arrive on, we do not use it but pass it to a web socket server
         :param control_queue: Data back from whatever is the UI, not used yet
+        :param log_level: The logging level we wish to use
         """
         multiprocessing.Process.__init__(self)
 
         # queues are for the web socket, not used in the web server
         self._data_queue = data_queue
         self._control_queue = control_queue
+        self._port = 8080
+        self._httpd = None
+        self._web_socket_server = None
+        logger.setLevel(log_level)
+
+    def shutdown(self):
+        if self._httpd:
+            self._httpd.shutdown()
+        if self._web_socket_server:
+            self._web_socket_server.exit_loop()
+            while self._web_socket_server.is_alive():
+                self._web_socket_server.kill()
+                time.sleep(1)
+
+    def signal_handler(self, sig, __):
+        self.shutdown()
 
     def run(self):
         """
         Run the web server process
         :return: None
         """
+        # as we are in a separate process the thing that spawned us can't call shutdown correctly
+        # but it can send us a signal, then we can shutdown our self
+        signal.signal(signal.SIGINT, self.signal_handler)
+
+        logger.info(f"We server serving on port {self._port}")
+
         #  must be done here not in __init__ as otherwise fork/etc would stop it working as expected
-        web_socket_server = WebSocketServer.WebSocketServer(self._data_queue, self._control_queue)
-        web_socket_server.start()
+        self._web_socket_server = WebSocketServer.WebSocketServer(self._data_queue, self._control_queue, logger.level)
+        self._web_socket_server.start()
 
         global web_root
-        print(f"serving {web_root} on port {PORT}")
-        with socketserver.TCPServer(("", PORT), _Handler) as httpd:
-            httpd.serve_forever()
+        logger.info(f"web server serving {web_root} on port {self._port}")
+        with socketserver.TCPServer(("", self._port), _Handler) as self._httpd:
+            self._httpd.serve_forever()
 
-        print("Web server process exited")
+        logger.error("Web server process exited")
         return

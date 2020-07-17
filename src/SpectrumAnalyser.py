@@ -40,9 +40,10 @@ logger.setLevel(logging.WARNING)
 time_first_spectrum: float = 0
 
 
-def signal_handler(_, __):
+def signal_handler(sig, __):
     global processing
     processing = False
+    print("Received signal", sig)
 
 
 # uncomment if you want the gooey commandlineUI wrapped command line
@@ -186,15 +187,16 @@ def main() -> None:
 
     if display:
         if multiprocessing.active_children():
-            display.terminate()
-            if not display_queue.qsize():
-                # push something on so thread can exit
-                display_queue.put((False, [], [], [], []))
+            # belt and braces
+            display.kill()
+            display.shutdown()
             display.join()
+
     if display_queue:
         # display_queue.close()
         while not display_queue.empty():
             _ = display_queue.get()
+            
     print("exit")
 
 
@@ -237,7 +239,7 @@ def initialise(configuration: Variables):
         control_queue = multiprocessing.Queue()
 
         if configuration.web_display:
-            display = WebServer.WebServer(data_queue, control_queue)
+            display = WebServer.WebServer(data_queue, control_queue, logger.level)
             display.start()
         else:
             display = display_create(configuration, data_queue, control_queue, data_source.get_display_name())

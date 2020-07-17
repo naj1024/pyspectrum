@@ -58,7 +58,12 @@ class DisplayProcessor(multiprocessing.Process):
         self._sps = sps
         self._centre_frequency = centre_frequency
 
-    def terminate(self) -> None:
+    def shutdown(self) -> None:
+        """
+        Shutdown the display server. This is called shutdown() to duplicate the socket shutdown method
+
+        :return: None
+        """
         self._exit_now.set()
 
     def run(self):
