@@ -98,6 +98,12 @@ The following python modules should be installed. Optional ones provide specific
         gooey       - simple UI over the comamnd line options
 
 
+If you don't mind installing them all then you can run:
+
+```
+pip3 install -r src/requirements.txt
+```
+
 ## Raspberry Pi
 
 This will run on a raspberry Pi, but **very** slowly. Much better solution is to run something like rtl_tcp 
