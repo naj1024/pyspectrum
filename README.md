@@ -88,6 +88,7 @@ The following python modules should be installed. Optional ones provide specific
     Required:
         numpy
         matplotlib
+        websockets
         
     Testing:
         pytest
