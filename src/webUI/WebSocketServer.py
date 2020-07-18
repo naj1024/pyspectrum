@@ -89,5 +89,3 @@ class WebSocketServer(multiprocessing.Process):
                     await asyncio.sleep(0.1)
         except Exception as msg:
             logger.info(f"web socket ended for {client}, {msg}")
-
-        print("Web socket client exited")
