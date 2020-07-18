@@ -13,17 +13,19 @@ sdr platforms have to do.
 
 ### There are three options for display
 
-    #### matplotlib - The first display written
+* matplotlib - The first display written
+        
         This display is fairly rudimentary, but should work everywhere. There are mouse controlled
         options. The display runs as a separate process (not thread) so that we don't have problems
         with the display taking processing time from the input data.
    
-    #### web - The second display written, using a specrum.js found on github.
+* web - The second display written, using [specrum.js](https://github.com/jledet/waterfall) from another repo
+        
         A websocket is used to pass data from the python to the javascript in the browser.
         The web server and the websocket servers run as separate processes and we use the same queue 
         as we did for the matplotlib display.
         
-    #### react - work in progress
+* react - work in progress
 
 Performance wise it will depend on your machine. I have certainly kept up with streams of data at over 2Msps.
 The display gets updated between 10 and 20fps. The idea is to run real time, i.e. we are going to 
