@@ -23,7 +23,7 @@ class Input(DataSource.DataSource):
     """ A class that will be used to service a socket, client or server
 
      Provides numpy arrays of complex float samples
-     TODO: When we are a server AND we have a display then we fail to bind when the socket has to reconnect
+     TODO: When we are a server AND we have a matplotlib_ui then we fail to bind when the socket has to reconnect
      """
 
     def __init__(self,
@@ -107,7 +107,7 @@ class Input(DataSource.DataSource):
             else:
                 logger.debug(f"Listening on port {self._ip_port}")
                 self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                # this bind fails with socket already in use IF we have a display running, why?
+                # this bind fails with socket already in use IF we have a matplotlib_ui running, why?
                 self._socket.bind((self._ip_address, self._ip_port))
                 self._socket.listen()
                 self._served_connection, _ = self._socket.accept()

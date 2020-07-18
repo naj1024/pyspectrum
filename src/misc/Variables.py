@@ -14,11 +14,11 @@ class Variables:
         self.sample_types = ["8t", "16tle", "16tbe"]  # supported sample formats for conversion to complex 32f
         self.sample_type = '16tbe'  # default Format of sample data
 
-        # the spectral display
+        # the spectral matplotlib_ui
         self.spectrogram_flag = False  # default, no spectrogram
-        self.spectral_peak_hold = True  # default is to peak hold on spectrums NOT sent to the display
+        self.spectral_peak_hold = True  # default is to peak hold on spectrums NOT sent to the matplotlib_ui
 
-        # web display
+        # web matplotlib_ui
         self.web_display = False
 
         # where the data comes from

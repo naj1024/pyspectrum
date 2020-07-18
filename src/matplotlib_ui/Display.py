@@ -28,7 +28,7 @@ class Timestamps:
 
 
 class Display:
-    """A simple class to display data
+    """A simple class to matplotlib_ui data
 
     TODO: Can't handle changes to width while running
     """
@@ -63,11 +63,11 @@ class Display:
 
         # not sure if we need this forcing of the TkAgg backend
         if matplotlib.get_backend() != "TkAgg":
-            print("Changing display backend from: ", matplotlib.get_backend())
+            print("Changing matplotlib_ui backend from: ", matplotlib.get_backend())
             matplotlib.use("TkAgg")
             print("Display backend now: ", matplotlib.get_backend())
 
-        # things that define our display window
+        # things that define our matplotlib_ui window
         self._window_title = f"Spectrum Analyser from {name}"
         self._display_width = width
         self._sps = sps
@@ -96,7 +96,7 @@ class Display:
         self._x_res = 0
         self.set_x_units()
 
-        # a nice string that says what the display properties are
+        # a nice string that says what the matplotlib_ui properties are
         info_str = self.get_window_info_string()
 
         self._max_freq = 0
@@ -142,7 +142,7 @@ class Display:
         self._figure.canvas.mpl_connect('pick_event', self._process_legend_click)
 
     def create_traces(self):
-        # initial trace contents, so that we can use  use set_ydata() to update the display
+        # initial trace contents, so that we can use  use set_ydata() to update the matplotlib_ui
         x_values = np.linspace(self._min_freq, self._max_freq, self._display_width)
         y_values = np.full(self._display_width, self._max_y)
         spectrum_trace = self._spectrums.plot(x_values, y_values, ls='-', lw=1, label='live', color='blue')[0]
@@ -251,7 +251,7 @@ class Display:
         self._spectrums.grid(True)
 
     def get_window_info_string(self):
-        # basic information about the spectral display
+        # basic information about the spectral matplotlib_ui
         # work out a sensible value for displaying the RBW
         bw, bw_units, rbw, rbw_units = self.set_bw_units()
         return f'CF:{(self._centre_frequency / self._x_scale):0.{self._x_res}f}' \
@@ -323,7 +323,7 @@ class Display:
 
     def keep_display_responsive(self) -> None:
         """
-        Used to keep the display responding to mouse events when we have no update_plot()
+        Used to keep the matplotlib_ui responding to mouse events when we have no update_plot()
         :return: None
         """
         if plt.fignum_exists(self._figure.number):
@@ -343,7 +343,7 @@ class Display:
         :param peak_detected: The peak detect
         :param time_start: Time that this spectrum starts
         :param time_end: Time that this spectrum ends
-        :return: True if display is still present
+        :return: True if matplotlib_ui is still present
         """
 
         if current.size != self._display_width or sps != self._sps or centre != self._centre_frequency:

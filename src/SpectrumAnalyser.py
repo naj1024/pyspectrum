@@ -21,7 +21,7 @@ import numpy as np
 
 from dataSources import DataSourceFactory
 from dataSources import DataSource
-from display import DisplayProcessor
+from matplotlib_ui import DisplayProcessor
 from dataProcessing import ProcessSamples
 from misc import Ewma
 from misc import PluginManager
@@ -138,7 +138,7 @@ def main() -> None:
                                                             "centre_frequency_hz": configuration.centre_frequency_hz})
 
             ##########################
-            # Update the display
+            # Update the matplotlib_ui
             #################
             peak_powers_since_last_display, current_peak_count, max_peak_count = \
                 update_display(configuration,
@@ -151,7 +151,7 @@ def main() -> None:
                                max_peak_count,
                                time_rx)
 
-            peak_average.average(max_peak_count)  # average of number of count of spectrums between display updates
+            peak_average.average(max_peak_count)  # average of number of count of spectrums between matplotlib_ui updates
 
             complete_process_time_end = time.perf_counter()  # time for everything but data get
             process_time.average(complete_process_time_end - complete_process_time_start)
@@ -196,7 +196,7 @@ def main() -> None:
         # display_queue.close()
         while not display_queue.empty():
             _ = display_queue.get()
-            
+
     print("exit")
 
 
@@ -234,7 +234,7 @@ def initialise(configuration: Variables):
         # The main processor for producing ffts etc
         processor = ProcessSamples.ProcessSamples(configuration)
 
-        # Queues for display
+        # Queues for matplotlib_ui
         data_queue = multiprocessing.Queue()
         control_queue = multiprocessing.Queue()
 
@@ -289,7 +289,7 @@ def parse_command_line(configuration: Variables) -> None:
     parser = argparse.ArgumentParser(epilog='',
                                      formatter_class=argparse.RawDescriptionHelpFormatter,
                                      description=textwrap.dedent('''\
-        Provide a spectral display of a stream of digitised complex samples.
+        Provide a spectral matplotlib_ui of a stream of digitised complex samples.
         
         A variety of different input sources are supported
         
@@ -300,7 +300,7 @@ def parse_command_line(configuration: Variables) -> None:
         file input is used this sample rate may be recovered from the filename or
         from the meta data in a wav file.
         
-          The display has various mouse actions::
+          The matplotlib_ui has various mouse actions::
            Spectrum:    left   - Print frequency and power to stdout.
                                - Toggle trace visibility if mouse is near a legend line.
                         middle - Toggle visibilty of the frequency annotations.
@@ -310,7 +310,7 @@ def parse_command_line(configuration: Variables) -> None:
                         middle - Reset dB shift
                         right  - Pause spectrogram.
                         scroll - shift dB range up or down 
-           Elsewhere:   Any    - Toggle visibilty of legend in Spectrum display. 
+           Elsewhere:   Any    - Toggle visibilty of legend in Spectrum matplotlib_ui. 
         '''),
                                      )
 
@@ -348,11 +348,11 @@ def parse_command_line(configuration: Variables) -> None:
     misc_opts = parser.add_argument_group('Misc')
     misc_opts.add_argument('-F', '--fftSize', type=int, help=f'Size of FFT (default: {configuration.fft_size})',
                            default=configuration.fft_size, required=False)
-    misc_opts.add_argument('-E', '--spectrogram', help=f'Add a spectrogram display to the matplotlib display',
+    misc_opts.add_argument('-E', '--spectrogram', help=f'Add a spectrogram matplotlib_ui to the matplotlib matplotlib_ui',
                            default=False, required=False, action='store_true')
-    misc_opts.add_argument('-w', '--web', help=f'Web browser display instead of the matplotlib display',
+    misc_opts.add_argument('-w', '--web', help=f'Web browser matplotlib_ui instead of the matplotlib matplotlib_ui',
                            default=False, required=False, action='store_true')
-    misc_opts.add_argument('-k', '--nopeak', help=f'No peak hold for spectrums dropped before display',
+    misc_opts.add_argument('-k', '--nopeak', help=f'No peak hold for spectrums dropped before matplotlib_ui',
                            default=False, required=False, action='store_true')
     misc_opts.add_argument('-v', '--verbose', help='Verbose, -vvv debug, -vv info, -v warn', required=False,
                            action='count', default=0)
@@ -530,13 +530,13 @@ def update_display(configuration: Variables,
                    max_peak_count: int,
                    time_spectrum: float) -> Tuple[np.ndarray, int, int]:
     """
-    Send data to the queue used for talking to the display process
+    Send data to the queue used for talking to the matplotlib_ui process
 
     :param configuration: Our programme state variables
-    :param display_queue: The queue used for talking to the display process
-    :param control_queue: The queue used for control back from the display process
+    :param display_queue: The queue used for talking to the matplotlib_ui process
+    :param control_queue: The queue used for control back from the matplotlib_ui process
     :param powers: The powers of the spectrum bins
-    :param peak_powers_since_last_display: The powers since we last updated the display
+    :param peak_powers_since_last_display: The powers since we last updated the matplotlib_ui
     :param current_peak_count: count of spectrums we have peak held on
     :param max_peak_count: maximum since last time it was reset
     :param time_spectrum: Time of this spectrum in nano seconds
@@ -549,7 +549,7 @@ def update_display(configuration: Variables,
         # if we are keeping up then timings need to be altered
         if current_peak_count == 1:
             time_first_spectrum = time_spectrum
-        # Send the things to be displayed off to the display process
+        # Send the things to be displayed off to the matplotlib_ui process
         display_powers = np.fft.fftshift(powers)
         display_peaks = np.fft.fftshift(peak_powers_since_last_display)
         display_queue.put((True, configuration.sample_rate, configuration.centre_frequency_hz,
@@ -561,7 +561,7 @@ def update_display(configuration: Variables,
         peak_powers_since_last_display = powers
         time_first_spectrum = time_spectrum
     elif configuration.spectral_peak_hold:
-        # Record the maximum for each bin, so that display can show things between display updates
+        # Record the maximum for each bin, so that matplotlib_ui can show things between matplotlib_ui updates
         peak_powers_since_last_display = np.maximum.reduce([powers, peak_powers_since_last_display])
 
     current_peak_count += 1  # count even when we throw them away
@@ -587,13 +587,13 @@ def display_create(configuration: Variables,
                    control_queue: multiprocessing.Queue,
                    input_name: str) -> DisplayProcessor:
     """
-    Create the display process (NOT a thread)
+    Create the matplotlib_ui process (NOT a thread)
 
     :param configuration: Our state
-    :param display_queue: The queue we will use for talking to the created display process
-    :param control_queue: The queue we will use for the display to send back control
+    :param display_queue: The queue we will use for talking to the created matplotlib_ui process
+    :param control_queue: The queue we will use for the matplotlib_ui to send back control
     :param input_name: What the input is called
-    :return: The handle to the display process
+    :return: The handle to the matplotlib_ui process
     """
     window_title = f"{configuration.input_type} {input_name}"
     display = DisplayProcessor.DisplayProcessor(window_title,
@@ -621,7 +621,7 @@ def debug_print(expect_samples_receive_time: float,
     :param process_time: How long we have spent processing the samples
     :param sample_get_time: How long it took as to receive the digitised samples
     :param reconnect_count: How many times we have reconnected to our data source
-    :param peak_count: Count of how many spectrums we are peak detecting on for the display
+    :param peak_count: Count of how many spectrums we are peak detecting on for the matplotlib_ui
     :return: New last debug update time
     """
     # approx fps

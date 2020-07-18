@@ -2,7 +2,7 @@ import multiprocessing
 import math
 import queue
 
-from display import Display
+from matplotlib_ui import Display
 
 MAX_DISPLAY_QUEUE_DEPTH = 20
 
@@ -20,7 +20,7 @@ class DisplayProcessor(multiprocessing.Process):
     """
     Class that wraps the Display class up in something we can run as a separate process
 
-    We take data in from a Queue and pass it to the display
+    We take data in from a Queue and pass it to the matplotlib_ui
     We assume (!) that the queue will hold a Tuple of (spec, peak, threshold, annotations)
     The spec, peak and threshold will be of length display_width (the fft size)
     The annotations is a sparse list of bins we wish to show as being masked out
@@ -36,10 +36,10 @@ class DisplayProcessor(multiprocessing.Process):
                  spectrogram_flag: bool):
         """
 
-        :param name: A string that will be appended to the window title of the display
+        :param name: A string that will be appended to the window title of the matplotlib_ui
         :param data_queue: Where we get our data from
-        :param control_queue: For controls back from the display
-        :param display_width: The number of elements in the display, i.e. the fft size
+        :param control_queue: For controls back from the matplotlib_ui
+        :param display_width: The number of elements in the matplotlib_ui, i.e. the fft size
         :param sps: The digitisation rate in sps
         :param centre_frequency: The supposed centre frequency in Hz
         :param spectrogram_flag: Do we want a spectrogram or not
@@ -60,7 +60,7 @@ class DisplayProcessor(multiprocessing.Process):
 
     def shutdown(self) -> None:
         """
-        Shutdown the display server. This is called shutdown() to duplicate the socket shutdown method
+        Shutdown the matplotlib_ui server. This is called shutdown() to duplicate the socket shutdown method
 
         :return: None
         """
@@ -74,12 +74,12 @@ class DisplayProcessor(multiprocessing.Process):
         # nearest_mean = nearest_multiple_of_10(float(np.mean(spec)))
         nearest_mean = -40
 
-        # The display must be created here to make it mutable?
+        # The matplotlib_ui must be created here to make it mutable?
         display = self.create_display(self._display_width, self._sps, self._centre_frequency, nearest_mean)
 
         display_on = True
 
-        # The only thing that should now change on the display
+        # The only thing that should now change on the matplotlib_ui
         # are the contents of the individual traces
         while display_on and not self._exit_now.is_set():
             try:
@@ -87,8 +87,8 @@ class DisplayProcessor(multiprocessing.Process):
 
                 if display_on:
                     # TODO: fix this annoying feature
-                    #  If the width changes then destroy the current display and create a new one
-                    #  just can't get the width to change without and exception in the old display
+                    #  If the width changes then destroy the current matplotlib_ui and create a new one
+                    #  just can't get the width to change without and exception in the old matplotlib_ui
                     #  bit of a sledge hammer approach.
                     if spec.size != self._display_width:
                         display.close_display()
