@@ -8,22 +8,24 @@ Takes raw IQ samples from some sdr source to give a live spectrum with optional 
 This was an exercise in writing some python. There are speed penalties in keeping to python in this. 
 Getting the different SDR platforms to work is through libraries, some were tested on windows, some 
 were tested on Ubuntu Linux. Getting a driver to work can be challenging, gnu-radio even has support 
-that makes use outside gnu-radio almost impossible (iio).
+that makes use outside gnu-radio almost impossible (iio). Overall it gave me an idea of what the various 
+sdr platforms have to do.
 
-Overall it gave me an idea of what the various sdr platforms have to do. It would be nice to use
-web sockets to implement a different spectrum/spectrogram output. There are various examples that use
-web sockets around.
+###There are three options for display
 
-The display is fairly rudimentary, implemented in matplotlib. There are  mouse controlled options. 
-The display runs as a separate process (not thread) so that we don't have problems with the display 
-taking processing time from the input data.
+   ####matplotlib - The first display written
+        This display is fairly rudimentary, but should work everywhere. There are mouse controlled
+        options. The display runs as a separate process (not thread) so that we don't have problems
+        with the display taking processing time from the input data.
+   
+   ####web - The second display written, using a specrum.js found on github.
+        A websocket is used to pass data from the python to the javascript in the browser.
+        The web server and the websocket servers run as separate processes and we use the same queue 
+        as we did for the matplotlib display.
+        
+   ####react - work in progress
 
-There is a second display option with pages being served from an inbuilt webserver. A websocket
-interface is then used to pass data from the python to the javascript in the browser. The web server
-and the websocket servers run as separate processes and we use the same queue as we did for the matplotlib
-display.
-
-Speed wise it will depend on your machine. I have certainly kept up with streams of data at over 2Msps.
+Performance wise it will depend on your machine. I have certainly kept up with streams of data at over 2Msps.
 The display gets updated between 10 and 20fps. The idea is to run real time, i.e. we are going to 
 compute an FFT for the sample rate given and just update the display when we can. We remember all 
 FFT results between screen updates and do peak holding so that no peak is missed on the display. 
@@ -76,7 +78,7 @@ Some examples for running from command line, drop the --ignore-gooey if you don'
     
     python ./src/SpectrumAnalyser.py -isoapy:sdrplay -s2e6 c433.92e6 -F2048 -w  
           
-          this last oneis the WEB interface on 127.0.0.1:8080
+          this last one is the WEB interface on 127.0.0.1:8080
 
 
 ## Dependencies
