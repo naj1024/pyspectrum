@@ -2,8 +2,8 @@
 
 Takes raw IQ samples from some sdr source to give a live spectrum with optional spectrogram.
 
-<img alt="matplotlib UI" src="https://github.com/naj1024/pyspectrum/blob/master/screenShot.png?width=300" />
-<img alt="Web UI" src="https://github.com/naj1024/pyspectrum/blob/master/screenShot_web.png?width=300" />
+![Screenshot](screenShot.png)
+![Screenshot](screenShot_web.png)
 
 This was an exercise in writing some python. There are speed penalties in keeping to python in this. 
 Getting the different SDR platforms to work is through libraries, some were tested on windows, some 
