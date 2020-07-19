@@ -12,11 +12,11 @@ async function handleData(spectrum, binary_blob_data) {
     // and allow different views on the data
     let dataView = new DataView(data_bytes.buffer);
 
-    // 5 integers
+    // mixed int and floats
     let index = 0;
     let sps = dataView.getInt32((index), false);
     index += 4;
-    let cf = dataView.getInt32((index), false);
+    let cf = dataView.getFloat32((index), false);
     index += 4;
     let time_start = dataView.getInt32((index), false); // note - not populated currently for web
     index += 4;
@@ -39,7 +39,7 @@ async function handleData(spectrum, binary_blob_data) {
 
     // tell the spectrum how the data is configured
     spectrum.setSpanHz(sps);
-    spectrum.setCenterHz(cf);
+    spectrum.setCenterMHz(cf);
     spectrum.addData(magnitudes, peaks);
 }
 
@@ -77,6 +77,13 @@ function main() {
     window.addEventListener("keydown", function (e) {
         spectrum.onKeypress(e);
     });
+
+    // TODO: This should be part of spectrum.js
+    var canvas = document.getElementById('spectrumanalyser');
+    canvas.addEventListener('mousemove', function(evt) {
+        var mouse_ptr = getMouseValue(canvas, evt, spectrum);
+        writeText(canvas, (mouse_ptr.freq / 1e6).toFixed(3)+"MHz", mouse_ptr.x, mouse_ptr.y);
+      }, false);
 }
 
 window.onload = main;

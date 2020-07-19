@@ -144,6 +144,7 @@ Spectrum.prototype.updateAxes = function() {
     this.ctx_axes.fillStyle = "white";
     this.ctx_axes.textBaseline = "middle";
 
+    // y-axis labels
     this.ctx_axes.textAlign = "left";
     var step = 10;
     for (var i = this.min_db + 10; i <= this.max_db - 10; i += step) {
@@ -158,6 +159,7 @@ Spectrum.prototype.updateAxes = function() {
     }
 
     this.ctx_axes.textBaseline = "bottom";
+    // Eleven frequency labels on x-axis
     for (var i = 0; i < 11; i++) {
         var x = Math.round(width / 10) * i;
 
@@ -174,10 +176,18 @@ Spectrum.prototype.updateAxes = function() {
             }
 
             var freq = this.centerHz + this.spanHz / 10 * (i - 5);
-            if (this.centerHz + this.spanHz > 1e6)
-                freq = freq / 1e6 + "M";
-            else if (this.centerHz + this.spanHz > 1e3)
-                freq = freq / 1e3 + "k";
+            if (this.centerHz + this.spanHz > 1e9){
+                freq = freq / 1e9;
+                freq = freq.toFixed(3) + "G";
+            }
+            else if (this.centerHz + this.spanHz > 1e6){
+                freq = freq / 1e6;
+                freq = freq.toFixed(3) + "M";
+            }
+            else if (this.centerHz + this.spanHz > 1e3){
+                freq = freq / 1e3;
+                freq = freq.toFixed(3) + "k";
+            }
             this.ctx_axes.fillText(freq, x + adjust, height - 3);
         }
 
@@ -239,7 +249,6 @@ Spectrum.prototype.resize = function() {
         this.axes.height = this.spectrumHeight;
         this.updateAxes();
     }
-
 }
 
 Spectrum.prototype.setSpectrumPercent = function(percent) {
@@ -294,6 +303,11 @@ Spectrum.prototype.rangeDecrease = function() {
 
 Spectrum.prototype.setCenterHz = function(hz) {
     this.centerHz = hz;
+    this.updateAxes();
+}
+
+Spectrum.prototype.setCenterMHz = function(Mhz) {
+    this.centerHz = Math.trunc(Mhz * 1e6);
     this.updateAxes();
 }
 
@@ -397,6 +411,31 @@ Spectrum.prototype.onKeypress = function(e) {
         this.toggleMaxHold();
     } else if (e.key == "l") {
         this.toggleLive();
+    }
+}
+
+function writeText(canvas, message, x, y) {
+    var context = canvas.getContext('2d');
+    context.font = '12px sans-serif';
+    context.fillStyle = 'white';
+    context.fillText(message, x, y);
+}
+
+function getMouseValue(canvas, evt, spectrum) {
+    // TODO: handle paused, currently it fills the canvas with text, need some sort of overlay?
+    if (!spectrum.paused){
+        var rect = canvas.getBoundingClientRect();
+        let x_pos = evt.clientX - rect.left;
+        let per_hz = spectrum.spanHz / (rect.right - rect.left);
+        let freq_value = (spectrum.centerHz - (spectrum.spanHz / 2)) + (x_pos * per_hz);
+        // TODO get hold of power from spectrum or spectrogram
+        // return the frequency in Hz, the power and where we are on the display
+        return {
+              freq: freq_value,
+              power: 0,
+              x: x_pos,
+              y: evt.clientY - rect.top
+        };
     }
 }
 

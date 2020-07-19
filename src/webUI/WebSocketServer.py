@@ -70,12 +70,14 @@ class WebSocketServer(multiprocessing.Process):
                     # timeout on queue read so we can, if we wanted to, exit our forever loop
                     display_on, sps, centre, spec, peak, time_start, time_end = self._data_queue.get(timeout=0.1)
 
+                    centreMhz = float(centre)/1e6  # in MHz
+
                     num_floats = int(spec.size)
                     # pack the data up in binary, watch out for sizes
                     # ignoring times for now as still to handle 8byte ints in javascript
-                    message = struct.pack(f"!5i{num_floats}f{num_floats}f",
+                    message = struct.pack(f"!if3i{num_floats}f{num_floats}f",
                                           int(sps),  # 4bytes
-                                          int(centre),  # 4bytes
+                                          float(centreMhz),  # 4byte float (32bit)
                                           int(1000),  # 4bytes
                                           int(2000),  # 4bytes
                                           num_floats,  # 4bytes (N)
