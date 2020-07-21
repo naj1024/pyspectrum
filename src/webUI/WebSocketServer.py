@@ -5,11 +5,14 @@ import multiprocessing
 import queue
 import struct
 import logging
+import time
 
 import websockets
 
 logger = logging.getLogger('web_socket_logger')
 logger.setLevel(logging.ERROR)
+
+MAX_FPS = 20.0
 
 
 class WebSocketServer(multiprocessing.Process):
@@ -70,7 +73,7 @@ class WebSocketServer(multiprocessing.Process):
                     # timeout on queue read so we can, if we wanted to, exit our forever loop
                     display_on, sps, centre, spec, peak, time_start, time_end = self._data_queue.get(timeout=0.1)
 
-                    centreMhz = float(centre)/1e6  # in MHz
+                    centreMhz = float(centre) / 1e6  # in MHz
 
                     num_floats = int(spec.size)
                     # pack the data up in binary, watch out for sizes
@@ -84,10 +87,18 @@ class WebSocketServer(multiprocessing.Process):
                                           *spec,  # N * 4byte floats (32bit)
                                           *peak)  # N * 4byte floats (32bit)
 
+                    # send it off to the client
                     await web_socket.send(message)
-                    await asyncio.sleep(1 / 20.0)  # max 20fps, so wait around this long before checking again
+
+                    # wait 1/fps before proceeding - this limits us to this fps
+                    # sleep using asyncio allows web_socket to service connections etc
+                    end_time = time.time() + (1 / MAX_FPS)
+                    while (end_time - time.time()) > 0:
+                        await asyncio.sleep(1 / MAX_FPS)  # we will not sleep this long
+
                 except queue.Empty:
                     # unlikely to every keep up so shouldn't end up here
                     await asyncio.sleep(0.1)
+
         except Exception as msg:
             logger.info(f"web socket ended for {client}, {msg}")

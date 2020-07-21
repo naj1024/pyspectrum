@@ -112,7 +112,7 @@ class Input(DataSource.DataSource):
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
         complex_data = self._sdr.rx()  # the samples here are complex128 i.e. full doubles
-        rx_time = time.time_ns()
+        rx_time = self.get_time_ns()
         complex_data = complex_data / 4096.0  # 12bit
         complex_data = np.array(complex_data, dtype=np.complex64)  # if we need all values to be 32bit floats
         return complex_data, rx_time

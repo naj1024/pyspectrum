@@ -63,7 +63,40 @@ function connectWebSocket(spectrum) {
     }
 }
 
+function check_for_support(){
+    let ok="";
+    let test_canvas = document.createElement("canvas");
+    let canvas_ok=(test_canvas.getContext)? true:false;
+    if (!canvas_ok){
+        ok += ", No canvas";
+    }
+    let test_blob = new Blob(["hello"], {type: 'text/html'});
+    let blob_ok=(test_blob)? true:false;
+    if(!blob_ok){
+        ok+=", No blob";
+    }else{
+        try{
+            let test_blob_arrayBuffer = test_blob.arrayBuffer();
+            try{
+                let data_bytes = new Uint8Array(test_blob_arrayBuffer);
+                let dataView = new DataView(data_bytes.buffer);
+            } catch (err){
+                ok+=", No DataView";
+            }
+        }catch (err){
+            ok+=", No blob arrayBuffer";
+        }
+    }
+    return(ok);
+}
+
 function main() {
+    let not_supported=check_for_support();
+    if (not_supported != ""){
+        alert("Error: Required HTML support not found"+not_supported);
+        return;
+    }
+
     // Create spectrum object on canvas with ID "waterfall"
     var spectrum = new Spectrum(
         "spectrumanalyser", {
@@ -73,17 +106,28 @@ function main() {
     // Connect to websocket
     connectWebSocket(spectrum);
 
-    // Bind keypress handler, lots of key options for controlling the spectrum, TODO: convert to buttons
+    // Bind keypress handler, lots of key options for controlling the spectrum
     window.addEventListener("keydown", function (e) {
         spectrum.onKeypress(e);
     });
 
-    // TODO: This should be part of spectrum.js
+    // mlouse hover over for displaying the fre quency
     var canvas = document.getElementById('spectrumanalyser');
     canvas.addEventListener('mousemove', function(evt) {
         var mouse_ptr = getMouseValue(canvas, evt, spectrum);
-        writeText(canvas, (mouse_ptr.freq / 1e6).toFixed(3)+"MHz", mouse_ptr.x, mouse_ptr.y);
-      }, false);
+        if (mouse_ptr){
+            writeText(canvas, (mouse_ptr.freq / 1e6).toFixed(3)+"MHz", mouse_ptr.x, mouse_ptr.y);
+        }
+    }, false);
+
+    // buttons
+    var our_buttons = '<button type="button" id="pauseBut" data-toggle="button" class="btn btn-outline-dark btn-sm mr-1">Pause</button>';
+    our_buttons += '<button type="button" id="maxHoldBut" data-toggle="button" class="btn btn-outline-dark btn-sm mr-1">MaxHold</button>';
+    our_buttons += '<button type="button" id="peakBut" data-toggle="button" class="btn btn-outline-dark btn-sm mr-1">Peaks</button>';
+    $('#buttons').append(our_buttons);
+    $('#pauseBut').click(function() {spectrum.togglePaused();});
+    $('#maxHoldBut').click(function() {spectrum.toggleMaxHold();});
+    $('#peakBut').click(function() {spectrum.toggleLive();});
 }
 
 window.onload = main;

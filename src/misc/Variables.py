@@ -16,7 +16,6 @@ class Variables:
 
         # the spectral matplotlib_ui
         self.spectrogram_flag = False  # default, no spectrogram
-        self.spectral_peak_hold = True  # default is to peak hold on spectrums NOT sent to the matplotlib_ui
 
         # web matplotlib_ui
         self.web_display = False

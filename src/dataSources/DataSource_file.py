@@ -194,7 +194,7 @@ class Input(DataSource.DataSource):
                 else:
                     # get just the number of bytes we needs
                     raw_bytes = self._file.read(self._bytes_per_snap)
-                rx_time = time.time_ns()
+                rx_time = self.get_time_ns()
 
                 if len(raw_bytes) != self._bytes_per_snap:
                     self._connected = False

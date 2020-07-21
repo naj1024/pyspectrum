@@ -115,4 +115,4 @@ class Input(DataSource.DataSource):
         """
         global audio_q
         complex_data = audio_q.get()
-        return complex_data, time.time_ns()
+        return complex_data, self.get_time_ns()

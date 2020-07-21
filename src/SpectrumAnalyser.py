@@ -352,8 +352,6 @@ def parse_command_line(configuration: Variables) -> None:
                            default=False, required=False, action='store_true')
     misc_opts.add_argument('-w', '--web', help=f'Web browser matplotlib_ui instead of the matplotlib matplotlib_ui',
                            default=False, required=False, action='store_true')
-    misc_opts.add_argument('-k', '--nopeak', help=f'No peak hold for spectrums dropped before matplotlib_ui',
-                           default=False, required=False, action='store_true')
     misc_opts.add_argument('-v', '--verbose', help='Verbose, -vvv debug, -vv info, -v warn', required=False,
                            action='count', default=0)
     misc_opts.add_argument('-H', '--HELP', help='Full help (even within gooey)', required=False, action='store_true')
@@ -417,9 +415,6 @@ def parse_command_line(configuration: Variables) -> None:
 
     if args['web']:
         configuration.web_display = args['web']
-
-    if args['nopeak']:
-        configuration.spectral_peak_hold = not args['nopeak']
 
     if args['verbose']:
         if args['verbose'] > 2:
@@ -560,8 +555,8 @@ def update_display(configuration: Variables,
         current_peak_count = 0
         peak_powers_since_last_display = powers
         time_first_spectrum = time_spectrum
-    elif configuration.spectral_peak_hold:
-        # Record the maximum for each bin, so that matplotlib_ui can show things between matplotlib_ui updates
+    else:
+        # Record the maximum for each bin, so that ui can show things between matplotlib_ui updates
         peak_powers_since_last_display = np.maximum.reduce([powers, peak_powers_since_last_display])
 
     current_peak_count += 1  # count even when we throw them away

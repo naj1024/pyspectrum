@@ -359,6 +359,8 @@ Spectrum.prototype.toggleLive = function() {
 }
 
 Spectrum.prototype.toggleFullscreen = function() {
+    // TODO: Exit from full screen does not put the size back correctly
+    // This is full screen just for the spectrum & spectrogram
     if (!this.fullscreen) {
         if (this.canvas.requestFullscreen) {
             this.canvas.requestFullscreen();
@@ -428,11 +430,12 @@ function getMouseValue(canvas, evt, spectrum) {
         let x_pos = evt.clientX - rect.left;
         let per_hz = spectrum.spanHz / (rect.right - rect.left);
         let freq_value = (spectrum.centerHz - (spectrum.spanHz / 2)) + (x_pos * per_hz);
-        // TODO get hold of power from spectrum or spectrogram
+        let power_value = 0;
+        // TODO: get hold of power from spectrum or spectrogram
         // return the frequency in Hz, the power and where we are on the display
         return {
               freq: freq_value,
-              power: 0,
+              power: power_value,
               x: x_pos,
               y: evt.clientY - rect.top
         };

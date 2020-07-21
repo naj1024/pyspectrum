@@ -137,7 +137,7 @@ class Input(DataSource.DataSource):
             while len(raw_bytes) != self._bytes_per_snap:
                 got: bytearray = sock.recv(num_bytes_to_get)  # will get a MAXIMUM of this number of bytes
                 if rx_time == 0:
-                    rx_time = time.time_ns()
+                    rx_time = self.get_time_ns()
                 if len(got) == 0:
                     sock.close()
                     self._connected = False

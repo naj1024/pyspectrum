@@ -136,7 +136,7 @@ class Input(DataSource.DataSource):
 
             # set time stamp as first set of samples provided
             if index == 0:
-                rx_time = time.time_ns()
+                rx_time = self.get_time_ns()
                 if read.timeNs != 0:
                     rx_time = read.timeNs  # supported in some sdr drivers, but mostly not
 

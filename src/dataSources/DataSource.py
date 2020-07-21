@@ -1,4 +1,5 @@
 import logging
+import time
 
 import numpy as np
 
@@ -82,6 +83,13 @@ class DataSource:
 
     def get_sample_type(self):
         return self._data_type
+
+    def get_time_ns(self):
+        # python 3.7 and above has time.time_ns()
+        try:
+            return time.time_ns()
+        except Exception:
+            return time.time()
 
     def set_sample_type(self, data_type: str):
         """
