@@ -201,7 +201,7 @@ Spectrum.prototype.updateAxes = function() {
 
 Spectrum.prototype.addData = function(magnitudes, peaks) {
     if (!this.paused) {
-        // magnitudes are frOm a single fft, peaks are from all the fft magnitudes since the last update
+        // magnitudes are from a single fft, peaks are from all the fft magnitudes since the last update
         // both magnitudes and peaks are same length
         if (magnitudes.length != this.wf_size) {
             this.wf_size = magnitudes.length;
@@ -217,6 +217,7 @@ Spectrum.prototype.addData = function(magnitudes, peaks) {
             this.drawSpectrum(peaks);
             this.addWaterfallRow(peaks);
         }
+        this.writeMarker();
         this.resize();
     }
 }
@@ -416,20 +417,28 @@ Spectrum.prototype.onKeypress = function(e) {
     }
 }
 
-function writeText(canvas, message, x, y) {
-    var context = canvas.getContext('2d');
-    context.font = '12px sans-serif';
-    context.fillStyle = 'white';
-    context.fillText(message, x, y);
+Spectrum.prototype.setMarker = function(message, x, y) {
+    this.marker=message;
+    this.marker_x = x;
+    this.marker_y = y;
 }
 
-function getMouseValue(canvas, evt, spectrum) {
+Spectrum.prototype.writeMarker = function() {
+    if (self.message != "") {
+        var context = this.canvas.getContext('2d');
+        context.font = '12px sans-serif';
+        context.fillStyle = 'white';
+        context.fillText(this.marker, this.marker_x, this.marker_y);
+    }
+}
+
+Spectrum.prototype.getMouseValue = function(evt) {
     // TODO: handle paused, currently it fills the canvas with text, need some sort of overlay?
-    if (!spectrum.paused){
-        var rect = canvas.getBoundingClientRect();
+    if (!this.paused){
+        var rect = this.canvas.getBoundingClientRect();
         let x_pos = evt.clientX - rect.left;
-        let per_hz = spectrum.spanHz / (rect.right - rect.left);
-        let freq_value = (spectrum.centerHz - (spectrum.spanHz / 2)) + (x_pos * per_hz);
+        let per_hz = this.spanHz / (rect.right - rect.left);
+        let freq_value = (this.centerHz - (this.spanHz / 2)) + (x_pos * per_hz);
         let power_value = 0;
         // TODO: get hold of power from spectrum or spectrogram
         // return the frequency in Hz, the power and where we are on the display

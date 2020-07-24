@@ -16,6 +16,7 @@ import queue
 import logging
 from typing import Tuple
 import random
+import sys
 
 import numpy as np
 
@@ -49,6 +50,9 @@ def signal_handler(sig, __):
 # uncomment if you want the gooey commandlineUI wrapped command line
 @gooey_ui.Gooey(tabbed_groups=True, monospace_display=True)
 def main() -> None:
+    if sys.version_info < (3, 7):
+        logger.warning(f"Python version means sample timings are course, {sys.version}")
+
     global processing
     signal.signal(signal.SIGINT, signal_handler)
 
@@ -61,7 +65,8 @@ def main() -> None:
         quit()
 
     # configure us
-    data_source, display, display_queue, control_queue, processor, plugin_manager, source_factory = initialise(configuration)
+    data_source, display, display_queue, control_queue, processor, plugin_manager, source_factory = initialise(
+        configuration)
 
     # expected time to get samples
     expected_samples_receive_time = configuration.fft_size / configuration.sample_rate
@@ -151,7 +156,8 @@ def main() -> None:
                                max_peak_count,
                                time_rx)
 
-            peak_average.average(max_peak_count)  # average of number of count of spectrums between matplotlib_ui updates
+            peak_average.average(
+                max_peak_count)  # average of number of count of spectrums between matplotlib_ui updates
 
             complete_process_time_end = time.perf_counter()  # time for everything but data get
             process_time.average(complete_process_time_end - complete_process_time_start)
@@ -348,7 +354,8 @@ def parse_command_line(configuration: Variables) -> None:
     misc_opts = parser.add_argument_group('Misc')
     misc_opts.add_argument('-F', '--fftSize', type=int, help=f'Size of FFT (default: {configuration.fft_size})',
                            default=configuration.fft_size, required=False)
-    misc_opts.add_argument('-E', '--spectrogram', help=f'Add a spectrogram matplotlib_ui to the matplotlib matplotlib_ui',
+    misc_opts.add_argument('-E', '--spectrogram',
+                           help=f'Add a spectrogram matplotlib_ui to the matplotlib matplotlib_ui',
                            default=False, required=False, action='store_true')
     misc_opts.add_argument('-w', '--web', help=f'Web browser matplotlib_ui instead of the matplotlib matplotlib_ui',
                            default=False, required=False, action='store_true')

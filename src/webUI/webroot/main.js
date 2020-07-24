@@ -114,9 +114,9 @@ function main() {
     // mlouse hover over for displaying the fre quency
     var canvas = document.getElementById('spectrumanalyser');
     canvas.addEventListener('mousemove', function(evt) {
-        var mouse_ptr = getMouseValue(canvas, evt, spectrum);
+        var mouse_ptr = spectrum.getMouseValue(evt);
         if (mouse_ptr){
-            writeText(canvas, (mouse_ptr.freq / 1e6).toFixed(3)+"MHz", mouse_ptr.x, mouse_ptr.y);
+            spectrum.setMarker((mouse_ptr.freq / 1e6).toFixed(3)+"MHz", mouse_ptr.x, mouse_ptr.y);
         }
     }, false);
 
