@@ -91,7 +91,7 @@ Spectrum.prototype.drawSpectrum = function(bins) {
     }
 
     // Max hold
-    if (this.maxHold) {
+    if (this.maxHold && !this.pause) {
         if (!this.binsMax || this.binsMax.length != bins.length) {
             this.binsMax = Array.from(bins);
         } else {
@@ -130,6 +130,32 @@ Spectrum.prototype.drawSpectrum = function(bins) {
 
     // Copy axes from offscreen canvas
     this.ctx.drawImage(this.ctx_axes.canvas, 0, 0);
+}
+
+Spectrum.prototype.updateMarkers = function() {
+    this.drawMarkerLines();
+    this.writeMarkers();
+}
+
+Spectrum.prototype.drawMarkerLines = function(){
+    // markers
+    if (this.liveMarker_on){
+        let height = this.ctx.canvas.height;
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.liveMarker_x, 0);
+        this.ctx.lineTo(this.liveMarker_x, height);
+        this.ctx.strokeStyle = "#ffffff";
+        this.ctx.stroke();
+    }
+    for (let item of this.markers) {
+        let xpos = item.xpos;
+        let height = this.ctx.canvas.height;
+        this.ctx.beginPath();
+        this.ctx.moveTo(xpos, 0);
+        this.ctx.lineTo(xpos, height);
+        this.ctx.strokeStyle = "#ffffff";
+        this.ctx.stroke();
+    }
 }
 
 Spectrum.prototype.updateAxes = function() {
@@ -201,6 +227,10 @@ Spectrum.prototype.updateAxes = function() {
 
 Spectrum.prototype.addData = function(magnitudes, peaks) {
     if (!this.paused) {
+        // remember the data so we can pause and still use markers
+        this.mags = magnitudes;
+        this.peaks = peaks;
+
         // magnitudes are from a single fft, peaks are from all the fft magnitudes since the last update
         // both magnitudes and peaks are same length
         if (magnitudes.length != this.wf_size) {
@@ -217,7 +247,7 @@ Spectrum.prototype.addData = function(magnitudes, peaks) {
             this.drawSpectrum(peaks);
             this.addWaterfallRow(peaks);
         }
-        this.writeMarker();
+        this.updateMarkers();
         this.resize();
     }
 }
@@ -417,25 +447,70 @@ Spectrum.prototype.onKeypress = function(e) {
     }
 }
 
-Spectrum.prototype.setMarker = function(message, x, y) {
-    this.marker=message;
-    this.marker_x = x;
-    this.marker_y = y;
+Spectrum.prototype.setLiveMarker = function(message, x, y) {
+    this.liveMarker_on=true;
+    this.liveMarker_text=message;
+    this.liveMarker_x = x;
+    this.liveMarker_y = y;
 }
 
-Spectrum.prototype.writeMarker = function() {
-    if (self.message != "") {
-        var context = this.canvas.getContext('2d');
-        context.font = '12px sans-serif';
-        context.fillStyle = 'white';
-        context.fillText(this.marker, this.marker_x, this.marker_y);
+Spectrum.prototype.addMarkerMHz = function(frequencyMHz, x_pos) {
+    let marker = {};
+    marker['xpos'] = x_pos;
+    marker['freqMHz'] = frequencyMHz;
+    if (!this.markers.has(marker)) {
+        this.markers.add(marker);
+
+        // add to table of markers
+        let new_row="<tr><td>"+(this.markers.size-1)+"</td><td>"+frequencyMHz+"</td></tr>"
+        $('#marker_table').append(new_row);
+    }
+}
+
+Spectrum.prototype.clearMarkers = function() {
+    // clear the table
+    //  $(this).parents("tr").remove();
+    let num_rows=this.markers.size;
+    for (let i=num_rows; i>0; i--) {
+        $("#marker_table tr:eq("+i+")").remove(); //to delete row 'i', delrowId should be i+1
+    }
+    this.markers.clear();
+    this.liveMarker_on = false;
+}
+
+Spectrum.prototype.liveMarkerOff = function() {
+    this.liveMarker_on=false;
+}
+
+Spectrum.prototype.writeMarkers = function() {
+    var context = this.canvas.getContext('2d');
+    context.font = '12px sans-serif';
+    context.fillStyle = 'white';
+    context.textAlign = "left";
+    if (this.liveMarker_text != "" && this.liveMarker_on) {
+        // are we past half way
+        if (this.liveMarker_x > (this.canvas.clientWidth/2)) {
+            context.textAlign = "right";
+        }
+        context.fillText(this.liveMarker_text, this.liveMarker_x, this.liveMarker_y);
+    }
+    let marker_num=0;
+    for (let item of this.markers) {
+        let xpos = item.xpos;
+        context.textAlign = "left";
+        // are we past half way
+        if (xpos > (this.canvas.clientWidth/2)) {
+            context.textAlign = "right";
+        }
+        context.fillText(marker_num, xpos, 15);
+        marker_num+=1;
     }
 }
 
 Spectrum.prototype.getMouseValue = function(evt) {
     // TODO: handle paused, currently it fills the canvas with text, need some sort of overlay?
     if (!this.paused){
-        var rect = this.canvas.getBoundingClientRect();
+        let rect = this.canvas.getBoundingClientRect();
         let x_pos = evt.clientX - rect.left;
         let per_hz = this.spanHz / (rect.right - rect.left);
         let freq_value = (this.centerHz - (this.spanHz / 2)) + (x_pos * per_hz);
@@ -462,8 +537,15 @@ function Spectrum(id, options) {
     this.averaging = (options && options.averaging) ? options.averaging : 0;
     this.maxHold = (options && options.maxHold) ? options.maxHold : false;
 
-    // live magnitude spectrum or default of peaks over all spectrums seen since last spectrum
+    // flag live magnitude spectrum or default of peaks over all spectrums seen since last spectrum
     this.live_magnitudes = (options && options.live_magnitudes) ? options.live_magnitudes : false;
+
+    // markers
+    this.markers = new Set();
+    this.message = "";
+    this.liveMarker_on = false;
+    this.liveMarker_x = 0;
+    this.liveMarker_y = 0;
 
     // Setup state
     this.paused = false;

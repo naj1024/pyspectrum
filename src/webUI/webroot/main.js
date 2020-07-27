@@ -93,41 +93,50 @@ function check_for_support(){
 function main() {
     let not_supported=check_for_support();
     if (not_supported != ""){
-        alert("Error: Required HTML support not found"+not_supported);
+        alert("Error: Sorry - required HTML support not found"+not_supported);
         return;
     }
 
-    // Create spectrum object on canvas with ID "waterfall"
+    // Create spectrum object on canvas with ID "spectrumanalyser"
     var spectrum = new Spectrum(
         "spectrumanalyser", {
             spectrumPercent: 50
     });
 
-    // Connect to websocket
-    connectWebSocket(spectrum);
-
-    // Bind keypress handler, lots of key options for controlling the spectrum
+    // keypresses
     window.addEventListener("keydown", function (e) {
         spectrum.onKeypress(e);
     });
 
-    // mlouse hover over for displaying the fre quency
+    // mouse events
     var canvas = document.getElementById('spectrumanalyser');
     canvas.addEventListener('mousemove', function(evt) {
-        var mouse_ptr = spectrum.getMouseValue(evt);
+        let mouse_ptr = spectrum.getMouseValue(evt);
         if (mouse_ptr){
-            spectrum.setMarker((mouse_ptr.freq / 1e6).toFixed(3)+"MHz", mouse_ptr.x, mouse_ptr.y);
+            spectrum.setLiveMarker((mouse_ptr.freq / 1e6).toFixed(3)+"MHz", mouse_ptr.x, mouse_ptr.y);
+        }
+    }, false);
+    canvas.addEventListener('click', function(evt) {
+        let mouse_ptr = spectrum.getMouseValue(evt);
+        if (mouse_ptr){
+            spectrum.addMarkerMHz((mouse_ptr.freq / 1e6).toFixed(3), mouse_ptr.x);
         }
     }, false);
 
-    // buttons
+    // bootstrap buttons
     var our_buttons = '<button type="button" id="pauseBut" data-toggle="button" class="btn btn-outline-dark btn-sm mr-1">Pause</button>';
     our_buttons += '<button type="button" id="maxHoldBut" data-toggle="button" class="btn btn-outline-dark btn-sm mr-1">MaxHold</button>';
     our_buttons += '<button type="button" id="peakBut" data-toggle="button" class="btn btn-outline-dark btn-sm mr-1">Peaks</button>';
+    our_buttons += '<button type="button" id="clearMarkers" class="btn btn-outline-dark btn-sm mr-1">ClearMarkers</button>';
     $('#buttons').append(our_buttons);
+    // bootstrap events
     $('#pauseBut').click(function() {spectrum.togglePaused();});
     $('#maxHoldBut').click(function() {spectrum.toggleMaxHold();});
     $('#peakBut').click(function() {spectrum.toggleLive();});
+    $('#clearMarkers').click(function() {spectrum.clearMarkers();});
+
+    // Connect to websocket
+    connectWebSocket(spectrum);
 }
 
 window.onload = main;
