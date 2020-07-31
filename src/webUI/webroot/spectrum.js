@@ -132,32 +132,6 @@ Spectrum.prototype.drawSpectrum = function(bins) {
     this.ctx.drawImage(this.ctx_axes.canvas, 0, 0);
 }
 
-Spectrum.prototype.updateMarkers = function() {
-    this.drawMarkerLines();
-    this.writeMarkers();
-}
-
-Spectrum.prototype.drawMarkerLines = function(){
-    // markers
-    if (this.liveMarker_on){
-        let height = this.ctx.canvas.height;
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.liveMarker_x, 0);
-        this.ctx.lineTo(this.liveMarker_x, height);
-        this.ctx.strokeStyle = "#ffffff";
-        this.ctx.stroke();
-    }
-    for (let item of this.markers) {
-        let xpos = item.xpos;
-        let height = this.ctx.canvas.height;
-        this.ctx.beginPath();
-        this.ctx.moveTo(xpos, 0);
-        this.ctx.lineTo(xpos, height);
-        this.ctx.strokeStyle = "#ffffff";
-        this.ctx.stroke();
-    }
-}
-
 Spectrum.prototype.updateAxes = function() {
     var width = this.ctx_axes.canvas.width;
     var height = this.ctx_axes.canvas.height;
@@ -180,7 +154,7 @@ Spectrum.prototype.updateAxes = function() {
         this.ctx_axes.beginPath();
         this.ctx_axes.moveTo(20, y);
         this.ctx_axes.lineTo(width, y);
-        this.ctx_axes.strokeStyle = "rgba(200, 200, 200, 0.90)";
+        this.ctx_axes.strokeStyle = "rgba(200, 200, 200, 0.40)";
         this.ctx_axes.stroke();
     }
 
@@ -188,7 +162,6 @@ Spectrum.prototype.updateAxes = function() {
     // Eleven frequency labels on x-axis
     for (var i = 0; i < 11; i++) {
         var x = Math.round(width / 10) * i;
-
         if (this.spanHz > 0) {
             var adjust = 0;
             if (i == 0) {
@@ -220,7 +193,7 @@ Spectrum.prototype.updateAxes = function() {
         this.ctx_axes.beginPath();
         this.ctx_axes.moveTo(x, 0);
         this.ctx_axes.lineTo(x, height);
-        this.ctx_axes.strokeStyle = "rgba(200, 200, 200, 0.10)";
+        this.ctx_axes.strokeStyle = "rgba(200, 200, 200, 0.40)";
         this.ctx_axes.stroke();
     }
 }
@@ -418,24 +391,10 @@ Spectrum.prototype.toggleFullscreen = function() {
 }
 
 Spectrum.prototype.onKeypress = function(e) {
-    if (e.key == " ") {
-        this.togglePaused();
-    } else if (e.key == "f") {
+    if (e.key == "f") {
         this.toggleFullscreen();
     } else if (e.key == "c") {
         this.toggleColor();
-    } else if (e.key == "ArrowUp") {
-        this.rangeUp();
-    } else if (e.key == "ArrowDown") {
-        this.rangeDown();
-    } else if (e.key == "ArrowLeft") {
-        this.rangeDecrease();
-    } else if (e.key == "ArrowRight") {
-        this.rangeIncrease();
-    } else if (e.key == "s") {
-        this.incrementSpectrumPercent();
-    } else if (e.key == "w") {
-        this.decrementSpectrumPercent();
     } else if (e.key == "+") {
         this.incrementAveraging();
     } else if (e.key == "-") {
@@ -444,6 +403,38 @@ Spectrum.prototype.onKeypress = function(e) {
         this.toggleMaxHold();
     } else if (e.key == "l") {
         this.toggleLive();
+    } else if (e.key == " ") {
+        this.togglePaused();
+    } else if (e.key == "ArrowUp") {
+        this.rangeUp();
+    } else if (e.key == "ArrowDown") {
+        this.rangeDown();
+    } else if (e.key == "ArrowLeft") {
+        this.rangeDecrease();
+    } else if (e.key == "ArrowRight") {
+        this.rangeIncrease();
+     } else if (e.key == "s") {
+        this.incrementSpectrumPercent();
+    } else if (e.key == "w") {
+        this.decrementSpectrumPercent();
+    }
+}
+
+Spectrum.prototype.handleWheel = function(evt){
+    if (evt.buttons ==0) {
+        if (evt.deltaY > 0){
+            this.rangeUp();
+        }
+        else{
+            this.rangeDown();
+        }
+    } else if(evt.buttons == 4) {
+        if (evt.deltaY > 0){
+            this.rangeIncrease();
+        }
+        else{
+            this.rangeDecrease();
+        }
     }
 }
 
@@ -458,11 +449,11 @@ Spectrum.prototype.addMarkerMHz = function(frequencyMHz, x_pos) {
     let marker = {};
     marker['xpos'] = x_pos;
     marker['freqMHz'] = frequencyMHz;
-    if (!this.markers.has(marker)) {
-        this.markers.add(marker);
+    if (!this.markersSet.has(marker)) {
+        this.markersSet.add(marker);
 
         // add to table of markers
-        let new_row="<tr><td>"+(this.markers.size-1)+"</td><td>"+frequencyMHz+"</td></tr>"
+        let new_row="<tr><td>"+(this.markersSet.size-1)+"</td><td>"+frequencyMHz+"</td></tr>";
         $('#marker_table').append(new_row);
     }
 }
@@ -470,11 +461,11 @@ Spectrum.prototype.addMarkerMHz = function(frequencyMHz, x_pos) {
 Spectrum.prototype.clearMarkers = function() {
     // clear the table
     //  $(this).parents("tr").remove();
-    let num_rows=this.markers.size;
+    let num_rows=this.markersSet.size;
     for (let i=num_rows; i>0; i--) {
         $("#marker_table tr:eq("+i+")").remove(); //to delete row 'i', delrowId should be i+1
     }
-    this.markers.clear();
+    this.markersSet.clear();
     this.liveMarker_on = false;
 }
 
@@ -482,28 +473,68 @@ Spectrum.prototype.liveMarkerOff = function() {
     this.liveMarker_on=false;
 }
 
-Spectrum.prototype.writeMarkers = function() {
+// writeMarkers
+Spectrum.prototype.updateMarkers = function() {
+    // live marker line
+    if (this.liveMarker_on){
+        let height = this.ctx.canvas.height;
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.liveMarker_x, 0);
+        this.ctx.lineTo(this.liveMarker_x, height);
+        this.ctx.setLineDash([10,10]);
+        this.ctx.strokeStyle = "#f0f0f0";
+        this.ctx.stroke();
+    }
+    // indexed marker lines
+    for (let item of this.markersSet) {
+        let xpos = item.xpos;
+        let height = this.ctx.canvas.height;
+        this.ctx.beginPath();
+        this.ctx.moveTo(xpos, 0);
+        this.ctx.lineTo(xpos, height);
+        this.ctx.setLineDash([5,5]);
+        this.ctx.strokeStyle = "#f0f0f0";
+        this.ctx.stroke();
+    }
+
+    // marker texts
     var context = this.canvas.getContext('2d');
     context.font = '12px sans-serif';
     context.fillStyle = 'white';
     context.textAlign = "left";
     if (this.liveMarker_text != "" && this.liveMarker_on) {
-        // are we past half way
+        // are we past half way then put text on left
         if (this.liveMarker_x > (this.canvas.clientWidth/2)) {
             context.textAlign = "right";
         }
         context.fillText(this.liveMarker_text, this.liveMarker_x, this.liveMarker_y);
     }
     let marker_num=0;
-    for (let item of this.markers) {
+    for (let item of this.markersSet) {
         let xpos = item.xpos;
         context.textAlign = "left";
-        // are we past half way
         if (xpos > (this.canvas.clientWidth/2)) {
             context.textAlign = "right";
         }
         context.fillText(marker_num, xpos, 15);
         marker_num+=1;
+    }
+}
+
+Spectrum.prototype.handleMouseMove = function(evt) {
+    let mouse_ptr = this.getMouseValue(evt);
+    if (mouse_ptr){
+        this.setLiveMarker((mouse_ptr.freq / 1e6).toFixed(3)+"MHz", mouse_ptr.x, mouse_ptr.y);
+    }
+}
+
+Spectrum.prototype.handleMouseClick = function(evt) {
+    let mouse_ptr = this.getMouseValue(evt);
+    if (mouse_ptr){
+        // limit the number of markers
+        if (this.markersSet.size < this.maxNumMarkers){
+            this.addMarkerMHz((mouse_ptr.freq / 1e6).toFixed(3), mouse_ptr.x);
+        }
     }
 }
 
@@ -541,11 +572,12 @@ function Spectrum(id, options) {
     this.live_magnitudes = (options && options.live_magnitudes) ? options.live_magnitudes : false;
 
     // markers
-    this.markers = new Set();
+    this.markersSet = new Set();
     this.message = "";
     this.liveMarker_on = false;
     this.liveMarker_x = 0;
     this.liveMarker_y = 0;
+    this.maxNumMarkers = 7;
 
     // Setup state
     this.paused = false;

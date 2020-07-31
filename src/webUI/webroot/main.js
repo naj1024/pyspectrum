@@ -1,5 +1,7 @@
 'use strict';
 
+let data_active=false;
+
 async function handleData(spectrum, binary_blob_data) {
     // extract the data out of the binary blob, been packed up by the python in a struct.
     // See the python WebSocketServer code for the format of the blob
@@ -25,7 +27,7 @@ async function handleData(spectrum, binary_blob_data) {
     let num_floats = dataView.getInt32((index), false);
     index += 4;
 
-    // floats
+    // two arrays of floats
     let magnitudes = new Float32Array(num_floats);
     for (var i=0; i<num_floats; i++){
         magnitudes[i]=dataView.getFloat32((index), false);
@@ -37,7 +39,7 @@ async function handleData(spectrum, binary_blob_data) {
         index += 4;
     }
 
-    // tell the spectrum how the data is configured
+    // tell the spectrum how this data is configured, which could change
     spectrum.setSpanHz(sps);
     spectrum.setCenterMHz(cf);
     spectrum.addData(magnitudes, peaks);
@@ -45,21 +47,47 @@ async function handleData(spectrum, binary_blob_data) {
 
 function connectWebSocket(spectrum) {
     let server_hostname = window.location.hostname;
-    let ws = new WebSocket("ws://"+server_hostname+":5555/")
+    console.log("Connecting");
+    let ws = new WebSocket("ws://"+server_hostname+":5555/");
+
     ws.onopen = function(event) {
-        console.log("WebSocket connected");
+        // Update the status led
+        $("#connection_state").empty();
+        let new_element = '<img src="./icons/led-yellow.png" alt="connected" title="Connected" >';
+        $('#connection_state').append(new_element);
     }
+
     ws.onclose = function(event) {
         console.log("WebSocket closed");
+        data_active = false;
+        // Update the status led
+        let new_element = '<img src="./icons/led-red.png" alt="no connection title="No connection" ">';
+        $("#connection_state").empty();
+        $('#connection_state').append(new_element);
         setTimeout(function() {
             connectWebSocket(spectrum);
         }, 1000);
     }
+
     ws.onerror = function(event) {
         console.log("WebSocket error: " + event.message);
+        data_active = false;
+        // Update the status led
+        let new_element = '<img src="./icons/led-red.png" alt="no connection title="No connection" ">';
+        $("#connection_state").empty();
+        $('#connection_state').append(new_element);
+
     }
+
     ws.onmessage = function (event) {
-        handleData(spectrum, event.data)
+        if (data_active == false){
+            data_active = true;
+            // Update the status led
+            $("#connection_state").empty();
+            let new_element = '<img src="./icons/led-green.png" alt="data active" title="Data active">';
+            $('#connection_state').append(new_element);
+        }
+        handleData(spectrum, event.data);
     }
 }
 
@@ -111,17 +139,15 @@ function main() {
     // mouse events
     var canvas = document.getElementById('spectrumanalyser');
     canvas.addEventListener('mousemove', function(evt) {
-        let mouse_ptr = spectrum.getMouseValue(evt);
-        if (mouse_ptr){
-            spectrum.setLiveMarker((mouse_ptr.freq / 1e6).toFixed(3)+"MHz", mouse_ptr.x, mouse_ptr.y);
-        }
+        spectrum.handleMouseMove(evt);
     }, false);
     canvas.addEventListener('click', function(evt) {
-        let mouse_ptr = spectrum.getMouseValue(evt);
-        if (mouse_ptr){
-            spectrum.addMarkerMHz((mouse_ptr.freq / 1e6).toFixed(3), mouse_ptr.x);
-        }
+        spectrum.handleMouseClick(evt);
     }, false);
+    canvas.addEventListener('wheel', function(evt) {
+        spectrum.handleWheel(evt);
+    }, false);
+
 
     // bootstrap buttons
     var our_buttons = '<button type="button" id="pauseBut" data-toggle="button" class="btn btn-outline-dark btn-sm mr-1">Pause</button>';
