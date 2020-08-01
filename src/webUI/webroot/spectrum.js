@@ -447,13 +447,26 @@ Spectrum.prototype.setLiveMarker = function(message, x, y) {
 
 Spectrum.prototype.addMarkerMHz = function(frequencyMHz, x_pos) {
     let marker = {};
-    marker['xpos'] = x_pos;
+    marker['xpos'] = parseInt(x_pos);
     marker['freqMHz'] = frequencyMHz;
-    if (!this.markersSet.has(marker)) {
+    let delta = 0;
+    if (this.markersSet.size != 0){
+        let as_array = Array.from(this.markersSet);
+        let previous_marker = as_array[this.markersSet.size-1];
+        delta = (frequencyMHz - previous_marker.freqMHz).toFixed(3);
+    }
+    // do we have this one already, note .has(marker) doesn't work
+    let new_entry = true;
+    for (let item of this.markersSet) {
+        if (item.xpos == marker.xpos){
+            new_entry = false;
+        }
+    }
+    if (new_entry) {
         this.markersSet.add(marker);
 
         // add to table of markers
-        let new_row="<tr><td>"+(this.markersSet.size-1)+"</td><td>"+frequencyMHz+"</td></tr>";
+        let new_row="<tr><td>"+(this.markersSet.size-1)+"</td><td>"+frequencyMHz+"</td><td>"+delta+"</td></tr>";
         $('#marker_table').append(new_row);
     }
 }
@@ -577,12 +590,12 @@ function Spectrum(id, options) {
     this.liveMarker_on = false;
     this.liveMarker_x = 0;
     this.liveMarker_y = 0;
-    this.maxNumMarkers = 7;
+    this.maxNumMarkers = 100; // that's a lot
 
     // Setup state
     this.paused = false;
     this.fullscreen = false;
-    this.min_db = -70;
+    this.min_db = -80;
     this.max_db = 20;
     this.spectrumHeight = 0;
 

@@ -1,71 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <head>
+        <!-- Required meta tags -->
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-    <!-- CSS -->
-    <link rel="stylesheet" href="./bootstrap/css/bootstrap.min.css"/>
-    <link href="./template.css" rel="stylesheet"/>
+        <!-- CSS -->
+        <link rel="stylesheet" href="./bootstrap/css/bootstrap.min.css"/>
+        <link href="./template.css" rel="stylesheet"/>
 
-    <title>Spectrum Analyser</title>
+        <title>Spectrum Analyser</title>
 
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"/>
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png"/>
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"/>
-</head>
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"/>
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png"/>
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"/>
+    </head>
 
-<body>
-<nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
+    <body>
+        <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
 
-    <a class="navbar-brand" href="/" aria-label="Sa"><img src="./favicon-32x32.png" alt="Sa"></a>
-    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault"
-            aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-    </button>
-    <ul class="navbar-nav ml-auto">
-        <li id="connection_state" class="nav-item mx-1"> <img src="./icons/led-red.png" title="No connection" alt="no connection"> </li>
-    </ul>
-</nav>
+            <a class="navbar-brand" href="/" aria-label="Sa"><img src="./favicon-32x32.png" alt="Sa"></a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault"
+                    aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <ul class="navbar-nav ml-auto">
+                <li id="connection_state" class="nav-item mx-1"> <img src="./icons/led-red.png" title="No connection" alt="no connection"> </li>
+            </ul>
+        </nav>
 
-<main role="main" class="container">
-    <div>
-        <!-- Two columns, one for spectrum/spectrogram and the other for markers table -->
-        <table>
-            <tbody>
-                <tr>
-                    <!-- Spectrum and spectrogram -->
-                    <td><canvas id="spectrumanalyser" height="300" width="1024"></canvas></td>
-                    <td>
-                        <!-- Marker table -->
-                        <table id="marker_table" class="table table-striped table-bordered table-sm">
-                            <thead class="thead-dark">
-                            <tr>
-                              <th scope="col">Marker</th>
-                              <th scope="col">Frequency</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                          </tbody>
-                        </table>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-    <div class="container">
-        <div id="buttons"/>
-    </div>
-</main>
+        <main role="main" class="container">
+            <div>
+                <!-- Two columns, one for spectrum/spectrogram and the other for markers table -->
+                <table>
+                    <tbody>
+                        <tr>
+                            <!-- Spectrum and spectrogram -->
+                            <td><canvas id="spectrumanalyser" height="300px" width="1024px"></canvas></td>
+                            <td>
+                                <div style="height:300px; width:150px; overflow:auto;">
+                                    <!-- Marker table -->
+                                    <table id="marker_table" class="table table-hover table-striped table-bordered table-sm">
+                                        <thead class="thead-dark">
+                                        <tr>
+                                          <th scope="col">#</th>
+                                          <th scope="col">MHz</th>
+                                          <th scope="col">Delta</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                      </tbody>
+                                    </table>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="container">
+                <div id="buttons"/>
+            </div>
+        </main>
 
-<script src="./jquery/jquery-3.5.1.slim.min.js"></script>
-<script>window.jQuery || document.write('<script src="./jquery/jquery-3.5.1.slim.min.js"><\/script>')</script>
-<script src="./bootstrap/js/bootstrap.bundle.js"></script>
+        <script src="./jquery/jquery-3.5.1.slim.min.js"></script>
+        <script>window.jQuery || document.write('<script src="./jquery/jquery-3.5.1.slim.min.js"><\/script>')</script>
+        <script src="./bootstrap/js/bootstrap.bundle.js"></script>
 
-<script src="colormap.js"></script>
-<script src="spectrum.js"></script>
-<script src="main.js"></script>
+        <script src="colormap.js"></script>
+        <script src="spectrum.js"></script>
+        <script src="main.js"></script>
 
-</body>
+    </body>
 </html>
