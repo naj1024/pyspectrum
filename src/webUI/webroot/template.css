@@ -4,29 +4,24 @@ html, body {
     margin: 0;
 }
 
+/* padding from bootstrap navbar to spectrum canvas */
 body {
-  padding-top: 5rem;
+    padding-top: 5rem;
 }
 
-.starter-template {
-  padding: 3rem 1.5rem;
-  text-align: center;
+/* force canvas to be 100% wide,, auto scale height */
+canvas {
+    width: 100%;
+    height: auto;
 }
 
-.bd-placeholder-img {
-font-size: 1.125rem;
-text-anchor: middle;
--webkit-user-select: none;
--moz-user-select: none;
--ms-user-select: none;
-user-select: none;
-}
-
+/* The table font */
 .table {
-font-family:sans-serif;
-font-size:10pt;
+    font-family:sans-serif;
+    font-size:10pt;
 }
 
+/* highlight table mouse hover row */
 .table-hover tbody tr:hover td, .table-hover tobody th {
     background-color: #d0d0d0;
 }

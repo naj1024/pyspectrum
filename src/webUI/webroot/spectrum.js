@@ -3,7 +3,7 @@
  * This software is released under the MIT license.
  * See the LICENSE file for further details.
  *
- * Modified from original, not a lot though
+ * Modified from original with markers and other bits
  */
 
 'use strict';
@@ -28,16 +28,8 @@ Spectrum.prototype.rowToImageData = function(bins) {
     }
 }
 
-Spectrum.prototype.addWaterfallRow = function(bins) {
-    // Shift waterfall 1 row down
-    this.ctx_wf.drawImage(this.ctx_wf.canvas,
-        0, 0, this.wf_size, this.wf_rows - 1,
-        0, 1, this.wf_size, this.wf_rows - 1);
-
-    // Draw new line on waterfall canvas
-    this.rowToImageData(bins);
-    this.ctx_wf.putImageData(this.imagedata, 0, 0);
-
+Spectrum.prototype.drawWaterfall = function() {
+    // redraw the current waterfall
     var width = this.ctx.canvas.width;
     var height = this.ctx.canvas.height;
 
@@ -50,24 +42,39 @@ Spectrum.prototype.addWaterfallRow = function(bins) {
         0, this.spectrumHeight, width, height - this.spectrumHeight);
 }
 
+Spectrum.prototype.addWaterfallRow = function(bins) {
+    // Shift waterfall 1 row down
+    this.ctx_wf.drawImage(this.ctx_wf.canvas,
+        0, 0, this.wf_size, this.wf_rows - 1,
+        0, 1, this.wf_size, this.wf_rows - 1);
+
+    // Draw new line on waterfall canvas
+    this.rowToImageData(bins);
+    this.ctx_wf.putImageData(this.imagedata, 0, 0);
+
+    this.drawWaterfall();
+}
+
 Spectrum.prototype.drawFFT = function(bins) {
-    this.ctx.beginPath();
-    this.ctx.moveTo(-1, this.spectrumHeight + 1);
-    for (var i = 0; i < bins.length; i++) {
-        var y = this.spectrumHeight - this.squeeze(bins[i], 0, this.spectrumHeight);
-        if (y > this.spectrumHeight - 1)
-            y = this.spectrumHeight + 1; // Hide underflow
-        if (y < 0)
-            y = 0;
-        if (i == 0)
-            this.ctx.lineTo(-1, y);
-        this.ctx.lineTo(i, y);
-        if (i == bins.length - 1)
-            this.ctx.lineTo(this.wf_size + 1, y);
+    if(bins!=undefined) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(-1, this.spectrumHeight + 1);
+        for (var i = 0; i < bins.length; i++) {
+            var y = this.spectrumHeight - this.squeeze(bins[i], 0, this.spectrumHeight);
+            if (y > this.spectrumHeight - 1)
+                y = this.spectrumHeight + 1; // Hide underflow
+            if (y < 0)
+                y = 0;
+            if (i == 0)
+                this.ctx.lineTo(-1, y);
+            this.ctx.lineTo(i, y);
+            if (i == bins.length - 1)
+                this.ctx.lineTo(this.wf_size + 1, y);
+        }
+        this.ctx.lineTo(this.wf_size + 1, this.spectrumHeight + 1);
+        this.ctx.strokeStyle = "#fefefe";
+        this.ctx.stroke();
     }
-    this.ctx.lineTo(this.wf_size + 1, this.spectrumHeight + 1);
-    this.ctx.strokeStyle = "#fefefe";
-    this.ctx.stroke();
 }
 
 Spectrum.prototype.drawSpectrum = function(bins) {
@@ -79,7 +86,7 @@ Spectrum.prototype.drawSpectrum = function(bins) {
     this.ctx.fillRect(0, 0, width, height);
 
     // FFT averaging
-    if (this.averaging > 0) {
+    if (!this.paused && this.averaging > 0) {
         if (!this.binsAverage || this.binsAverage.length != bins.length) {
             this.binsAverage = Array.from(bins);
         } else {
@@ -91,7 +98,7 @@ Spectrum.prototype.drawSpectrum = function(bins) {
     }
 
     // Max hold
-    if (this.maxHold && !this.pause) {
+    if (this.maxHold && !this.paused) {
         if (!this.binsMax || this.binsMax.length != bins.length) {
             this.binsMax = Array.from(bins);
         } else {
@@ -159,35 +166,38 @@ Spectrum.prototype.updateAxes = function() {
     }
 
     this.ctx_axes.textBaseline = "bottom";
-    // Eleven frequency labels on x-axis
+    // Frequency labels on x-axis
     for (var i = 0; i < 11; i++) {
         var x = Math.round(width / 10) * i;
-        if (this.spanHz > 0) {
-            var adjust = 0;
-            if (i == 0) {
-                this.ctx_axes.textAlign = "left";
-                adjust = 3;
-            } else if (i == 10) {
-                this.ctx_axes.textAlign = "right";
-                adjust = -3;
-            } else {
-                this.ctx_axes.textAlign = "center";
-            }
+        // mod 5 to give just the first,middle and last - small screens don't handle lots of marker values
+        if ((i%5) == 0) {
+            if (this.spanHz > 0) {
+                var adjust = 0;
+                if (i == 0) {
+                    this.ctx_axes.textAlign = "left";
+                    adjust = 3;
+                } else if (i == 10) {
+                    this.ctx_axes.textAlign = "right";
+                    adjust = -3;
+                } else {
+                    this.ctx_axes.textAlign = "center";
+                }
 
-            var freq = this.centerHz + this.spanHz / 10 * (i - 5);
-            if (this.centerHz + this.spanHz > 1e9){
-                freq = freq / 1e9;
-                freq = freq.toFixed(3) + "G";
+                var freq = this.centerHz + this.spanHz / 10 * (i - 5);
+                if (this.centerHz + this.spanHz > 1e9){
+                    freq = freq / 1e9;
+                    freq = freq.toFixed(3) + "G";
+                }
+                else if (this.centerHz + this.spanHz > 1e6){
+                    freq = freq / 1e6;
+                    freq = freq.toFixed(3) + "M";
+                }
+                else if (this.centerHz + this.spanHz > 1e3){
+                    freq = freq / 1e3;
+                    freq = freq.toFixed(3) + "k";
+                }
+                this.ctx_axes.fillText(freq, x + adjust, height - 3);
             }
-            else if (this.centerHz + this.spanHz > 1e6){
-                freq = freq / 1e6;
-                freq = freq.toFixed(3) + "M";
-            }
-            else if (this.centerHz + this.spanHz > 1e3){
-                freq = freq / 1e3;
-                freq = freq.toFixed(3) + "k";
-            }
-            this.ctx_axes.fillText(freq, x + adjust, height - 3);
         }
 
         this.ctx_axes.beginPath();
@@ -219,6 +229,17 @@ Spectrum.prototype.addData = function(magnitudes, peaks) {
         } else {
             this.drawSpectrum(peaks);
             this.addWaterfallRow(peaks);
+        }
+        this.updateMarkers();
+        this.resize();
+    } else {
+        // keep things as they are but allow markers to work
+        if (this.live_magnitudes) {
+            this.drawSpectrum(this.mags);
+            this.drawWaterfall();
+        } else {
+            this.drawSpectrum(this.peaks);
+            this.drawWaterfall();
         }
         this.updateMarkers();
         this.resize();
@@ -552,22 +573,20 @@ Spectrum.prototype.handleMouseClick = function(evt) {
 }
 
 Spectrum.prototype.getMouseValue = function(evt) {
-    // TODO: handle paused, currently it fills the canvas with text, need some sort of overlay?
-    if (!this.paused){
-        let rect = this.canvas.getBoundingClientRect();
-        let x_pos = evt.clientX - rect.left;
-        let per_hz = this.spanHz / (rect.right - rect.left);
-        let freq_value = (this.centerHz - (this.spanHz / 2)) + (x_pos * per_hz);
-        let power_value = 0;
-        // TODO: get hold of power from spectrum or spectrogram
-        // return the frequency in Hz, the power and where we are on the display
-        return {
-              freq: freq_value,
-              power: power_value,
-              x: x_pos,
-              y: evt.clientY - rect.top
-        };
-    }
+    let rect = this.canvas.getBoundingClientRect();
+    let x_pos = evt.clientX - rect.left;
+    let per_hz = this.spanHz / (rect.right - rect.left);
+    let freq_value = (this.centerHz - (this.spanHz / 2)) + (x_pos * per_hz);
+    let power_value = 0;
+
+    // TODO: get hold of power from spectrum or spectrogram
+    // return the frequency in Hz, the power and where we are on the display
+    return {
+          freq: freq_value,
+          power: power_value,
+          x: x_pos,
+          y: evt.clientY - rect.top
+    };
 }
 
 function Spectrum(id, options) {
@@ -590,7 +609,7 @@ function Spectrum(id, options) {
     this.liveMarker_on = false;
     this.liveMarker_x = 0;
     this.liveMarker_y = 0;
-    this.maxNumMarkers = 100; // that's a lot
+    this.maxNumMarkers = 16;
 
     // Setup state
     this.paused = false;

@@ -29,36 +29,31 @@
             </ul>
         </nav>
 
-        <main role="main" class="container">
-            <div>
-                <!-- Two columns, one for spectrum/spectrogram and the other for markers table -->
-                <table>
-                    <tbody>
-                        <tr>
-                            <!-- Spectrum and spectrogram -->
-                            <td><canvas id="spectrumanalyser" height="300px" width="1024px"></canvas></td>
-                            <td>
-                                <div style="height:300px; width:150px; overflow:auto;">
-                                    <!-- Marker table -->
-                                    <table id="marker_table" class="table table-hover table-striped table-bordered table-sm">
-                                        <thead class="thead-dark">
-                                        <tr>
-                                          <th scope="col">#</th>
-                                          <th scope="col">MHz</th>
-                                          <th scope="col">Delta</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                      </tbody>
-                                    </table>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="container">
-                <div id="buttons"/>
+        <main role="main" class="container-fluid">
+            <div class="row">
+                <!-- 9 colums of spectrum analyser -->
+                <div class="col-9">
+                    <canvas id="spectrumanalyser" height="600px" width="1024px"></canvas>
+                </div>
+                <!-- 1 colum of buttons -->
+                <div class="col-1" id="buttons"></div>
+                <!-- 2 colums of marker table -->
+                <div class="col-2" style="height:600px; overflow-y:auto;">
+                    <div id="marker-buttons">
+                        <h3>Markers</h3>
+                    </div>
+                    <table id="marker_table" class="table table-hover table-striped table-bordered table-sm">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">MHz</th>
+                                <th scope="col">Delta</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </main>
 

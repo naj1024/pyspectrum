@@ -126,7 +126,7 @@ function main() {
     }
 
     // Create spectrum object on canvas with ID "spectrumanalyser"
-    var spectrum = new Spectrum(
+    let spectrum = new Spectrum(
         "spectrumanalyser", {
             spectrumPercent: 50
     });
@@ -137,7 +137,7 @@ function main() {
     });
 
     // mouse events
-    var canvas = document.getElementById('spectrumanalyser');
+    let canvas = document.getElementById('spectrumanalyser');
     canvas.addEventListener('mousemove', function(evt) {
         spectrum.handleMouseMove(evt);
     }, false);
@@ -150,15 +150,22 @@ function main() {
 
 
     // bootstrap buttons
-    var our_buttons = '<button type="button" id="pauseBut" data-toggle="button" class="btn btn-outline-dark btn-sm mr-1">Pause</button>';
-    our_buttons += '<button type="button" id="maxHoldBut" data-toggle="button" class="btn btn-outline-dark btn-sm mr-1">MaxHold</button>';
-    our_buttons += '<button type="button" id="peakBut" data-toggle="button" class="btn btn-outline-dark btn-sm mr-1">Peaks</button>';
-    our_buttons += '<button type="button" id="clearMarkers" class="btn btn-outline-dark btn-sm mr-1">ClearMarkers</button>';
-    $('#buttons').append(our_buttons);
+    let main_buttons = '<button type="button" id="pauseBut" data-toggle="button" class="btn btn-outline-dark my-1">Pause</button>';
+    main_buttons += '<button type="button" id="maxHoldBut" data-toggle="button" class="btn btn-outline-dark my-1">MaxHold</button>';
+    main_buttons += '<button type="button" id="peakBut" data-toggle="button"  class="btn btn-outline-dark my-1">Peaks</button>';
+    main_buttons += '<button type="button" id="avgUpBut" class="btn btn-outline-dark my-1">Average+</button>';
+    main_buttons += '<button type="button" id="avgDwnBut" class="btn btn-outline-dark my-1">Average-</button>';
+    $('#buttons').append(main_buttons);
+
+    let marker_buttons = '<button type="button" id="clearMarkers" class="btn btn-outline-dark my-1">ClearMarkers</button>';
+    $('#marker-buttons').append(marker_buttons);
+
     // bootstrap events
     $('#pauseBut').click(function() {spectrum.togglePaused();});
     $('#maxHoldBut').click(function() {spectrum.toggleMaxHold();});
     $('#peakBut').click(function() {spectrum.toggleLive();});
+    $('#avgUpBut').click(function() {spectrum.incrementAveraging();});
+    $('#avgDwnBut').click(function() {spectrum.decrementAveraging();});
     $('#clearMarkers').click(function() {spectrum.clearMarkers();});
 
     // Connect to websocket
