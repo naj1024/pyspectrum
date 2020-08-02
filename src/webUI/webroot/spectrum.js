@@ -233,17 +233,21 @@ Spectrum.prototype.addData = function(magnitudes, peaks) {
         this.updateMarkers();
         this.resize();
     } else {
-        // keep things as they are but allow markers to work
-        if (this.live_magnitudes) {
-            this.drawSpectrum(this.mags);
-            this.drawWaterfall();
-        } else {
-            this.drawSpectrum(this.peaks);
-            this.drawWaterfall();
-        }
-        this.updateMarkers();
-        this.resize();
+        this.updateWhenPaused();
     }
+}
+
+Spectrum.prototype.updateWhenPaused = function() {
+    // keep things as they are but allow markers to work
+    if (this.live_magnitudes) {
+        this.drawSpectrum(this.mags);
+        this.drawWaterfall();
+    } else {
+        this.drawSpectrum(this.peaks);
+        this.drawWaterfall();
+    }
+    this.updateMarkers();
+    this.resize();
 }
 
 Spectrum.prototype.updateSpectrumRatio = function() {
@@ -501,6 +505,9 @@ Spectrum.prototype.clearMarkers = function() {
     }
     this.markersSet.clear();
     this.liveMarker_on = false;
+    if (!data_active){
+        this.updateWhenPaused();
+    }
 }
 
 Spectrum.prototype.liveMarkerOff = function() {
@@ -568,6 +575,10 @@ Spectrum.prototype.handleMouseClick = function(evt) {
         // limit the number of markers
         if (this.markersSet.size < this.maxNumMarkers){
             this.addMarkerMHz((mouse_ptr.freq / 1e6).toFixed(3), mouse_ptr.x);
+            // allow markers ot be added even when we are receiving no data
+            if (!data_active){
+                this.updateWhenPaused();
+            }
         }
     }
 }

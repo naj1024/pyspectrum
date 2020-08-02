@@ -1,6 +1,8 @@
 'use strict';
 
-let data_active=false;
+var data_active=false;
+var samples_per_second =0.0;
+var centre_frequency = 0.0;
 
 async function handleData(spectrum, binary_blob_data) {
     // extract the data out of the binary blob, been packed up by the python in a struct.
@@ -43,6 +45,28 @@ async function handleData(spectrum, binary_blob_data) {
     spectrum.setSpanHz(sps);
     spectrum.setCenterMHz(cf);
     spectrum.addData(magnitudes, peaks);
+
+    updateConfigTable(spectrum, sps, cf, num_floats);
+}
+
+function updateConfigTable(spectrum, sps, cf, points) {
+    // clear the config
+    samples_per_second = sps;
+    centre_frequency = cf;
+    let num_rows=5; // because we know
+    for (let i=num_rows; i>0; i--) {
+        $("#config_table tr:eq("+i+")").remove();
+    }
+    let new_row="<tr><td><b>Centre</b></td><td>"+cf.toFixed(3)+"MHz</td></tr>";
+    $('#config_table').append(new_row);
+    new_row="<tr><td><b>SPS</b></b></td><td>"+(sps/1E6).toFixed(3)+"MHz</td></tr>";
+    $('#config_table').append(new_row);
+    new_row="<tr><td><b>BW</b></td><td>"+(sps/1E6).toFixed(3)+"MHz</td></tr>";
+    $('#config_table').append(new_row);
+    new_row="<tr><td><b>RBW</b></td><td>"+((sps/1E3)/points).toFixed(3)+"kHz</td></tr>";
+    $('#config_table').append(new_row);
+    new_row="<tr><td><b>Avg</b></td><td>"+spectrum.averaging+"</td></tr>";
+    $('#config_table').append(new_row);
 }
 
 function connectWebSocket(spectrum) {
@@ -150,11 +174,12 @@ function main() {
 
 
     // bootstrap buttons
-    let main_buttons = '<button type="button" id="pauseBut" data-toggle="button" class="btn btn-outline-dark my-1">Pause</button>';
-    main_buttons += '<button type="button" id="maxHoldBut" data-toggle="button" class="btn btn-outline-dark my-1">MaxHold</button>';
-    main_buttons += '<button type="button" id="peakBut" data-toggle="button"  class="btn btn-outline-dark my-1">Peaks</button>';
-    main_buttons += '<button type="button" id="avgUpBut" class="btn btn-outline-dark my-1">Average+</button>';
-    main_buttons += '<button type="button" id="avgDwnBut" class="btn btn-outline-dark my-1">Average-</button>';
+    let main_buttons = '<button type="button" id="pauseBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Pause</button>';
+    main_buttons += '<button type="button" id="maxHoldBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">MaxHold</button>';
+    main_buttons += '<button type="button" id="peakBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Peaks</button>';
+    main_buttons += '<button type="button" id="avgUpBut" class="btn btn-outline-dark mx-1 my-1">Avg ++</button>';
+    main_buttons += '<button type="button" id="avgDwnBut" class="btn btn-outline-dark mx-1 my-1">Avg --</button>';
+    // btn-block
     $('#buttons').append(main_buttons);
 
     let marker_buttons = '<button type="button" id="clearMarkers" class="btn btn-outline-dark my-1">ClearMarkers</button>';
