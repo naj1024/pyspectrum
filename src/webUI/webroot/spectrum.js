@@ -105,10 +105,11 @@ Spectrum.prototype.drawSpectrum = function(bins) {
             for (var i = 0; i < bins.length; i++) {
                 if (bins[i] > this.binsMax[i]) {
                     this.binsMax[i] = bins[i];
-                } else {
-                    // Decay
-                    this.binsMax[i] = 1.0025 * this.binsMax[i];
                 }
+                //else {
+                    // Decay
+                  //  this.binsMax[i] = 1.0025 * this.binsMax[i];
+                //}
             }
         }
     }
@@ -241,11 +242,10 @@ Spectrum.prototype.updateWhenPaused = function() {
     // keep things as they are but allow markers to work
     if (this.live_magnitudes) {
         this.drawSpectrum(this.mags);
-        this.drawWaterfall();
     } else {
         this.drawSpectrum(this.peaks);
-        this.drawWaterfall();
     }
+    this.drawWaterfall();
     this.updateMarkers();
     this.resize();
 }
@@ -470,10 +470,11 @@ Spectrum.prototype.setLiveMarker = function(message, x, y) {
     this.liveMarker_y = y;
 }
 
-Spectrum.prototype.addMarkerMHz = function(frequencyMHz, x_pos) {
+Spectrum.prototype.addMarkerMHz = function(frequencyMHz, magdB, x_pos) {
     let marker = {};
     marker['xpos'] = parseInt(x_pos);
     marker['freqMHz'] = frequencyMHz;
+    marker['db'] = magdB;
     let delta = 0;
     if (this.markersSet.size != 0){
         let as_array = Array.from(this.markersSet);
@@ -491,7 +492,7 @@ Spectrum.prototype.addMarkerMHz = function(frequencyMHz, x_pos) {
         this.markersSet.add(marker);
 
         // add to table of markers
-        let new_row="<tr><td>"+(this.markersSet.size-1)+"</td><td>"+frequencyMHz+"</td><td>"+delta+"</td></tr>";
+        let new_row="<tr><td>"+(this.markersSet.size-1)+"</td><td>"+frequencyMHz+"</td><td>"+magdB+"</td><td>"+delta+"</td></tr>";
         $('#marker_table').append(new_row);
     }
 }
@@ -537,6 +538,7 @@ Spectrum.prototype.updateMarkers = function() {
         this.ctx.strokeStyle = "#f0f0f0";
         this.ctx.stroke();
     }
+    this.ctx.setLineDash([]);
 
     // marker texts
     var context = this.canvas.getContext('2d');
@@ -565,7 +567,11 @@ Spectrum.prototype.updateMarkers = function() {
 Spectrum.prototype.handleMouseMove = function(evt) {
     let mouse_ptr = this.getMouseValue(evt);
     if (mouse_ptr){
-        this.setLiveMarker((mouse_ptr.freq / 1e6).toFixed(3)+"MHz", mouse_ptr.x, mouse_ptr.y);
+        if (mouse_ptr.powerFlag){
+            this.setLiveMarker((mouse_ptr.freq / 1e6).toFixed(3)+"MHz "+mouse_ptr.power.toFixed(1)+"dB", mouse_ptr.x, mouse_ptr.y);
+        } else {
+            this.setLiveMarker((mouse_ptr.freq / 1e6).toFixed(3)+"MHz", mouse_ptr.x, mouse_ptr.y);
+        }
     }
 }
 
@@ -574,7 +580,7 @@ Spectrum.prototype.handleMouseClick = function(evt) {
     if (mouse_ptr){
         // limit the number of markers
         if (this.markersSet.size < this.maxNumMarkers){
-            this.addMarkerMHz((mouse_ptr.freq / 1e6).toFixed(3), mouse_ptr.x);
+            this.addMarkerMHz((mouse_ptr.freq / 1e6).toFixed(3), mouse_ptr.power.toFixed(1), mouse_ptr.x);
             // allow markers ot be added even when we are receiving no data
             if (!data_active){
                 this.updateWhenPaused();
@@ -585,16 +591,29 @@ Spectrum.prototype.handleMouseClick = function(evt) {
 
 Spectrum.prototype.getMouseValue = function(evt) {
     let rect = this.canvas.getBoundingClientRect();
+
     let x_pos = evt.clientX - rect.left;
     let per_hz = this.spanHz / (rect.right - rect.left);
     let freq_value = (this.centerHz - (this.spanHz / 2)) + (x_pos * per_hz);
-    let power_value = 0;
 
-    // TODO: get hold of power from spectrum or spectrogram
+    let spectrum_height = this.canvas.height * (this.spectrumPercent/100);
+    let y_pos = evt.clientY - rect.top;
+    let power_value = 0.0;
+    let power_flag = false;
+    if (y_pos <= spectrum_height){
+        let range_db = this.max_db - this.min_db;
+        let db_point = range_db / spectrum_height;
+        power_value = this.max_db - (y_pos * db_point);
+        power_flag = true;
+    }
+    let time_value = 0.0;
+
     // return the frequency in Hz, the power and where we are on the display
     return {
           freq: freq_value,
+          powerFlag: power_flag,
           power: power_value,
+          time: time_value,
           x: x_pos,
           y: evt.clientY - rect.top
     };
