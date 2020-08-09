@@ -22,9 +22,13 @@ async function handleData(spectrum, binary_blob_data) {
     index += 4;
     let cf = dataView.getFloat32((index), false);
     index += 4;
-    let time_start = dataView.getInt32((index), false); // note - not populated currently for web
+    let start_time_sec = dataView.getInt32((index), false);
     index += 4;
-    let time_end = dataView.getInt32((index), false); // note - not populated currently for web
+    let start_time_nsec = dataView.getInt32((index), false);
+    index += 4;
+    let end_time_sec = dataView.getInt32((index), false);
+    index += 4;
+    let end_time_nsec = dataView.getInt32((index), false);
     index += 4;
     let num_floats = dataView.getInt32((index), false);
     index += 4;
@@ -44,7 +48,7 @@ async function handleData(spectrum, binary_blob_data) {
     // tell the spectrum how this data is configured, which could change
     spectrum.setSpanHz(sps);
     spectrum.setCenterMHz(cf);
-    spectrum.addData(magnitudes, peaks);
+    spectrum.addData(magnitudes, peaks, start_time_sec, start_time_nsec, end_time_sec, end_time_nsec);
 
     updateConfigTable(spectrum, sps, cf, num_floats);
 }
@@ -177,8 +181,8 @@ function main() {
     let main_buttons = '<button type="button" id="pauseBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Pause</button>';
     main_buttons += '<button type="button" id="maxHoldBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">MaxHold</button>';
     main_buttons += '<button type="button" id="peakBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Peaks</button>';
-    main_buttons += '<button type="button" id="avgUpBut" class="btn btn-outline-dark mx-1 my-1">Avg ++</button>';
     main_buttons += '<button type="button" id="avgDwnBut" class="btn btn-outline-dark mx-1 my-1">Avg --</button>';
+    main_buttons += '<button type="button" id="avgUpBut" class="btn btn-outline-dark mx-1 my-1">Avg ++</button>';
     // btn-block
     $('#buttons').append(main_buttons);
 

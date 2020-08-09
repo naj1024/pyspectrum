@@ -85,32 +85,30 @@ Spectrum.prototype.drawSpectrum = function(bins) {
     this.ctx.fillStyle = "black";
     this.ctx.fillRect(0, 0, width, height);
 
-    // FFT averaging
-    if (!this.paused && this.averaging > 0) {
-        if (!this.binsAverage || this.binsAverage.length != bins.length) {
-            this.binsAverage = Array.from(bins);
-        } else {
-            for (var i = 0; i < bins.length; i++) {
-                this.binsAverage[i] += this.alpha * (bins[i] - this.binsAverage[i]);
+    if (!this.paused) {
+        // Max hold, before averaging
+        if (this.maxHold) {
+            if (!this.binsMax || this.binsMax.length != bins.length) {
+                this.binsMax = Array.from(bins);
+            } else {
+                for (var i = 0; i < bins.length; i++) {
+                    if (bins[i] > this.binsMax[i]) {
+                        this.binsMax[i] = bins[i];
+                    }
+                }
             }
         }
-        bins = this.binsAverage;
-    }
 
-    // Max hold
-    if (this.maxHold && !this.paused) {
-        if (!this.binsMax || this.binsMax.length != bins.length) {
-            this.binsMax = Array.from(bins);
-        } else {
-            for (var i = 0; i < bins.length; i++) {
-                if (bins[i] > this.binsMax[i]) {
-                    this.binsMax[i] = bins[i];
+        // Averaging
+        if (this.averaging > 0) {
+            if (!this.binsAverage || this.binsAverage.length != bins.length) {
+                this.binsAverage = Array.from(bins);
+            } else {
+                for (var i = 0; i < bins.length; i++) {
+                    this.binsAverage[i] += this.alpha * (bins[i] - this.binsAverage[i]);
                 }
-                //else {
-                    // Decay
-                  //  this.binsMax[i] = 1.0025 * this.binsMax[i];
-                //}
             }
+            bins = this.binsAverage;
         }
     }
 
@@ -209,11 +207,15 @@ Spectrum.prototype.updateAxes = function() {
     }
 }
 
-Spectrum.prototype.addData = function(magnitudes, peaks) {
+Spectrum.prototype.addData = function(magnitudes, peaks, start_sec, start_nsec, end_sec, end_nsec) {
     if (!this.paused) {
         // remember the data so we can pause and still use markers
-        this.mags = magnitudes;
-        this.peaks = peaks;
+        // start times are for the first mag we peak detected on between updates
+        // end times are for the last mag we peak detected on to give the peaks
+        // the magnitudes will be the last one peak detected on
+        // start and end times can be the same, in which case magnitudes == peaks
+        this.mags = magnitudes; // magnitudes for most recent spectrum
+        this.peaks = peaks;    // peak magnitudes between updates
 
         // magnitudes are from a single fft, peaks are from all the fft magnitudes since the last update
         // both magnitudes and peaks are same length
@@ -426,10 +428,13 @@ Spectrum.prototype.onKeypress = function(e) {
         this.decrementAveraging();
     } else if (e.key == "m") {
         this.toggleMaxHold();
+        $("#maxHoldBut").button('toggle'); // update the UI button state
     } else if (e.key == "l") {
         this.toggleLive();
-    } else if (e.key == " ") {
+        $("#peakBut").button('toggle'); // update the UI button state
+    } else if (e.key == "p") {
         this.togglePaused();
+        $("#pauseBut").button('toggle'); // update the UI button state
     } else if (e.key == "ArrowUp") {
         this.rangeUp();
     } else if (e.key == "ArrowDown") {
@@ -463,13 +468,6 @@ Spectrum.prototype.handleWheel = function(evt){
     }
 }
 
-Spectrum.prototype.setLiveMarker = function(message, x, y) {
-    this.liveMarker_on=true;
-    this.liveMarker_text=message;
-    this.liveMarker_x = x;
-    this.liveMarker_y = y;
-}
-
 Spectrum.prototype.addMarkerMHz = function(frequencyMHz, magdB, x_pos) {
     let marker = {};
     marker['xpos'] = parseInt(x_pos);
@@ -492,7 +490,13 @@ Spectrum.prototype.addMarkerMHz = function(frequencyMHz, magdB, x_pos) {
         this.markersSet.add(marker);
 
         // add to table of markers
-        let new_row="<tr><td>"+(this.markersSet.size-1)+"</td><td>"+frequencyMHz+"</td><td>"+magdB+"</td><td>"+delta+"</td></tr>";
+        let new_row="<tr>";
+        new_row += "<td>"+(this.markersSet.size-1)+"</td>";
+        new_row += "<td>"+frequencyMHz+"</td>";
+        new_row += "<td>"+magdB+"</td>";
+        new_row += "<td>"+0.0+"</td>";
+        new_row += "<td>"+delta+"</td>";
+        new_row += "</tr>";
         $('#marker_table').append(new_row);
     }
 }
@@ -505,29 +509,40 @@ Spectrum.prototype.clearMarkers = function() {
         $("#marker_table tr:eq("+i+")").remove(); //to delete row 'i', delrowId should be i+1
     }
     this.markersSet.clear();
-    this.liveMarker_on = false;
+    this.liveMarker = undefined;
     if (!data_active){
         this.updateWhenPaused();
     }
 }
 
 Spectrum.prototype.liveMarkerOff = function() {
-    this.liveMarker_on=false;
+    this.liveMarker = undefined;
 }
 
 // writeMarkers
 Spectrum.prototype.updateMarkers = function() {
     // live marker line
-    if (this.liveMarker_on){
+    if (this.liveMarker){
         let height = this.ctx.canvas.height;
         this.ctx.beginPath();
-        this.ctx.moveTo(this.liveMarker_x, 0);
-        this.ctx.lineTo(this.liveMarker_x, height);
+        this.ctx.moveTo(this.liveMarker.x, 0);
+        this.ctx.lineTo(this.liveMarker.x, height);
         this.ctx.setLineDash([10,10]);
         this.ctx.strokeStyle = "#f0f0f0";
         this.ctx.stroke();
+
+        // are we in spectrogram - so horizontal line as well
+        if(!this.liveMarker.spectrum_flag) {
+            let width = this.ctx.canvas.width;
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, this.liveMarker.y);
+            this.ctx.lineTo(width, this.liveMarker.y);
+            this.ctx.setLineDash([10,10]);
+            this.ctx.strokeStyle = "#f0f0f0";
+            this.ctx.stroke();
+        }
     }
-    // indexed marker lines
+    // indexed markers
     for (let item of this.markersSet) {
         let xpos = item.xpos;
         let height = this.ctx.canvas.height;
@@ -545,13 +560,24 @@ Spectrum.prototype.updateMarkers = function() {
     context.font = '12px sans-serif';
     context.fillStyle = 'white';
     context.textAlign = "left";
-    if (this.liveMarker_text != "" && this.liveMarker_on) {
-        // are we past half way then put text on left
-        if (this.liveMarker_x > (this.canvas.clientWidth/2)) {
+    if (this.liveMarker) {
+        // update the value, so we get a live update
+        let values = this.getValues(this.liveMarker.x, this.liveMarker.y, this.liveMarker.width);
+
+        let marker_text = "";
+        if (this.liveMarker.spectrum_flag) {
+            marker_text = (values.freq / 1e6).toFixed(3)+"MHz " + values.power.toFixed(1) + "dB";
+        } else {
+            marker_text = (values.freq / 1e6).toFixed(3)+"MHz " + values.time.toFixed(3) + "s";
+        }
+
+        // are we past half way, then put text on left
+        if (this.liveMarker.x > (this.canvas.clientWidth/2)) {
             context.textAlign = "right";
         }
-        context.fillText(this.liveMarker_text, this.liveMarker_x, this.liveMarker_y);
+        context.fillText(marker_text, this.liveMarker.x, this.liveMarker.y);
     }
+    // indexed markers
     let marker_num=0;
     for (let item of this.markersSet) {
         let xpos = item.xpos;
@@ -565,22 +591,28 @@ Spectrum.prototype.updateMarkers = function() {
 }
 
 Spectrum.prototype.handleMouseMove = function(evt) {
-    let mouse_ptr = this.getMouseValue(evt);
-    if (mouse_ptr){
-        if (mouse_ptr.powerFlag){
-            this.setLiveMarker((mouse_ptr.freq / 1e6).toFixed(3)+"MHz "+mouse_ptr.power.toFixed(1)+"dB", mouse_ptr.x, mouse_ptr.y);
-        } else {
-            this.setLiveMarker((mouse_ptr.freq / 1e6).toFixed(3)+"MHz", mouse_ptr.x, mouse_ptr.y);
-        }
+    let rect = this.canvas.getBoundingClientRect();
+    let x_pos = evt.clientX - rect.left;
+    let y_pos = evt.clientY - rect.top;
+    let width = rect.width;
+
+    let values = this.getValues(x_pos, y_pos, width);
+    if (values) {
+        this.liveMarker = values;
     }
 }
 
 Spectrum.prototype.handleMouseClick = function(evt) {
-    let mouse_ptr = this.getMouseValue(evt);
-    if (mouse_ptr){
+    let rect = this.canvas.getBoundingClientRect();
+    let x_pos = evt.clientX - rect.left;
+    let y_pos = evt.clientY - rect.top;
+    let width = rect.width;
+
+    let values = this.getValues(x_pos, y_pos, width);
+    if (values){
         // limit the number of markers
         if (this.markersSet.size < this.maxNumMarkers){
-            this.addMarkerMHz((mouse_ptr.freq / 1e6).toFixed(3), mouse_ptr.power.toFixed(1), mouse_ptr.x);
+            this.addMarkerMHz((values.freq / 1e6).toFixed(3), values.power.toFixed(1), values.x);
             // allow markers ot be added even when we are receiving no data
             if (!data_active){
                 this.updateWhenPaused();
@@ -589,33 +621,51 @@ Spectrum.prototype.handleMouseClick = function(evt) {
     }
 }
 
-Spectrum.prototype.getMouseValue = function(evt) {
-    let rect = this.canvas.getBoundingClientRect();
+Spectrum.prototype.getValues = function(xpos, ypos, width) {
+    if(!this.mags)
+        return undefined;
 
-    let x_pos = evt.clientX - rect.left;
-    let per_hz = this.spanHz / (rect.right - rect.left);
-    let freq_value = (this.centerHz - (this.spanHz / 2)) + (x_pos * per_hz);
+    let per_hz = this.spanHz / width;
+    let freq_value = (this.centerHz - (this.spanHz / 2)) + (xpos * per_hz);
 
+    // dB value where the mouse pointer is and also signal dB
     let spectrum_height = this.canvas.height * (this.spectrumPercent/100);
-    let y_pos = evt.clientY - rect.top;
-    let power_value = 0.0;
-    let power_flag = false;
-    if (y_pos <= spectrum_height){
+    let mouse_power_db = 0.0;
+    let signal_db = 0.0;
+    let spectrum_flag = false;  // are we in spectrum or spectrogram
+    let time_value = 0.0;
+    if (ypos <= spectrum_height) {
+        spectrum_flag = true;
         let range_db = this.max_db - this.min_db;
         let db_point = range_db / spectrum_height;
-        power_value = this.max_db - (y_pos * db_point);
-        power_flag = true;
+        mouse_power_db = this.max_db - (ypos * db_point);
+
+        // signal related, where are we in the array of powers
+        let pwr_index = xpos * this.mags.length / width;
+
+        // if in max hold then return that power otherwise eithe mags or peaks
+        if (this.binsMax) {
+            signal_db = this.binsMax[parseInt(pwr_index)];
+       }else if (this.live_magnitudes) {
+            signal_db = this.mags[parseInt(pwr_index)];
+        } else {
+            signal_db = this.peaks[parseInt(pwr_index)];
+        }
+        // console.log("pwr "+xpos+" "+pwr_index+" "+mouse_power_db+" "+signal_db+" ");
+    } else {
+        time_value = ypos - spectrum_height;
     }
-    let time_value = 0.0;
+
 
     // return the frequency in Hz, the power and where we are on the display
     return {
           freq: freq_value,
-          powerFlag: power_flag,
-          power: power_value,
+          spectrum_flag: spectrum_flag,
+          power: signal_db,
           time: time_value,
-          x: x_pos,
-          y: evt.clientY - rect.top
+          x: xpos,
+          y: ypos,
+          width: width
     };
 }
 
@@ -631,14 +681,11 @@ function Spectrum(id, options) {
     this.maxHold = (options && options.maxHold) ? options.maxHold : false;
 
     // flag live magnitude spectrum or default of peaks over all spectrums seen since last spectrum
-    this.live_magnitudes = (options && options.live_magnitudes) ? options.live_magnitudes : false;
+    this.live_magnitudes = (options && options.live_magnitudes) ? options.live_magnitudes : true;
 
     // markers
     this.markersSet = new Set();
-    this.message = "";
-    this.liveMarker_on = false;
-    this.liveMarker_x = 0;
-    this.liveMarker_y = 0;
+    this.liveMarker = undefined;
     this.maxNumMarkers = 16;
 
     // Setup state

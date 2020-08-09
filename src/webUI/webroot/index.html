@@ -3,10 +3,16 @@
     <head>
         <!-- Required meta tags -->
         <meta charset="utf-8">
+
+        <!-- bootstrap -->
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
         <!-- CSS -->
+        <!-- local copie of bootstrap css
         <link rel="stylesheet" href="./bootstrap/css/bootstrap.min.css"/>
+        -->
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+
         <link href="./template.css" rel="stylesheet"/>
 
         <title>Spectrum Analyser</title>
@@ -35,9 +41,7 @@
                 <div class="col-10">
                     <canvas id="spectrumanalyser" height="500px" width="1024px"></canvas>
                 </div>
-                <!-- 1 colum of buttons -->
-                <!-- <div class="col-1" id="buttons"></div> -->
-                <!-- 2 colums of marker table -->
+                <!-- 2 colums of tables and buttons -->
                 <div class="col-2" style="overflow-y:auto;">
                     <div id="buttons"></div>
                     <div>
@@ -66,7 +70,8 @@
                                         <th scope="col">#</th>
                                         <th scope="col">MHz</th>
                                         <th scope="col">dB</th>
-                                        <th scope="col">Delta MHz</th>
+                                        <th scope="col">time</th>
+                                        <th scope="col">d MHz</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -78,9 +83,13 @@
             </div>
         </main>
 
+        <!-- local copies of js and bootstrap
         <script src="./jquery/jquery-3.5.1.slim.min.js"></script>
         <script>window.jQuery || document.write('<script src="./jquery/jquery-3.5.1.slim.min.js"><\/script>')</script>
         <script src="./bootstrap/js/bootstrap.bundle.js"></script>
+        -->
+        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
 
         <script src="colormap.js"></script>
         <script src="spectrum.js"></script>

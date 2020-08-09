@@ -75,14 +75,23 @@ class WebSocketServer(multiprocessing.Process):
 
                     centreMhz = float(centre) / 1e6  # in MHz
 
+                    # times are in nsec and javascript won't handle 8byte int so break it up
+                    start_sec: int = int(time_start / 1e9)
+                    start_nsec: int = int(time_start - start_sec * 1e9)
+                    end_sec: int = int(time_end / 1e9)
+                    end_nsec: int = int(time_end - end_sec * 1e9)
+
                     num_floats = int(spec.size)
                     # pack the data up in binary, watch out for sizes
                     # ignoring times for now as still to handle 8byte ints in javascript
-                    message = struct.pack(f"!if3i{num_floats}f{num_floats}f",
+                    # !if5i{num_floats}f{num_floats}f is in network orddr 1 int, 1 float, 5 int, N float, N float
+                    message = struct.pack(f"!if5i{num_floats}f{num_floats}f",
                                           int(sps),  # 4bytes
                                           float(centreMhz),  # 4byte float (32bit)
-                                          int(1000),  # 4bytes
-                                          int(2000),  # 4bytes
+                                          int(start_sec),  # 4bytes
+                                          int(start_nsec),  # 4bytes
+                                          int(end_sec),  # 4bytes
+                                          int(end_nsec),  # 4bytes
                                           num_floats,  # 4bytes (N)
                                           *spec,  # N * 4byte floats (32bit)
                                           *peak)  # N * 4byte floats (32bit)

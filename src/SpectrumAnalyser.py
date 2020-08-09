@@ -143,7 +143,7 @@ def main() -> None:
                                                             "centre_frequency_hz": configuration.centre_frequency_hz})
 
             ##########################
-            # Update the matplotlib_ui
+            # Update the UI
             #################
             peak_powers_since_last_display, current_peak_count, max_peak_count = \
                 update_display(configuration,
@@ -532,7 +532,7 @@ def update_display(configuration: Variables,
                    max_peak_count: int,
                    time_spectrum: float) -> Tuple[np.ndarray, int, int]:
     """
-    Send data to the queue used for talking to the matplotlib_ui process
+    Send data to the queue used for talking to the ui processes
 
     :param configuration: Our programme state variables
     :param display_queue: The queue used for talking to the matplotlib_ui process
