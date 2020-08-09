@@ -169,13 +169,18 @@ function main() {
     canvas.addEventListener('mousemove', function(evt) {
         spectrum.handleMouseMove(evt);
     }, false);
-    canvas.addEventListener('click', function(evt) {
-        spectrum.handleMouseClick(evt);
+    canvas.addEventListener('click', function(evt) { // left mouse click
+        spectrum.handleLeftMouseClick(evt);
+    }, false);
+    canvas.addEventListener('contextmenu', function(evt) { // Right click
+        spectrum.handleRightMouseClick(evt);
     }, false);
     canvas.addEventListener('wheel', function(evt) {
         spectrum.handleWheel(evt);
     }, false);
 
+    // remove deafult canvas conext menu
+    $('body').on('contextmenu', '#spectrumanalyser', function(e){ return false; });
 
     // bootstrap buttons
     let main_buttons = '<button type="button" id="pauseBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Pause</button>';
@@ -186,7 +191,8 @@ function main() {
     // btn-block
     $('#buttons').append(main_buttons);
 
-    let marker_buttons = '<button type="button" id="clearMarkers" class="btn btn-outline-dark my-1">ClearMarkers</button>';
+    let marker_buttons = '<button type="button" id="liveMarkerBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Live</button>';
+    marker_buttons += '<button type="button" id="clearMarkersBut" class="btn btn-outline-dark mx-1 my-1">ClearMarkers</button>';
     $('#marker-buttons').append(marker_buttons);
 
     // bootstrap events
@@ -195,7 +201,8 @@ function main() {
     $('#peakBut').click(function() {spectrum.toggleLive();});
     $('#avgUpBut').click(function() {spectrum.incrementAveraging();});
     $('#avgDwnBut').click(function() {spectrum.decrementAveraging();});
-    $('#clearMarkers').click(function() {spectrum.clearMarkers();});
+    $('#liveMarkerBut').click(function() {spectrum.liveMarkerOn();});
+    $('#clearMarkersBut').click(function() {spectrum.clearMarkers();});
 
     // Connect to websocket
     connectWebSocket(spectrum);

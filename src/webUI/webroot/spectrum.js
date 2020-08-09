@@ -468,9 +468,10 @@ Spectrum.prototype.handleWheel = function(evt){
     }
 }
 
-Spectrum.prototype.addMarkerMHz = function(frequencyMHz, magdB, x_pos) {
+Spectrum.prototype.addMarkerMHz = function(frequencyMHz, magdB, x_pos, y_pos) {
     let marker = {};
     marker['xpos'] = parseInt(x_pos);
+    marker['ypos'] = parseInt(y_pos);
     marker['freqMHz'] = frequencyMHz;
     marker['db'] = magdB;
     let delta = 0;
@@ -501,6 +502,18 @@ Spectrum.prototype.addMarkerMHz = function(frequencyMHz, magdB, x_pos) {
     }
 }
 
+Spectrum.prototype.liveMarkerOn = function() {
+    if (this.live_marker_type == 0) {
+        this.live_marker_type = 1;
+    } else {
+        this.live_marker_type = 0;
+        this.liveMarker = undefined;
+        if (!data_active) {
+            this.updateWhenPaused();
+        }
+    }
+}
+
 Spectrum.prototype.clearMarkers = function() {
     // clear the table
     //  $(this).parents("tr").remove();
@@ -515,68 +528,153 @@ Spectrum.prototype.clearMarkers = function() {
     }
 }
 
-Spectrum.prototype.liveMarkerOff = function() {
-    this.liveMarker = undefined;
+Spectrum.prototype.convertdBtoY = function(db_value) {
+    // as we can move the y axis around we need to be able to convert a dB value
+    // to the correct y axis offset
+    let spectrum_height = this.canvas.height * (this.spectrumPercent/100);
+    let range_db = this.max_db - this.min_db;
+    let db_point = range_db / spectrum_height;
+    let db_offset_from_top = this.max_db - db_value;
+    let yaxis_cord = db_offset_from_top / db_point;
+    if (yaxis_cord < 0) {
+        yaxis_cord = 0;
+    }
+    return (parseInt(yaxis_cord));
 }
 
 // writeMarkers
 Spectrum.prototype.updateMarkers = function() {
-    // live marker line
-    if (this.liveMarker){
-        let height = this.ctx.canvas.height;
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.liveMarker.x, 0);
-        this.ctx.lineTo(this.liveMarker.x, height);
-        this.ctx.setLineDash([10,10]);
-        this.ctx.strokeStyle = "#f0f0f0";
-        this.ctx.stroke();
+    // TODO: refactor this function
 
-        // are we in spectrogram - so horizontal line as well
-        if(!this.liveMarker.spectrum_flag) {
-            let width = this.ctx.canvas.width;
+    let width = this.ctx.canvas.width;
+    let height = this.ctx.canvas.height;
+    var context = this.canvas.getContext('2d');
+    context.font = '12px sans-serif'; // if text px changed y offset for diff text has to be changed
+    context.fillStyle = 'white';
+    context.textAlign = "left";
+
+    // live marker line
+    if ((this.live_marker_type > 0) && this.liveMarker){
+        // what kind of marker
+        // 0 - none
+        // 1 - frequency (vertical)
+        // 2 - frequency + power/time (vertical and horizontal
+
+        // vertical frequency marker
+        if(this.live_marker_type & 1) {
             this.ctx.beginPath();
-            this.ctx.moveTo(0, this.liveMarker.y);
-            this.ctx.lineTo(width, this.liveMarker.y);
+            this.ctx.moveTo(this.liveMarker.x, 0);
+            this.ctx.lineTo(this.liveMarker.x, height);
+            this.ctx.setLineDash([10,10]);
+            this.ctx.strokeStyle = "#f0f0f0";
+            this.ctx.stroke();
+        }
+        // horizontal db marker on spectrum, or time in spectrogram
+        if((this.live_marker_type & 2) | !this.liveMarker.spectrum_flag) {
+            let y_pos = this.convertdBtoY(this.liveMarker.power);
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, y_pos);
+            this.ctx.lineTo(width, y_pos);
             this.ctx.setLineDash([10,10]);
             this.ctx.strokeStyle = "#f0f0f0";
             this.ctx.stroke();
         }
     }
     // indexed markers
-    for (let item of this.markersSet) {
-        let xpos = item.xpos;
-        let height = this.ctx.canvas.height;
-        this.ctx.beginPath();
-        this.ctx.moveTo(xpos, 0);
-        this.ctx.lineTo(xpos, height);
-        this.ctx.setLineDash([5,5]);
-        this.ctx.strokeStyle = "#f0f0f0";
-        this.ctx.stroke();
+    if (this.markersSet) {
+        let last_indexed_marker = this.markersSet.size -1;
+        let current_index = 0;
+        for (let item of this.markersSet) {
+            let xpos = item.xpos;
+            let height = this.ctx.canvas.height;
+            this.ctx.beginPath();
+            this.ctx.moveTo(xpos, 0);
+            this.ctx.lineTo(xpos, height);
+            this.ctx.setLineDash([5,5]);
+            this.ctx.strokeStyle = "#f0f0f0";
+            this.ctx.stroke();
+
+            // diff to last indexed marker if live marker on
+            if ( (this.live_marker_type > 0) && (last_indexed_marker==current_index) ) {
+                // draw a horizontal line if we have the live marker on
+                let y_pos = this.convertdBtoY(item.db);
+                this.ctx.beginPath();
+                this.ctx.moveTo(0, y_pos);
+                this.ctx.lineTo(width, y_pos);
+                this.ctx.setLineDash([5,5]);
+                this.ctx.strokeStyle = "#f0f0f0";
+                this.ctx.stroke();
+
+                // show the marker index on the right
+                context.textAlign = "right";
+                context.fillText(last_indexed_marker, width, y_pos);
+            }
+            current_index += 1;
+        }
     }
+
+    // rest line style before we forget to
     this.ctx.setLineDash([]);
 
     // marker texts
-    var context = this.canvas.getContext('2d');
-    context.font = '12px sans-serif';
-    context.fillStyle = 'white';
-    context.textAlign = "left";
-    if (this.liveMarker) {
+    if ((this.live_marker_type > 0) && this.liveMarker) {
         // update the value, so we get a live update
-        let values = this.getValues(this.liveMarker.x, this.liveMarker.y, this.liveMarker.width);
+        let marker_value = this.getValues(this.liveMarker.x, this.liveMarker.y, this.liveMarker.width);
+        if (marker_value) {
+            let marker_text = "";
+            if (this.liveMarker.spectrum_flag) {
+                // in spectrum
+                if (this.live_marker_type & 1) {
+                    marker_text = (marker_value.freq / 1e6).toFixed(3)+"MHz " + marker_value.power.toFixed(1) + "dB";
+                } else {
+                    marker_text = marker_value.power.toFixed(1) + "dB";
+                }
+            } else {
+                // in spectrogram
+                if (this.live_marker_type & 1) {
+                    marker_text = (marker_value.freq / 1e6).toFixed(3)+"MHz " + marker_value.time.toFixed(3) + "s";
+                } else {
+                    marker_text = marker_value.time.toFixed(3) + "s";
+                }
+            }
 
-        let marker_text = "";
-        if (this.liveMarker.spectrum_flag) {
-            marker_text = (values.freq / 1e6).toFixed(3)+"MHz " + values.power.toFixed(1) + "dB";
-        } else {
-            marker_text = (values.freq / 1e6).toFixed(3)+"MHz " + values.time.toFixed(3) + "s";
-        }
+            // are we past half way, then put text on left
+            let offset_x = 15; // start text past mouse ptr
+            if (this.liveMarker.x > (this.canvas.clientWidth/2)) {
+                context.textAlign = "right";
+                offset_x = -5;
+            }
+            context.fillText(marker_text, this.liveMarker.x + offset_x, 30); //this.liveMarker.y);
 
-        // are we past half way, then put text on left
-        if (this.liveMarker.x > (this.canvas.clientWidth/2)) {
-            context.textAlign = "right";
+            // Now if we have a set marker we also show the difference to the live marker
+            if (this.markersSet.size > 0) {
+                let mvalues = Array.from(this.markersSet);
+                let last = mvalues[this.markersSet.size-1];
+                let freq_diff = marker_value.freq - last.freqMHz*1e6;
+                let db_diff = marker_value.power - last.db;
+                let time_diff = marker_value.time - last.time;
+
+                let diff_text="";
+                if (this.liveMarker.spectrum_flag) {
+                    // in spectrum
+                    if (this.live_marker_type & 1) {
+                        diff_text = (freq_diff / 1e3).toFixed(3)+"kHz " + db_diff.toFixed(1) + "dB";
+                    } else {
+                        diff_text = db_diff.toFixed(1) + "dB";
+                    }
+                } else {
+                    // in spectrogram
+                    if (this.live_marker_type & 1) {
+                        diff_text = (freq_diff / 1e3).toFixed(3)+"kHz " + db_diff.toFixed(3) + "s";
+                    } else {
+                        diff_text = time_diff.toFixed(3) + "s";
+                    }
+                }
+                context.fillText(diff_text, this.liveMarker.x + offset_x, 42); //this.liveMarker.y+12); // 12px text
+            }
         }
-        context.fillText(marker_text, this.liveMarker.x, this.liveMarker.y);
     }
+
     // indexed markers
     let marker_num=0;
     for (let item of this.markersSet) {
@@ -591,18 +689,20 @@ Spectrum.prototype.updateMarkers = function() {
 }
 
 Spectrum.prototype.handleMouseMove = function(evt) {
-    let rect = this.canvas.getBoundingClientRect();
-    let x_pos = evt.clientX - rect.left;
-    let y_pos = evt.clientY - rect.top;
-    let width = rect.width;
+    if (this.live_marker_type > 0) {
+        let rect = this.canvas.getBoundingClientRect();
+        let x_pos = evt.clientX - rect.left;
+        let y_pos = evt.clientY - rect.top;
+        let width = rect.width;
 
-    let values = this.getValues(x_pos, y_pos, width);
-    if (values) {
-        this.liveMarker = values;
+        let values = this.getValues(x_pos, y_pos, width);
+        if (values) {
+            this.liveMarker = values;
+        }
     }
 }
 
-Spectrum.prototype.handleMouseClick = function(evt) {
+Spectrum.prototype.handleLeftMouseClick = function(evt) {
     let rect = this.canvas.getBoundingClientRect();
     let x_pos = evt.clientX - rect.left;
     let y_pos = evt.clientY - rect.top;
@@ -612,11 +712,25 @@ Spectrum.prototype.handleMouseClick = function(evt) {
     if (values){
         // limit the number of markers
         if (this.markersSet.size < this.maxNumMarkers){
-            this.addMarkerMHz((values.freq / 1e6).toFixed(3), values.power.toFixed(1), values.x);
+            this.addMarkerMHz((values.freq / 1e6).toFixed(3), values.power.toFixed(1), values.x, values.y);
             // allow markers ot be added even when we are receiving no data
             if (!data_active){
                 this.updateWhenPaused();
             }
+        }
+    }
+}
+
+Spectrum.prototype.handleRightMouseClick = function(evt) {
+    // change the type of live marker line
+    if (this.live_marker_type == 0) {
+        this.live_marker_type = 1;
+        $("#liveMarkerBut").button('toggle'); // update the UI button state
+    } else {
+        this.live_marker_type += 1;
+        if(this.live_marker_type > 3) {
+            this.live_marker_type = 0;
+            $("#liveMarkerBut").button('toggle'); // update the UI button state
         }
     }
 }
@@ -656,7 +770,6 @@ Spectrum.prototype.getValues = function(xpos, ypos, width) {
         time_value = ypos - spectrum_height;
     }
 
-
     // return the frequency in Hz, the power and where we are on the display
     return {
           freq: freq_value,
@@ -686,6 +799,7 @@ function Spectrum(id, options) {
     // markers
     this.markersSet = new Set();
     this.liveMarker = undefined;
+    this.live_marker_type = 0;  // 0=off, 1=freq on, 2=freq+level/time, 3=level/time
     this.maxNumMarkers = 16;
 
     // Setup state

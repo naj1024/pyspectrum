@@ -4,6 +4,9 @@
         <!-- Required meta tags -->
         <meta charset="utf-8">
 
+        <!-- disable older ie compatibility -->
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
         <!-- bootstrap -->
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
@@ -24,15 +27,16 @@
 
     <body>
         <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
-
-            <a class="navbar-brand" href="/" aria-label="Sa"><img src="./favicon-32x32.png" alt="Sa"></a>
-            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault"
-                    aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <ul class="navbar-nav ml-auto">
-                <li id="connection_state" class="nav-item mx-1"> <img src="./icons/led-red.png" title="No connection" alt="no connection"> </li>
-            </ul>
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/" aria-label="Sa"><img src="./favicon-32x32.png" alt="Sa"></a>
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault"
+                        aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <ul class="navbar-nav ml-auto">
+                    <li id="connection_state" class="nav-item mx-1"> <img src="./icons/led-red.png" title="No connection" alt="no connection"> </li>
+                </ul>
+            </div>
         </nav>
 
         <main role="main" class="container-fluid">
