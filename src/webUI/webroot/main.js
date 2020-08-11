@@ -129,7 +129,7 @@ function check_for_support(){
     let test_blob = new Blob(["hello"], {type: 'text/html'});
     let blob_ok=(test_blob)? true:false;
     if(!blob_ok){
-        ok+=", No blob";
+        ok += ", No blob";
     }else{
         try{
             let test_blob_arrayBuffer = test_blob.arrayBuffer();
@@ -137,10 +137,10 @@ function check_for_support(){
                 let data_bytes = new Uint8Array(test_blob_arrayBuffer);
                 let dataView = new DataView(data_bytes.buffer);
             } catch (err){
-                ok+=", No DataView";
+                ok += ", No blob DataView";
             }
         }catch (err){
-            ok+=", No blob arrayBuffer";
+            ok += ", No blob arrayBuffer";
         }
     }
     return(ok);
@@ -191,6 +191,7 @@ function main() {
     // btn-block
     $('#buttons').append(main_buttons);
 
+    // todo add auto peak detect button
     let marker_buttons = '<button type="button" id="liveMarkerBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Live</button>';
     marker_buttons += '<button type="button" id="clearMarkersBut" class="btn btn-outline-dark mx-1 my-1">ClearMarkers</button>';
     $('#marker-buttons').append(marker_buttons);

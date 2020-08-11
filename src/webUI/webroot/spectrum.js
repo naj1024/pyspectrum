@@ -55,7 +55,7 @@ Spectrum.prototype.addWaterfallRow = function(bins) {
     this.drawWaterfall();
 }
 
-Spectrum.prototype.drawFFT = function(bins) {
+Spectrum.prototype.drawFFT = function(bins, colour) {
     if(bins!=undefined) {
         this.ctx.beginPath();
         this.ctx.moveTo(-1, this.spectrumHeight + 1);
@@ -72,7 +72,7 @@ Spectrum.prototype.drawFFT = function(bins) {
                 this.ctx.lineTo(this.wf_size + 1, y);
         }
         this.ctx.lineTo(this.wf_size + 1, this.spectrumHeight + 1);
-        this.ctx.strokeStyle = "#fefefe";
+        this.ctx.strokeStyle = colour;
         this.ctx.stroke();
     }
 }
@@ -81,9 +81,19 @@ Spectrum.prototype.drawSpectrum = function(bins) {
     var width = this.ctx.canvas.width;
     var height = this.ctx.canvas.height;
 
-    // Fill with black
-    this.ctx.fillStyle = "black";
+    // Fill with canvas
+    this.ctx.fillStyle = this.backgroundColour;
     this.ctx.fillRect(0, 0, width, height);
+
+    // bounding box around canvas
+    this.ctx.beginPath();
+    this.ctx.moveTo(0, 0);
+    this.ctx.lineTo(width, 0);
+    this.ctx.lineTo(width, height);
+    this.ctx.lineTo(0, height);
+    this.ctx.lineTo(0, 0);
+    this.ctx.strokeStyle = "black";
+    this.ctx.stroke();
 
     if (!this.paused) {
         // Max hold, before averaging
@@ -122,18 +132,20 @@ Spectrum.prototype.drawSpectrum = function(bins) {
 
     // Draw maxhold
     if (this.maxHold)
-        this.drawFFT(this.binsMax);
+        this.drawFFT(this.binsMax, this.maxHoldColour);
 
-    // Draw FFT bins
-    this.drawFFT(bins);
+    // Draw FFT bins, note that last drawFFT will get the gradient fill
+    this.drawFFT(bins,this.magnitudesColour);
 
     // Restore scale
     this.ctx.restore();
 
-    // Fill scaled path
-    this.ctx.fillStyle = this.gradient;
-    this.ctx.fill();
-
+    // do we wish the spectrum to be gradient filled
+    if (this.spectrumGradient) {
+        // Fill scaled path
+        this.ctx.fillStyle = this.gradient;
+        this.ctx.fill();
+    }
     // Copy axes from offscreen canvas
     this.ctx.drawImage(this.ctx_axes.canvas, 0, 0);
 }
@@ -147,7 +159,7 @@ Spectrum.prototype.updateAxes = function() {
 
     // Draw axes
     this.ctx_axes.font = "12px sans-serif";
-    this.ctx_axes.fillStyle = "white";
+    this.ctx_axes.fillStyle = this.canvasTextColour;
     this.ctx_axes.textBaseline = "middle";
 
     // y-axis labels
@@ -160,7 +172,7 @@ Spectrum.prototype.updateAxes = function() {
         this.ctx_axes.beginPath();
         this.ctx_axes.moveTo(20, y);
         this.ctx_axes.lineTo(width, y);
-        this.ctx_axes.strokeStyle = "rgba(200, 200, 200, 0.40)";
+        this.ctx_axes.strokeStyle = "rgba(200, 200, 200, 0.40)"; // TODO: with specified colour/intensity
         this.ctx_axes.stroke();
     }
 
@@ -222,8 +234,8 @@ Spectrum.prototype.addData = function(magnitudes, peaks, start_sec, start_nsec, 
         if (magnitudes.length != this.wf_size) {
             this.wf_size = magnitudes.length;
             this.ctx_wf.canvas.width = magnitudes.length;
-            this.ctx_wf.fillStyle = "black";
-            this.ctx_wf.fillRect(0, 0, this.wf.width, this.wf.height);
+            //this.ctx_wf.fillStyle = this.backgroundColour;
+            //this.ctx_wf.fillRect(0, 0, this.wf.width, this.wf.height);
             this.imagedata = this.ctx_wf.createImageData(magnitudes.length, 1);
         }
         if (this.live_magnitudes) {
@@ -504,7 +516,7 @@ Spectrum.prototype.addMarkerMHz = function(frequencyMHz, magdB, x_pos, y_pos) {
 
 Spectrum.prototype.liveMarkerOn = function() {
     if (this.live_marker_type == 0) {
-        this.live_marker_type = 1;
+        this.live_marker_type = 3;
     } else {
         this.live_marker_type = 0;
         this.liveMarker = undefined;
@@ -550,7 +562,7 @@ Spectrum.prototype.updateMarkers = function() {
     let height = this.ctx.canvas.height;
     var context = this.canvas.getContext('2d');
     context.font = '12px sans-serif'; // if text px changed y offset for diff text has to be changed
-    context.fillStyle = 'white';
+    context.fillStyle = this.liveMarkerColour;
     context.textAlign = "left";
 
     // live marker line
@@ -566,21 +578,25 @@ Spectrum.prototype.updateMarkers = function() {
             this.ctx.moveTo(this.liveMarker.x, 0);
             this.ctx.lineTo(this.liveMarker.x, height);
             this.ctx.setLineDash([10,10]);
-            this.ctx.strokeStyle = "#f0f0f0";
+            this.ctx.strokeStyle = this.liveMarkerColour;
             this.ctx.stroke();
         }
         // horizontal db marker on spectrum, or time in spectrogram
-        if((this.live_marker_type & 2) | !this.liveMarker.spectrum_flag) {
+        if((this.live_marker_type & 2) && this.liveMarker.spectrum_flag) {
             let y_pos = this.convertdBtoY(this.liveMarker.power);
             this.ctx.beginPath();
             this.ctx.moveTo(0, y_pos);
             this.ctx.lineTo(width, y_pos);
             this.ctx.setLineDash([10,10]);
-            this.ctx.strokeStyle = "#f0f0f0";
+            this.ctx.strokeStyle = this.liveMarkerColour;
             this.ctx.stroke();
         }
     }
+    // reset line style before we forget to
+    this.ctx.setLineDash([]);
+
     // indexed markers
+    context.fillStyle = this.markersColour;
     if (this.markersSet) {
         let last_indexed_marker = this.markersSet.size -1;
         let current_index = 0;
@@ -590,8 +606,7 @@ Spectrum.prototype.updateMarkers = function() {
             this.ctx.beginPath();
             this.ctx.moveTo(xpos, 0);
             this.ctx.lineTo(xpos, height);
-            this.ctx.setLineDash([5,5]);
-            this.ctx.strokeStyle = "#f0f0f0";
+            this.ctx.strokeStyle = this.markersColour;
             this.ctx.stroke();
 
             // diff to last indexed marker if live marker on
@@ -601,11 +616,10 @@ Spectrum.prototype.updateMarkers = function() {
                 this.ctx.beginPath();
                 this.ctx.moveTo(0, y_pos);
                 this.ctx.lineTo(width, y_pos);
-                this.ctx.setLineDash([5,5]);
-                this.ctx.strokeStyle = "#f0f0f0";
+                this.ctx.strokeStyle = this.markersColour;
                 this.ctx.stroke();
 
-                // show the marker index on the right
+                // show the marker index on the right hand edge
                 context.textAlign = "right";
                 context.fillText(last_indexed_marker, width, y_pos);
             }
@@ -613,10 +627,8 @@ Spectrum.prototype.updateMarkers = function() {
         }
     }
 
-    // rest line style before we forget to
-    this.ctx.setLineDash([]);
-
     // marker texts
+    context.fillStyle = this.liveMarkerColour
     if ((this.live_marker_type > 0) && this.liveMarker) {
         // update the value, so we get a live update
         let marker_value = this.getValues(this.liveMarker.x, this.liveMarker.y, this.liveMarker.width);
@@ -625,26 +637,26 @@ Spectrum.prototype.updateMarkers = function() {
             if (this.liveMarker.spectrum_flag) {
                 // in spectrum
                 if (this.live_marker_type & 1) {
-                    marker_text = (marker_value.freq / 1e6).toFixed(3)+"MHz " + marker_value.power.toFixed(1) + "dB";
+                    marker_text = " " + (marker_value.freq / 1e6).toFixed(3)+"MHz " + marker_value.power.toFixed(1) + "dB ";
                 } else {
-                    marker_text = marker_value.power.toFixed(1) + "dB";
+                    marker_text = " " + marker_value.power.toFixed(1) + "dB ";
                 }
             } else {
                 // in spectrogram
                 if (this.live_marker_type & 1) {
-                    marker_text = (marker_value.freq / 1e6).toFixed(3)+"MHz " + marker_value.time.toFixed(3) + "s";
+                    marker_text = " " + (marker_value.freq / 1e6).toFixed(3)+"MHz " + marker_value.time.toFixed(3) + "s ";
                 } else {
-                    marker_text = marker_value.time.toFixed(3) + "s";
+                    marker_text = " " + marker_value.time.toFixed(3) + "s ";
                 }
             }
 
             // are we past half way, then put text on left
-            let offset_x = 15; // start text past mouse ptr
             if (this.liveMarker.x > (this.canvas.clientWidth/2)) {
                 context.textAlign = "right";
-                offset_x = -5;
+            } else {
+                context.textAlign = "left";
             }
-            context.fillText(marker_text, this.liveMarker.x + offset_x, 30); //this.liveMarker.y);
+            context.fillText(marker_text, this.liveMarker.x, 30); //this.liveMarker.y);
 
             // Now if we have a set marker we also show the difference to the live marker
             if (this.markersSet.size > 0) {
@@ -658,25 +670,26 @@ Spectrum.prototype.updateMarkers = function() {
                 if (this.liveMarker.spectrum_flag) {
                     // in spectrum
                     if (this.live_marker_type & 1) {
-                        diff_text = (freq_diff / 1e3).toFixed(3)+"kHz " + db_diff.toFixed(1) + "dB";
+                        diff_text = " " + (freq_diff / 1e3).toFixed(3)+"kHz " + db_diff.toFixed(1) + "dB ";
                     } else {
-                        diff_text = db_diff.toFixed(1) + "dB";
+                        diff_text = " " + db_diff.toFixed(1) + "dB ";
                     }
                 } else {
                     // in spectrogram
                     if (this.live_marker_type & 1) {
-                        diff_text = (freq_diff / 1e3).toFixed(3)+"kHz " + db_diff.toFixed(3) + "s";
+                        diff_text = " " + (freq_diff / 1e3).toFixed(3)+"kHz " + db_diff.toFixed(3) + "s ";
                     } else {
-                        diff_text = time_diff.toFixed(3) + "s";
+                        diff_text = " " + time_diff.toFixed(3) + "s ";
                     }
                 }
-                context.fillText(diff_text, this.liveMarker.x + offset_x, 42); //this.liveMarker.y+12); // 12px text
+                context.fillText(diff_text, this.liveMarker.x, 42); //this.liveMarker.y+12); // 12px text
             }
         }
     }
 
     // indexed markers
     let marker_num=0;
+    context.fillStyle = this.markersColour; //liveMarkerColour
     for (let item of this.markersSet) {
         let xpos = item.xpos;
         context.textAlign = "left";
@@ -724,11 +737,11 @@ Spectrum.prototype.handleLeftMouseClick = function(evt) {
 Spectrum.prototype.handleRightMouseClick = function(evt) {
     // change the type of live marker line
     if (this.live_marker_type == 0) {
-        this.live_marker_type = 1;
+        this.live_marker_type = 3;
         $("#liveMarkerBut").button('toggle'); // update the UI button state
     } else {
-        this.live_marker_type += 1;
-        if(this.live_marker_type > 3) {
+        this.live_marker_type -= 1;
+        if(this.live_marker_type < 1) {
             this.live_marker_type = 0;
             $("#liveMarkerBut").button('toggle'); // update the UI button state
         }
@@ -736,6 +749,8 @@ Spectrum.prototype.handleRightMouseClick = function(evt) {
 }
 
 Spectrum.prototype.getValues = function(xpos, ypos, width) {
+    // get signal frequency and dB values for the given canvas position
+
     if(!this.mags)
         return undefined;
 
@@ -799,7 +814,7 @@ function Spectrum(id, options) {
     // markers
     this.markersSet = new Set();
     this.liveMarker = undefined;
-    this.live_marker_type = 0;  // 0=off, 1=freq on, 2=freq+level/time, 3=level/time
+    this.live_marker_type = 0;  // 0=off, 1=freq, 2=level/time, 3=freq+level/time
     this.maxNumMarkers = 16;
 
     // Setup state
@@ -811,14 +826,21 @@ function Spectrum(id, options) {
 
     // Colors
     this.colorindex = 0;
-    this.colormap = colormaps[2];
+    this.colormap = colormaps[0];
+    this.liveMarkerColour = "black";
+    this.markersColour = "red";
+    this.backgroundColour = "white";
+    this.maxHoldColour = "green";
+    this.magnitudesColour = "blue";
+    this.canvasTextColour = "black";
+    this.spectrumGradient = false;
 
     // Create main canvas and adjust dimensions to match actual
     this.canvas = document.getElementById(id);
     this.canvas.height = this.canvas.clientHeight;
     this.canvas.width = this.canvas.clientWidth;
     this.ctx = this.canvas.getContext("2d");
-    this.ctx.fillStyle = "black";
+    this.ctx.fillStyle = this.backgroundColour;
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     // Create offscreen canvas for axes
