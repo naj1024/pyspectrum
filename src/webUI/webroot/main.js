@@ -33,12 +33,6 @@ async function handleData(spectrum, binary_blob_data) {
     let num_floats = dataView.getInt32((index), false);
     index += 4;
 
-    // two arrays of floats
-    let magnitudes = new Float32Array(num_floats);
-    for (var i=0; i<num_floats; i++){
-        magnitudes[i]=dataView.getFloat32((index), false);
-        index += 4;
-    }
     let peaks = new Float32Array(num_floats);
     for (var i=0; i<num_floats; i++){
         peaks[i]=dataView.getFloat32((index), false);
@@ -48,7 +42,7 @@ async function handleData(spectrum, binary_blob_data) {
     // tell the spectrum how this data is configured, which could change
     spectrum.setSpanHz(sps);
     spectrum.setCenterMHz(cf);
-    spectrum.addData(magnitudes, peaks, start_time_sec, start_time_nsec, end_time_sec, end_time_nsec);
+    spectrum.addData(peaks, start_time_sec, start_time_nsec, end_time_sec, end_time_nsec);
 
     updateConfigTable(spectrum, sps, cf, num_floats);
 }
@@ -115,6 +109,7 @@ function connectWebSocket(spectrum) {
             let new_element = '<img src="./icons/led-green.png" alt="data active" title="Data active">';
             $('#connection_state').append(new_element);
         }
+        // TODO: handle different types of data
         handleData(spectrum, event.data);
     }
 }
@@ -122,12 +117,12 @@ function connectWebSocket(spectrum) {
 function check_for_support(){
     let ok="";
     let test_canvas = document.createElement("canvas");
-    let canvas_ok=(test_canvas.getContext)? true:false;
+    let canvas_ok = (test_canvas.getContext)? true:false;
     if (!canvas_ok){
         ok += ", No canvas";
     }
     let test_blob = new Blob(["hello"], {type: 'text/html'});
-    let blob_ok=(test_blob)? true:false;
+    let blob_ok = (test_blob)? true:false;
     if(!blob_ok){
         ok += ", No blob";
     }else{
@@ -149,9 +144,49 @@ function check_for_support(){
 function main() {
     let not_supported=check_for_support();
     if (not_supported != ""){
-        alert("Error: Sorry - required HTML support not found"+not_supported);
+        alert("Error: Sorry - required support not found"+not_supported);
         return;
     }
+
+    // add the spectrum to the page
+    let sp='<canvas id="spectrumanalyser" height="500px" width="1024px" style="cursor: crosshair;"></canvas>';
+    $('#specCanvas').append(sp);
+
+    // where the buttons will be
+    let but = '<div id="buttons"></div>';
+    $('#metaData').append(but);
+
+    // where the tables will be
+    let tbles = '<div>';
+    tbles += '<div><h3>Configuration</h3></div>';
+    tbles += '<table id="config_table" class="table table-hover table-striped table-bordered table-sm">';
+    tbles += '<thead class="thead-dark">';
+    tbles += '<tr>';
+    tbles += '<th scope="col">Param</th>';
+    tbles += '<th scope="col">Value</th>';
+    tbles += '</tr>';
+    tbles += '</thead>';
+    tbles += '<tbody>';
+    tbles += '</tbody>';
+    tbles += '</table>';
+    tbles += '</div>';
+    tbles += '<div>';
+    tbles += '<div id="marker-buttons"><h3>Markers</h3></div>';
+    tbles += '<table id="marker_table" class="table table-hover table-striped table-bordered table-sm">';
+    tbles += '<thead class="thead-dark">';
+    tbles += '<tr>';
+    tbles += '<th scope="col">#</th>';
+    tbles += '<th scope="col">MHz</th>';
+    tbles += '<th scope="col">dB</th>';
+    tbles += '<th scope="col">time</th>';
+    tbles += '<th scope="col">d MHz</th>';
+    tbles += '</tr>';
+    tbles += '</thead>';
+    tbles += '<tbody>';
+    tbles += '</tbody>';
+    tbles += '</table>';
+    tbles += '</div>';
+    $('#metaData').append(tbles);
 
     // Create spectrum object on canvas with ID "spectrumanalyser"
     let spectrum = new Spectrum(
@@ -176,7 +211,7 @@ function main() {
         spectrum.handleRightMouseClick(evt);
     }, false);
     canvas.addEventListener('wheel', function(evt) {
-        spectrum.handleWheel(evt);
+        spectrum.handleMouseWheel(evt);
     }, false);
 
     // remove deafult canvas conext menu
@@ -185,7 +220,6 @@ function main() {
     // bootstrap buttons
     let main_buttons = '<button type="button" id="pauseBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Pause</button>';
     main_buttons += '<button type="button" id="maxHoldBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">MaxHold</button>';
-    main_buttons += '<button type="button" id="peakBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Peaks</button>';
     main_buttons += '<button type="button" id="avgDwnBut" class="btn btn-outline-dark mx-1 my-1">Avg --</button>';
     main_buttons += '<button type="button" id="avgUpBut" class="btn btn-outline-dark mx-1 my-1">Avg ++</button>';
     // btn-block
@@ -193,17 +227,18 @@ function main() {
 
     // todo add auto peak detect button
     let marker_buttons = '<button type="button" id="liveMarkerBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Live</button>';
-    marker_buttons += '<button type="button" id="clearMarkersBut" class="btn btn-outline-dark mx-1 my-1">ClearMarkers</button>';
+    marker_buttons += '<button type="button" id="clearMarkersBut" class="btn btn-outline-dark mx-1 my-1">Clear</button>';
+    marker_buttons += '<button type="button" id="hideMarkersBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Hide</button>';
     $('#marker-buttons').append(marker_buttons);
 
     // bootstrap events
     $('#pauseBut').click(function() {spectrum.togglePaused();});
     $('#maxHoldBut').click(function() {spectrum.toggleMaxHold();});
-    $('#peakBut').click(function() {spectrum.toggleLive();});
     $('#avgUpBut').click(function() {spectrum.incrementAveraging();});
     $('#avgDwnBut').click(function() {spectrum.decrementAveraging();});
     $('#liveMarkerBut').click(function() {spectrum.liveMarkerOn();});
     $('#clearMarkersBut').click(function() {spectrum.clearMarkers();});
+    $('#hideMarkersBut').click(function() {spectrum.hideMarkers();});
 
     // Connect to websocket
     connectWebSocket(spectrum);

@@ -219,32 +219,26 @@ Spectrum.prototype.updateAxes = function() {
     }
 }
 
-Spectrum.prototype.addData = function(magnitudes, peaks, start_sec, start_nsec, end_sec, end_nsec) {
+Spectrum.prototype.addData = function(peaks, start_sec, start_nsec, end_sec, end_nsec) {
     if (!this.paused) {
         // remember the data so we can pause and still use markers
         // start times are for the first mag we peak detected on between updates
         // end times are for the last mag we peak detected on to give the peaks
-        // the magnitudes will be the last one peak detected on
-        // start and end times can be the same, in which case magnitudes == peaks
-        this.mags = magnitudes; // magnitudes for most recent spectrum
+        // start and end times can be the same
         this.peaks = peaks;    // peak magnitudes between updates
 
         // magnitudes are from a single fft, peaks are from all the fft magnitudes since the last update
         // both magnitudes and peaks are same length
-        if (magnitudes.length != this.wf_size) {
-            this.wf_size = magnitudes.length;
-            this.ctx_wf.canvas.width = magnitudes.length;
+        if (peaks.length != this.wf_size) {
+            this.wf_size = peaks.length;
+            this.ctx_wf.canvas.width = peaks.length;
             //this.ctx_wf.fillStyle = this.backgroundColour;
             //this.ctx_wf.fillRect(0, 0, this.wf.width, this.wf.height);
-            this.imagedata = this.ctx_wf.createImageData(magnitudes.length, 1);
+            this.imagedata = this.ctx_wf.createImageData(peaks.length, 1);
         }
-        if (this.live_magnitudes) {
-            this.drawSpectrum(magnitudes);
-            this.addWaterfallRow(magnitudes);
-        } else {
-            this.drawSpectrum(peaks);
-            this.addWaterfallRow(peaks);
-        }
+        this.drawSpectrum(peaks);
+        this.addWaterfallRow(peaks);
+
         this.updateMarkers();
         this.resize();
     } else {
@@ -254,11 +248,7 @@ Spectrum.prototype.addData = function(magnitudes, peaks, start_sec, start_nsec, 
 
 Spectrum.prototype.updateWhenPaused = function() {
     // keep things as they are but allow markers to work
-    if (this.live_magnitudes) {
-        this.drawSpectrum(this.mags);
-    } else {
-        this.drawSpectrum(this.peaks);
-    }
+    this.drawSpectrum(this.peaks);
     this.drawWaterfall();
     this.updateMarkers();
     this.resize();
@@ -393,14 +383,6 @@ Spectrum.prototype.toggleMaxHold = function() {
     this.setMaxHold(!this.maxHold);
 }
 
-Spectrum.prototype.setLiveMags = function(live) {
-    this.live_magnitudes = live
-}
-
-Spectrum.prototype.toggleLive = function() {
-    this.setLiveMags(!this.live_magnitudes);
-}
-
 Spectrum.prototype.toggleFullscreen = function() {
     // TODO: Exit from full screen does not put the size back correctly
     // This is full screen just for the spectrum & spectrogram
@@ -462,24 +444,6 @@ Spectrum.prototype.onKeypress = function(e) {
     }
 }
 
-Spectrum.prototype.handleWheel = function(evt){
-    if (evt.buttons ==0) {
-        if (evt.deltaY > 0){
-            this.rangeUp();
-        }
-        else{
-            this.rangeDown();
-        }
-    } else if(evt.buttons == 4) {
-        if (evt.deltaY > 0){
-            this.rangeIncrease();
-        }
-        else{
-            this.rangeDecrease();
-        }
-    }
-}
-
 Spectrum.prototype.addMarkerMHz = function(frequencyMHz, magdB, x_pos, y_pos) {
     let marker = {};
     marker['xpos'] = parseInt(x_pos);
@@ -516,7 +480,7 @@ Spectrum.prototype.addMarkerMHz = function(frequencyMHz, magdB, x_pos, y_pos) {
 
 Spectrum.prototype.liveMarkerOn = function() {
     if (this.live_marker_type == 0) {
-        this.live_marker_type = 3;
+        this.live_marker_type = 4;
     } else {
         this.live_marker_type = 0;
         this.liveMarker = undefined;
@@ -540,6 +504,13 @@ Spectrum.prototype.clearMarkers = function() {
     }
 }
 
+Spectrum.prototype.hideMarkers = function() {
+    this.hideAllMarkers = !this.hideAllMarkers;
+    if (!data_active){
+        this.updateWhenPaused();
+    }
+}
+
 Spectrum.prototype.convertdBtoY = function(db_value) {
     // as we can move the y axis around we need to be able to convert a dB value
     // to the correct y axis offset
@@ -558,6 +529,9 @@ Spectrum.prototype.convertdBtoY = function(db_value) {
 Spectrum.prototype.updateMarkers = function() {
     // TODO: refactor this function
 
+    if (this.hideAllMarkers)
+        return;
+
     let width = this.ctx.canvas.width;
     let height = this.ctx.canvas.height;
     var context = this.canvas.getContext('2d');
@@ -565,7 +539,7 @@ Spectrum.prototype.updateMarkers = function() {
     context.fillStyle = this.liveMarkerColour;
     context.textAlign = "left";
 
-    // live marker line
+    // live marker lines
     if ((this.live_marker_type > 0) && this.liveMarker){
         // what kind of marker
         // 0 - none
@@ -591,11 +565,23 @@ Spectrum.prototype.updateMarkers = function() {
             this.ctx.strokeStyle = this.liveMarkerColour;
             this.ctx.stroke();
         }
+        // triangular marker on spectrum, or time in spectrogram
+        if((this.live_marker_type & 4) && this.liveMarker.spectrum_flag) {
+            let y_pos = this.convertdBtoY(this.liveMarker.power);
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.liveMarker.x-5, y_pos-5);
+            this.ctx.lineTo(this.liveMarker.x+5, y_pos-5);
+            this.ctx.lineTo(this.liveMarker.x, y_pos);
+            this.ctx.lineTo(this.liveMarker.x-5, y_pos-5);
+            this.ctx.setLineDash([]);
+            this.ctx.strokeStyle = this.liveMarkerColour;
+            this.ctx.stroke();
+        }
     }
-    // reset line style before we forget to
+    // reset line style lest we forget
     this.ctx.setLineDash([]);
 
-    // indexed markers
+    // indexed marker lines and horizontal last marker if live marker on
     context.fillStyle = this.markersColour;
     if (this.markersSet) {
         let last_indexed_marker = this.markersSet.size -1;
@@ -609,9 +595,8 @@ Spectrum.prototype.updateMarkers = function() {
             this.ctx.strokeStyle = this.markersColour;
             this.ctx.stroke();
 
-            // diff to last indexed marker if live marker on
+            // horizontal line to last indexed marker if live marker on
             if ( (this.live_marker_type > 0) && (last_indexed_marker==current_index) ) {
-                // draw a horizontal line if we have the live marker on
                 let y_pos = this.convertdBtoY(item.db);
                 this.ctx.beginPath();
                 this.ctx.moveTo(0, y_pos);
@@ -627,23 +612,32 @@ Spectrum.prototype.updateMarkers = function() {
         }
     }
 
-    // marker texts
+    // live marker text
     context.fillStyle = this.liveMarkerColour
     if ((this.live_marker_type > 0) && this.liveMarker) {
         // update the value, so we get a live update
         let marker_value = this.getValues(this.liveMarker.x, this.liveMarker.y, this.liveMarker.width);
         if (marker_value) {
             let marker_text = "";
+            // live_marker_type bit fields 0=off, 1=freq, 2=level/time, 4=triangle
+            // bit display
+            //  0  Freq
+            //  1  Power/time
+            //  2  Freq + Power/time
+            let both = true;
+            if (this.live_marker_type == 2 ) {
+                both = false;
+            }
             if (this.liveMarker.spectrum_flag) {
                 // in spectrum
-                if (this.live_marker_type & 1) {
+                if (both) {
                     marker_text = " " + (marker_value.freq / 1e6).toFixed(3)+"MHz " + marker_value.power.toFixed(1) + "dB ";
                 } else {
                     marker_text = " " + marker_value.power.toFixed(1) + "dB ";
                 }
             } else {
                 // in spectrogram
-                if (this.live_marker_type & 1) {
+                if (both) {
                     marker_text = " " + (marker_value.freq / 1e6).toFixed(3)+"MHz " + marker_value.time.toFixed(3) + "s ";
                 } else {
                     marker_text = " " + marker_value.time.toFixed(3) + "s ";
@@ -669,14 +663,14 @@ Spectrum.prototype.updateMarkers = function() {
                 let diff_text="";
                 if (this.liveMarker.spectrum_flag) {
                     // in spectrum
-                    if (this.live_marker_type & 1) {
+                    if (both) {
                         diff_text = " " + (freq_diff / 1e3).toFixed(3)+"kHz " + db_diff.toFixed(1) + "dB ";
                     } else {
                         diff_text = " " + db_diff.toFixed(1) + "dB ";
                     }
                 } else {
                     // in spectrogram
-                    if (this.live_marker_type & 1) {
+                    if (both) {
                         diff_text = " " + (freq_diff / 1e3).toFixed(3)+"kHz " + db_diff.toFixed(3) + "s ";
                     } else {
                         diff_text = " " + time_diff.toFixed(3) + "s ";
@@ -698,6 +692,32 @@ Spectrum.prototype.updateMarkers = function() {
         }
         context.fillText(marker_num, xpos, 15);
         marker_num+=1;
+    }
+}
+
+
+Spectrum.prototype.handleMouseWheel = function(evt){
+    // only change range if in spectrum
+    let spectrum_height = this.canvas.height * (this.spectrumPercent/100);
+    let rect = this.canvas.getBoundingClientRect();
+    let y_pos = evt.clientY - rect.top;
+
+    if (y_pos <= spectrum_height) {
+        if (evt.buttons ==0) {
+            if (evt.deltaY > 0){
+                this.rangeUp();
+            }
+            else{
+                this.rangeDown();
+            }
+        } else if(evt.buttons == 4) {
+            if (evt.deltaY > 0){
+                this.rangeIncrease();
+            }
+            else{
+                this.rangeDecrease();
+            }
+        }
     }
 }
 
@@ -737,7 +757,7 @@ Spectrum.prototype.handleLeftMouseClick = function(evt) {
 Spectrum.prototype.handleRightMouseClick = function(evt) {
     // change the type of live marker line
     if (this.live_marker_type == 0) {
-        this.live_marker_type = 3;
+        this.live_marker_type = 4;
         $("#liveMarkerBut").button('toggle'); // update the UI button state
     } else {
         this.live_marker_type -= 1;
@@ -751,7 +771,7 @@ Spectrum.prototype.handleRightMouseClick = function(evt) {
 Spectrum.prototype.getValues = function(xpos, ypos, width) {
     // get signal frequency and dB values for the given canvas position
 
-    if(!this.mags)
+    if(!this.peaks)
         return undefined;
 
     let per_hz = this.spanHz / width;
@@ -770,14 +790,12 @@ Spectrum.prototype.getValues = function(xpos, ypos, width) {
         mouse_power_db = this.max_db - (ypos * db_point);
 
         // signal related, where are we in the array of powers
-        let pwr_index = xpos * this.mags.length / width;
+        let pwr_index = xpos * this.peaks.length / width;
 
         // if in max hold then return that power otherwise eithe mags or peaks
         if (this.binsMax) {
             signal_db = this.binsMax[parseInt(pwr_index)];
-       }else if (this.live_magnitudes) {
-            signal_db = this.mags[parseInt(pwr_index)];
-        } else {
+       }else {
             signal_db = this.peaks[parseInt(pwr_index)];
         }
         // console.log("pwr "+xpos+" "+pwr_index+" "+mouse_power_db+" "+signal_db+" ");
@@ -808,14 +826,12 @@ function Spectrum(id, options) {
     this.averaging = (options && options.averaging) ? options.averaging : 0;
     this.maxHold = (options && options.maxHold) ? options.maxHold : false;
 
-    // flag live magnitude spectrum or default of peaks over all spectrums seen since last spectrum
-    this.live_magnitudes = (options && options.live_magnitudes) ? options.live_magnitudes : true;
-
     // markers
     this.markersSet = new Set();
     this.liveMarker = undefined;
-    this.live_marker_type = 0;  // 0=off, 1=freq, 2=level/time, 3=freq+level/time
+    this.live_marker_type = 0;  // bit fields 0=off, 1=freq, 2=level/time, 4=triangle
     this.maxNumMarkers = 16;
+    this.hideAllMarkers = false;
 
     // Setup state
     this.paused = false;

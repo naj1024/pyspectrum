@@ -71,9 +71,10 @@ class WebSocketServer(multiprocessing.Process):
             while not self._exit_now:
                 try:
                     # timeout on queue read so we can, if we wanted to, exit our forever loop
-                    display_on, sps, centre, spec, peak, time_start, time_end = self._data_queue.get(timeout=0.1)
+                    # only sending the peak spectrum so ignore the current magnitudes
+                    display_on, sps, centre, _, peaks, time_start, time_end = self._data_queue.get(timeout=0.1)
 
-                    centreMhz = float(centre) / 1e6  # in MHz
+                    centre_MHz = float(centre) / 1e6  # in MHz
 
                     # times are in nsec and javascript won't handle 8byte int so break it up
                     start_sec: int = int(time_start / 1e9)
@@ -81,20 +82,19 @@ class WebSocketServer(multiprocessing.Process):
                     end_sec: int = int(time_end / 1e9)
                     end_nsec: int = int(time_end - end_sec * 1e9)
 
-                    num_floats = int(spec.size)
+                    num_floats = int(peaks.size)
                     # pack the data up in binary, watch out for sizes
                     # ignoring times for now as still to handle 8byte ints in javascript
-                    # !if5i{num_floats}f{num_floats}f is in network orddr 1 int, 1 float, 5 int, N float, N float
-                    message = struct.pack(f"!if5i{num_floats}f{num_floats}f",
+                    # !if5i{num_floats}f{num_floats}f is in network order 1 int, 1 float, 5 int, N float
+                    message = struct.pack(f"!if5i{num_floats}f",
                                           int(sps),  # 4bytes
-                                          float(centreMhz),  # 4byte float (32bit)
+                                          float(centre_MHz),  # 4byte float (32bit)
                                           int(start_sec),  # 4bytes
                                           int(start_nsec),  # 4bytes
                                           int(end_sec),  # 4bytes
                                           int(end_nsec),  # 4bytes
                                           num_floats,  # 4bytes (N)
-                                          *spec,  # N * 4byte floats (32bit)
-                                          *peak)  # N * 4byte floats (32bit)
+                                          *peaks)  # N * 4byte floats (32bit)
 
                     # send it off to the client
                     await web_socket.send(message)
