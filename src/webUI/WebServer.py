@@ -78,13 +78,14 @@ class WebServer(multiprocessing.Process):
 
         logger.info(f"We server serving on port {self._port}")
 
+        # start a web socket server for the remote client to connect to
         #  must be done here not in __init__ as otherwise fork/etc would stop it working as expected
         self._web_socket_server = WebSocketServer.WebSocketServer(self._data_queue, self._control_queue, logger.level)
         self._web_socket_server.start()
 
         global web_root
         logger.info(f"web server serving {web_root} on port {self._port}")
-        with socketserver.TCPServer(("", self._port), _Handler) as self._httpd:
+        with socketserver.ThreadingTCPServer(("", self._port), _Handler) as self._httpd:
             self._httpd.serve_forever()
 
         logger.error("Web server process exited")

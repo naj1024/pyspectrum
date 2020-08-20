@@ -35,7 +35,8 @@ Spectrum.prototype.drawWaterfall = function() {
 
     // Copy scaled FFT canvas to screen. Only copy the number of rows that will
     // fit in waterfall area to avoid vertical scaling.
-    this.ctx.imageSmoothingEnabled = false;
+    //this.ctx.imageSmoothingEnabled = false;
+    this.ctx.imageSmoothingEnabled  = false;
     var rows = Math.min(this.wf_rows, height - this.spectrumHeight);
     this.ctx.drawImage(this.ctx_wf.canvas,
         0, 0, this.wf_size, rows,
@@ -334,13 +335,13 @@ Spectrum.prototype.rangeDecrease = function() {
         this.setRange(this.min_db + 5, this.max_db - 5);
 }
 
-Spectrum.prototype.setCenterHz = function(hz) {
-    this.centerHz = hz;
+Spectrum.prototype.setCenterHz = function(Hz) {
+    this.centerHz = Hz;
     this.updateAxes();
 }
 
-Spectrum.prototype.setCenterMHz = function(Mhz) {
-    this.centerHz = Math.trunc(Mhz * 1e6);
+Spectrum.prototype.setCenterMHz = function(MHz) {
+    this.centerHz = Math.trunc(MHz * 1e6);
     this.updateAxes();
 }
 
@@ -445,11 +446,19 @@ Spectrum.prototype.onKeypress = function(e) {
 }
 
 Spectrum.prototype.addMarkerMHz = function(frequencyMHz, magdB, x_pos, y_pos) {
+    // show markers if we are adding markers
+    if (this.hideAllMarkers){
+        this.hideAllMarkers = false;
+        $("#hideMarkersBut").button('toggle'); // update the UI button state
+    }
+
     let marker = {};
     marker['xpos'] = parseInt(x_pos);
     marker['ypos'] = parseInt(y_pos);
     marker['freqMHz'] = frequencyMHz;
     marker['db'] = magdB;
+    marker['visible'] = true;
+
     let delta = 0;
     if (this.markersSet.size != 0){
         let as_array = Array.from(this.markersSet);
@@ -465,16 +474,42 @@ Spectrum.prototype.addMarkerMHz = function(frequencyMHz, magdB, x_pos, y_pos) {
     }
     if (new_entry) {
         this.markersSet.add(marker);
+        let number = this.markersSet.size-1;
+        let marker_id = "marker_" + number;
 
         // add to table of markers
         let new_row="<tr>";
-        new_row += "<td>"+(this.markersSet.size-1)+"</td>";
+
+        // marker number and checkbox
+        new_row += '<td>';
+        new_row += '<input type="checkbox" checked="true" id="'+marker_id+'"> ';
+        new_row += '<label for="'+marker_id+'"> '+number+'</label>';
+        new_row += '</div>';
+        new_row += '</td>';
+
+        // data
         new_row += "<td>"+frequencyMHz+"</td>";
         new_row += "<td>"+magdB+"</td>";
         new_row += "<td>"+0.0+"</td>";
         new_row += "<td>"+delta+"</td>";
+
         new_row += "</tr>";
         $('#marker_table').append(new_row);
+
+        // todo: had to use a global, can't work out how to get hold of this'
+        $('#'+marker_id).click(function() {spectrum.markerCheckBox(number);});
+    }
+}
+
+Spectrum.prototype.markerCheckBox = function(id) {
+    // toggle visible - bit open loop, TODO: better to have the state of the tick box
+    let marker_num = 0;
+    for (let item of this.markersSet) {
+        if (id == marker_num) {
+            item.visible = ! item.visible;
+            break;
+        }
+        marker_num+=1;
     }
 }
 
@@ -501,6 +536,16 @@ Spectrum.prototype.clearMarkers = function() {
     this.liveMarker = undefined;
     if (!data_active){
         this.updateWhenPaused();
+    }
+}
+
+Spectrum.prototype.clearUncheckedMarkers =  function() {
+    let oldMarkers = new Set(this.markersSet);
+    this.clearMarkers();
+    for (let item of oldMarkers) {
+        if (item.visible == true) {
+            this.addMarkerMHz(item.freqMHz, item.db, item.xpos, item.ypos)
+        }
     }
 }
 
@@ -587,26 +632,28 @@ Spectrum.prototype.updateMarkers = function() {
         let last_indexed_marker = this.markersSet.size -1;
         let current_index = 0;
         for (let item of this.markersSet) {
-            let xpos = item.xpos;
-            let height = this.ctx.canvas.height;
-            this.ctx.beginPath();
-            this.ctx.moveTo(xpos, 0);
-            this.ctx.lineTo(xpos, height);
-            this.ctx.strokeStyle = this.markersColour;
-            this.ctx.stroke();
-
-            // horizontal line to last indexed marker if live marker on
-            if ( (this.live_marker_type > 0) && (last_indexed_marker==current_index) ) {
-                let y_pos = this.convertdBtoY(item.db);
+            if (item.visible) {
+                let xpos = item.xpos;
+                let height = this.ctx.canvas.height;
                 this.ctx.beginPath();
-                this.ctx.moveTo(0, y_pos);
-                this.ctx.lineTo(width, y_pos);
+                this.ctx.moveTo(xpos, 0);
+                this.ctx.lineTo(xpos, height);
                 this.ctx.strokeStyle = this.markersColour;
                 this.ctx.stroke();
 
-                // show the marker index on the right hand edge
-                context.textAlign = "right";
-                context.fillText(last_indexed_marker, width, y_pos);
+                // horizontal line to last indexed marker if live marker on
+                if ( (this.live_marker_type > 0) && (last_indexed_marker==current_index) ) {
+                    let y_pos = this.convertdBtoY(item.db);
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, y_pos);
+                    this.ctx.lineTo(width, y_pos);
+                    this.ctx.strokeStyle = this.markersColour;
+                    this.ctx.stroke();
+
+                    // show the marker index on the right hand edge
+                    context.textAlign = "right";
+                    context.fillText(last_indexed_marker, width, y_pos);
+                }
             }
             current_index += 1;
         }
@@ -631,14 +678,16 @@ Spectrum.prototype.updateMarkers = function() {
             if (this.liveMarker.spectrum_flag) {
                 // in spectrum
                 if (both) {
-                    marker_text = " " + (marker_value.freq / 1e6).toFixed(3)+"MHz " + marker_value.power.toFixed(1) + "dB ";
+                    marker_text = " " + this.convertFrequencyForDisplay(marker_value.freq, 3);
+                    marker_text += " " + marker_value.power.toFixed(1) + "dB ";
                 } else {
                     marker_text = " " + marker_value.power.toFixed(1) + "dB ";
                 }
             } else {
                 // in spectrogram
                 if (both) {
-                    marker_text = " " + (marker_value.freq / 1e6).toFixed(3)+"MHz " + marker_value.time.toFixed(3) + "s ";
+                    marker_text = " " + this.convertFrequencyForDisplay(marker_value.freq, 3);
+                    marker_text += " " + marker_value.time.toFixed(3) + "s ";
                 } else {
                     marker_text = " " + marker_value.time.toFixed(3) + "s ";
                 }
@@ -653,6 +702,7 @@ Spectrum.prototype.updateMarkers = function() {
             context.fillText(marker_text, this.liveMarker.x, 30); //this.liveMarker.y);
 
             // Now if we have a set marker we also show the difference to the live marker
+            // TODO handle non visible last marker
             if (this.markersSet.size > 0) {
                 let mvalues = Array.from(this.markersSet);
                 let last = mvalues[this.markersSet.size-1];
@@ -664,14 +714,16 @@ Spectrum.prototype.updateMarkers = function() {
                 if (this.liveMarker.spectrum_flag) {
                     // in spectrum
                     if (both) {
-                        diff_text = " " + (freq_diff / 1e3).toFixed(3)+"kHz " + db_diff.toFixed(1) + "dB ";
+                        diff_text = " " + this.convertFrequencyForDisplay(freq_diff, 3);
+                        diff_text += " " + db_diff.toFixed(1) + "dB ";
                     } else {
                         diff_text = " " + db_diff.toFixed(1) + "dB ";
                     }
                 } else {
                     // in spectrogram
                     if (both) {
-                        diff_text = " " + (freq_diff / 1e3).toFixed(3)+"kHz " + db_diff.toFixed(3) + "s ";
+                        diff_text = " " + this.convertFrequencyForDisplay(freq_diff, 3);
+                        diff_text += " " + db_diff.toFixed(3) + "s ";
                     } else {
                         diff_text = " " + time_diff.toFixed(3) + "s ";
                     }
@@ -681,16 +733,18 @@ Spectrum.prototype.updateMarkers = function() {
         }
     }
 
-    // indexed markers
+    // indexed markers text
     let marker_num=0;
     context.fillStyle = this.markersColour; //liveMarkerColour
     for (let item of this.markersSet) {
-        let xpos = item.xpos;
-        context.textAlign = "left";
-        if (xpos > (this.canvas.clientWidth/2)) {
-            context.textAlign = "right";
+        if (item.visible) {
+            let xpos = item.xpos;
+            context.textAlign = "left";
+            if (xpos > (this.canvas.clientWidth/2)) {
+                context.textAlign = "right";
+            }
+            context.fillText(marker_num, xpos, 15);
         }
-        context.fillText(marker_num, xpos, 15);
         marker_num+=1;
     }
 }
@@ -766,6 +820,24 @@ Spectrum.prototype.handleRightMouseClick = function(evt) {
             $("#liveMarkerBut").button('toggle'); // update the UI button state
         }
     }
+}
+
+Spectrum.prototype.convertFrequencyForDisplay = function(freq, decimalPoints){
+    // take in a Hz frequency and convert it to meaningful Hz,kHz,MHz,GHz
+    let displayValue = "";
+    let dec = parseInt(decimalPoints);
+    let modFreq = Math.abs(freq);
+    if (modFreq < 1.0e3){
+        displayValue = freq.toFixed(dec)+"Hz ";
+    }else if (modFreq < 1.0e6){
+        displayValue = (freq / 1e3).toFixed(dec)+"kHz ";
+    }else if (modFreq < 1.0e9){
+        displayValue = (freq / 1e6).toFixed(dec)+"MHz ";
+    }else {
+        displayValue = (freq / 1e9).toFixed(dec)+"GHz ";
+    }
+
+    return displayValue;
 }
 
 Spectrum.prototype.getValues = function(xpos, ypos, width) {

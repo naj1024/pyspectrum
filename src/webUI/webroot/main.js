@@ -1,10 +1,9 @@
 'use strict';
 
-var data_active=false;
-var samples_per_second =0.0;
-var centre_frequency = 0.0;
+var data_active = false;
+var spectrum = null;   // don't like this global but can't get onclick in table of markers to work
 
-async function handleData(spectrum, binary_blob_data) {
+async function handleData(spec, binary_blob_data) {
     // extract the data out of the binary blob, been packed up by the python in a struct.
     // See the python WebSocketServer code for the format of the blob
 
@@ -18,9 +17,9 @@ async function handleData(spectrum, binary_blob_data) {
 
     // mixed int and floats
     let index = 0;
-    let sps = dataView.getInt32((index), false);
+    let spsHz = dataView.getInt32((index), false);
     index += 4;
-    let cf = dataView.getFloat32((index), false);
+    let cfMHz = dataView.getFloat32((index), false);
     index += 4;
     let start_time_sec = dataView.getInt32((index), false);
     index += 4;
@@ -40,34 +39,32 @@ async function handleData(spectrum, binary_blob_data) {
     }
 
     // tell the spectrum how this data is configured, which could change
-    spectrum.setSpanHz(sps);
-    spectrum.setCenterMHz(cf);
-    spectrum.addData(peaks, start_time_sec, start_time_nsec, end_time_sec, end_time_nsec);
+    spec.setSpanHz(spsHz);
+    spec.setCenterMHz(cfMHz);
+    spec.addData(peaks, start_time_sec, start_time_nsec, end_time_sec, end_time_nsec);
 
-    updateConfigTable(spectrum, sps, cf, num_floats);
+    updateConfigTable(spec, spsHz, (cfMHz*1.0e6), num_floats);
 }
 
-function updateConfigTable(spectrum, sps, cf, points) {
+function updateConfigTable(spec, spsHz, cfHz, points) {
     // clear the config
-    samples_per_second = sps;
-    centre_frequency = cf;
-    let num_rows=5; // because we know
-    for (let i=num_rows; i>0; i--) {
+    let num_rows = 5; // because we know we have 5
+    for (let i=num_rows; i > 0; i--) {
         $("#config_table tr:eq("+i+")").remove();
     }
-    let new_row="<tr><td><b>Centre</b></td><td>"+cf.toFixed(3)+"MHz</td></tr>";
+    let new_row="<tr><td><b>Centre</b></td><td>"+spec.convertFrequencyForDisplay(cfHz,3)+"</td></tr>";
     $('#config_table').append(new_row);
-    new_row="<tr><td><b>SPS</b></b></td><td>"+(sps/1E6).toFixed(3)+"MHz</td></tr>";
+    new_row="<tr><td><b>SPS</b></b></td><td>"+spec.convertFrequencyForDisplay(spsHz,3)+"</td></tr>";
     $('#config_table').append(new_row);
-    new_row="<tr><td><b>BW</b></td><td>"+(sps/1E6).toFixed(3)+"MHz</td></tr>";
+    new_row="<tr><td><b>BW</b></td><td>"+spec.convertFrequencyForDisplay(spsHz,3)+"</td></tr>";
     $('#config_table').append(new_row);
-    new_row="<tr><td><b>RBW</b></td><td>"+((sps/1E3)/points).toFixed(3)+"kHz</td></tr>";
+    new_row="<tr><td><b>RBW</b></td><td>"+spec.convertFrequencyForDisplay(spsHz/points,3)+"</td></tr>";
     $('#config_table').append(new_row);
-    new_row="<tr><td><b>Avg</b></td><td>"+spectrum.averaging+"</td></tr>";
+    new_row="<tr><td><b>Avg</b></td><td>"+spec.averaging+"</td></tr>";
     $('#config_table').append(new_row);
 }
 
-function connectWebSocket(spectrum) {
+function connectWebSocket(spec) {
     let server_hostname = window.location.hostname;
     console.log("Connecting");
     let ws = new WebSocket("ws://"+server_hostname+":5555/");
@@ -87,7 +84,7 @@ function connectWebSocket(spectrum) {
         $("#connection_state").empty();
         $('#connection_state').append(new_element);
         setTimeout(function() {
-            connectWebSocket(spectrum);
+            connectWebSocket(spec);
         }, 1000);
     }
 
@@ -110,7 +107,7 @@ function connectWebSocket(spectrum) {
             $('#connection_state').append(new_element);
         }
         // TODO: handle different types of data
-        handleData(spectrum, event.data);
+        handleData(spec, event.data);
     }
 }
 
@@ -152,44 +149,44 @@ function main() {
     let sp='<canvas id="spectrumanalyser" height="500px" width="1024px" style="cursor: crosshair;"></canvas>';
     $('#specCanvas').append(sp);
 
-    // where the buttons will be
-    let but = '<div id="buttons"></div>';
-    $('#metaData').append(but);
+    // the controls etc
+    let rhcol = '<div>';
 
-    // where the tables will be
-    let tbles = '<div>';
-    tbles += '<div><h3>Configuration</h3></div>';
-    tbles += '<table id="config_table" class="table table-hover table-striped table-bordered table-sm">';
-    tbles += '<thead class="thead-dark">';
-    tbles += '<tr>';
-    tbles += '<th scope="col">Param</th>';
-    tbles += '<th scope="col">Value</th>';
-    tbles += '</tr>';
-    tbles += '</thead>';
-    tbles += '<tbody>';
-    tbles += '</tbody>';
-    tbles += '</table>';
-    tbles += '</div>';
-    tbles += '<div>';
-    tbles += '<div id="marker-buttons"><h3>Markers</h3></div>';
-    tbles += '<table id="marker_table" class="table table-hover table-striped table-bordered table-sm">';
-    tbles += '<thead class="thead-dark">';
-    tbles += '<tr>';
-    tbles += '<th scope="col">#</th>';
-    tbles += '<th scope="col">MHz</th>';
-    tbles += '<th scope="col">dB</th>';
-    tbles += '<th scope="col">time</th>';
-    tbles += '<th scope="col">d MHz</th>';
-    tbles += '</tr>';
-    tbles += '</thead>';
-    tbles += '<tbody>';
-    tbles += '</tbody>';
-    tbles += '</table>';
-    tbles += '</div>';
-    $('#metaData').append(tbles);
+    rhcol += '<div><h3>Configuration</h3></div>';
+    rhcol += '<table id="config_table" class="table table-hover table-striped table-bordered table-sm">';
+    rhcol += '<thead class="thead-dark">';
+    rhcol += '<tr>';
+    rhcol += '<th scope="col">Param</th>';
+    rhcol += '<th scope="col">Value</th>';
+    rhcol += '</tr>';
+    rhcol += '</thead>';
+    rhcol += '<tbody>';
+    rhcol += '</tbody>';
+    rhcol += '</table>';
+
+    rhcol += '<div id="buttons"></div>'; // standard buttons
+
+    rhcol += '<div id="marker-buttons"><h3>Markers</h3></div>'; // markers
+    rhcol += '<table id="marker_table" class="table table-hover table-striped table-bordered table-sm">';
+    rhcol += '<thead class="thead-dark">';
+    rhcol += '<tr>';
+    rhcol += '<th scope="col">V #</th>';
+    rhcol += '<th scope="col">MHz</th>';
+    rhcol += '<th scope="col">dB</th>';
+    rhcol += '<th scope="col">time</th>';
+    rhcol += '<th scope="col">d MHz</th>';
+    rhcol += '</tr>';
+    rhcol += '</thead>';
+    rhcol += '<tbody>';
+    rhcol += '</tbody>';
+    rhcol += '</table>';
+
+    rhcol += '</div>';
+
+    $('#metaData').append(rhcol);
 
     // Create spectrum object on canvas with ID "spectrumanalyser"
-    let spectrum = new Spectrum(
+    spectrum = new Spectrum(
         "spectrumanalyser", {
             spectrumPercent: 50
     });
@@ -226,9 +223,10 @@ function main() {
     $('#buttons').append(main_buttons);
 
     // todo add auto peak detect button
-    let marker_buttons = '<button type="button" id="liveMarkerBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Live</button>';
+    let marker_buttons = '<button type="button" id="hideMarkersBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Hide</button>';
+    marker_buttons += '<button type="button" id="liveMarkerBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Live</button>';
     marker_buttons += '<button type="button" id="clearMarkersBut" class="btn btn-outline-dark mx-1 my-1">Clear</button>';
-    marker_buttons += '<button type="button" id="hideMarkersBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Hide</button>';
+    marker_buttons += '<button type="button" id="clearUncheckedMarkersBut" class="btn btn-outline-dark mx-1 my-1">DelHidden</button>';
     $('#marker-buttons').append(marker_buttons);
 
     // bootstrap events
@@ -239,6 +237,7 @@ function main() {
     $('#liveMarkerBut').click(function() {spectrum.liveMarkerOn();});
     $('#clearMarkersBut').click(function() {spectrum.clearMarkers();});
     $('#hideMarkersBut').click(function() {spectrum.hideMarkers();});
+    $('#clearUncheckedMarkersBut').click(function() {spectrum.clearUncheckedMarkers();});
 
     // Connect to websocket
     connectWebSocket(spectrum);
