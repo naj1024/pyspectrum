@@ -35,7 +35,6 @@ Spectrum.prototype.drawWaterfall = function() {
 
     // Copy scaled FFT canvas to screen. Only copy the number of rows that will
     // fit in waterfall area to avoid vertical scaling.
-    //this.ctx.imageSmoothingEnabled = false;
     this.ctx.imageSmoothingEnabled  = false;
     var rows = Math.min(this.wf_rows, height - this.spectrumHeight);
     this.ctx.drawImage(this.ctx_wf.canvas,
@@ -476,6 +475,7 @@ Spectrum.prototype.addMarkerMHz = function(frequencyMHz, magdB, x_pos, y_pos) {
         this.markersSet.add(marker);
         let number = this.markersSet.size-1;
         let marker_id = "marker_" + number;
+        let bin_id = "bin_marker_" + number;
 
         // add to table of markers
         let new_row="<tr>";
@@ -484,7 +484,6 @@ Spectrum.prototype.addMarkerMHz = function(frequencyMHz, magdB, x_pos, y_pos) {
         new_row += '<td>';
         new_row += '<input type="checkbox" checked="true" id="'+marker_id+'"> ';
         new_row += '<label for="'+marker_id+'"> '+number+'</label>';
-        new_row += '</div>';
         new_row += '</td>';
 
         // data
@@ -493,11 +492,17 @@ Spectrum.prototype.addMarkerMHz = function(frequencyMHz, magdB, x_pos, y_pos) {
         new_row += "<td>"+0.0+"</td>";
         new_row += "<td>"+delta+"</td>";
 
+        // bin
+        new_row += '<td>';
+        new_row += '<input type="image" id="'+bin_id+'" src="./icons/bin.png"> ';
+        new_row += '</td>';
+
         new_row += "</tr>";
         $('#marker_table').append(new_row);
 
         // todo: had to use a global, can't work out how to get hold of this'
         $('#'+marker_id).click(function() {spectrum.markerCheckBox(number);});
+        $('#'+bin_id).click(function() {spectrum.deleteMarker(number);});
     }
 }
 
@@ -509,7 +514,10 @@ Spectrum.prototype.markerCheckBox = function(id) {
             item.visible = ! item.visible;
             break;
         }
-        marker_num+=1;
+        marker_num += 1;
+    }
+    if (!data_active){
+        this.updateWhenPaused();
     }
 }
 
@@ -539,13 +547,18 @@ Spectrum.prototype.clearMarkers = function() {
     }
 }
 
-Spectrum.prototype.clearUncheckedMarkers =  function() {
+Spectrum.prototype.deleteMarker =  function(id) {
+    let marker_num = 0;
     let oldMarkers = new Set(this.markersSet);
     this.clearMarkers();
     for (let item of oldMarkers) {
-        if (item.visible == true) {
-            this.addMarkerMHz(item.freqMHz, item.db, item.xpos, item.ypos)
+        if (id != marker_num) {
+            this.addMarkerMHz(item.freqMHz, item.db, item.xpos, item.ypos);
         }
+        marker_num += 1;
+    }
+    if (!data_active){
+        this.updateWhenPaused();
     }
 }
 
@@ -785,6 +798,10 @@ Spectrum.prototype.handleMouseMove = function(evt) {
         let values = this.getValues(x_pos, y_pos, width);
         if (values) {
             this.liveMarker = values;
+            // allow marker to be updated even when connection down
+            if (!data_active){
+                this.updateWhenPaused();
+            }
         }
     }
 }
@@ -800,7 +817,7 @@ Spectrum.prototype.handleLeftMouseClick = function(evt) {
         // limit the number of markers
         if (this.markersSet.size < this.maxNumMarkers){
             this.addMarkerMHz((values.freq / 1e6).toFixed(3), values.power.toFixed(1), values.x, values.y);
-            // allow markers ot be added even when we are receiving no data
+            // allow markers to be added even when connection down
             if (!data_active){
                 this.updateWhenPaused();
             }

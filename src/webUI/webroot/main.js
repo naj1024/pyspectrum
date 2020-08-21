@@ -1,7 +1,7 @@
 'use strict';
 
-var data_active = false;
-var spectrum = null;   // don't like this global but can't get onclick in table of markers to work
+var data_active = false; // true when we are connected and receiving data
+var spectrum = null;     // don't like this global but can't get onclick in table of markers to work
 
 async function handleData(spec, binary_blob_data) {
     // extract the data out of the binary blob, been packed up by the python in a struct.
@@ -152,7 +152,7 @@ function main() {
     // the controls etc
     let rhcol = '<div>';
 
-    rhcol += '<div><h3>Configuration</h3></div>';
+    rhcol += '<div><h4>Configuration</h4></div>';
     rhcol += '<table id="config_table" class="table table-hover table-striped table-bordered table-sm">';
     rhcol += '<thead class="thead-dark">';
     rhcol += '<tr>';
@@ -166,7 +166,7 @@ function main() {
 
     rhcol += '<div id="buttons"></div>'; // standard buttons
 
-    rhcol += '<div id="marker-buttons"><h3>Markers</h3></div>'; // markers
+    rhcol += '<div id="marker-buttons"><h4>Markers</h4></div>'; // markers
     rhcol += '<table id="marker_table" class="table table-hover table-striped table-bordered table-sm">';
     rhcol += '<thead class="thead-dark">';
     rhcol += '<tr>';
@@ -175,6 +175,7 @@ function main() {
     rhcol += '<th scope="col">dB</th>';
     rhcol += '<th scope="col">time</th>';
     rhcol += '<th scope="col">d MHz</th>';
+    rhcol += '<th scope="col"></th>';
     rhcol += '</tr>';
     rhcol += '</thead>';
     rhcol += '<tbody>';
@@ -223,10 +224,9 @@ function main() {
     $('#buttons').append(main_buttons);
 
     // todo add auto peak detect button
-    let marker_buttons = '<button type="button" id="hideMarkersBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Hide</button>';
-    marker_buttons += '<button type="button" id="liveMarkerBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Live</button>';
+    let marker_buttons = '<button type="button" id="liveMarkerBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Live</button>';
+    marker_buttons += '<button type="button" id="hideMarkersBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Hide</button>';
     marker_buttons += '<button type="button" id="clearMarkersBut" class="btn btn-outline-dark mx-1 my-1">Clear</button>';
-    marker_buttons += '<button type="button" id="clearUncheckedMarkersBut" class="btn btn-outline-dark mx-1 my-1">DelHidden</button>';
     $('#marker-buttons').append(marker_buttons);
 
     // bootstrap events
@@ -237,7 +237,6 @@ function main() {
     $('#liveMarkerBut').click(function() {spectrum.liveMarkerOn();});
     $('#clearMarkersBut').click(function() {spectrum.clearMarkers();});
     $('#hideMarkersBut').click(function() {spectrum.hideMarkers();});
-    $('#clearUncheckedMarkersBut').click(function() {spectrum.clearUncheckedMarkers();});
 
     // Connect to websocket
     connectWebSocket(spectrum);
