@@ -306,7 +306,7 @@ def parse_command_line(configuration: Variables) -> None:
         file input is used this sample rate may be recovered from the filename or
         from the meta data in a wav file.
         
-          The matplotlib_ui has various mouse actions::
+          The matplotlib_ui has mouse actions::
            Spectrum:    left   - Print frequency and power to stdout.
                                - Toggle trace visibility if mouse is near a legend line.
                         middle - Toggle visibilty of the frequency annotations.
@@ -355,9 +355,9 @@ def parse_command_line(configuration: Variables) -> None:
     misc_opts.add_argument('-F', '--fftSize', type=int, help=f'Size of FFT (default: {configuration.fft_size})',
                            default=configuration.fft_size, required=False)
     misc_opts.add_argument('-E', '--spectrogram',
-                           help=f'Add a spectrogram matplotlib_ui to the matplotlib matplotlib_ui',
+                           help=f'Add a spectrogram on matplotlib_ui',
                            default=False, required=False, action='store_true')
-    misc_opts.add_argument('-w', '--web', help=f'Web browser matplotlib_ui instead of the matplotlib matplotlib_ui',
+    misc_opts.add_argument('-w', '--web', help=f'Web browser UI',
                            default=False, required=False, action='store_true')
     misc_opts.add_argument('-v', '--verbose', help='Verbose, -vvv debug, -vv info, -v warn', required=False,
                            action='count', default=0)

@@ -1,11 +1,11 @@
-# python requirements for basic file and socket support:
+# python requirements with pluto support
 #
-# Available sources: ['audio', 'file', 'rtltcp', 'socket']
+# Available sources: ['audio', 'file', 'pluto', 'rtltcp', 'socket']
 # audio:Number 	- number of the input device e.g. audio:1, '?' for list
 # file:Filename 	- Filename, binary or wave, e.g. file:./xyz.cf123.4.cplx.200000.16tbe
+# pluto:IP        - The Ip or resolvable name of the Pluto device, e.g. pluto:192.168.2.1
 # rtltcp::IP@port - The Ip or resolvable name and port of an rtltcp server, e.g. rtltcp:192.168.2.1@12345
 # socket:IP@port 	- The Ip or resolvable name and port of a server, e.g. socket:192.168.2.1@12345
-
 
 certifi==2020.6.20
 cffi==1.14.2
@@ -24,5 +24,5 @@ six==1.15.0
 sounddevice==0.4.0
 websockets==8.1
 
-# Gooey==1.0.4.0.0.0
-
+pyadi-iio==0.0.5
+pylibiio==0.21
