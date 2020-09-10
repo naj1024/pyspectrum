@@ -39,11 +39,14 @@ async function handleData(spec, binary_blob_data) {
     }
 
     // tell the spectrum how this data is configured, which could change
-    spec.setSpanHz(spsHz);
-    spec.setCenterMHz(cfMHz);
+    if ( (spec.getSps() != spsHz) || (spec.getCenterFreq != cfMHz) || (spec.getFftSize != num_floats)) {
+        spec.setSps(spsHz);
+        spec.setSpanHz(spsHz);
+        spec.setCenterFreq(cfMHz);
+        spec.updateAxes();
+        updateConfigTable(spec, spsHz, (cfMHz*1.0e6), num_floats);
+    }
     spec.addData(peaks, start_time_sec, start_time_nsec, end_time_sec, end_time_nsec);
-
-    updateConfigTable(spec, spsHz, (cfMHz*1.0e6), num_floats);
 }
 
 function updateConfigTable(spec, spsHz, cfHz, points) {

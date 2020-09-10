@@ -88,7 +88,7 @@ class DisplayProcessor(multiprocessing.Process):
                 if display_on:
                     # TODO: fix this annoying feature
                     #  If the width changes then destroy the current matplotlib_ui and create a new one
-                    #  just can't get the width to change without and exception in the old matplotlib_ui
+                    #  just can't get the width to change without an exception in the old matplotlib_ui
                     #  bit of a sledge hammer approach.
                     if spec.size != self._display_width:
                         display.close_display()
