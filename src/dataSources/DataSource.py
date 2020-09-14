@@ -89,7 +89,7 @@ class DataSource:
         try:
             return time.time_ns()
         except Exception:
-            return time.time()
+            return time.time() * 1e9
 
     def set_sample_type(self, data_type: str):
         """

@@ -194,16 +194,16 @@ Spectrum.prototype.updateAxes = function() {
                     this.ctx_axes.textAlign = "center";
                 }
 
-                var freq = this.centerHz + this.spanHz / 10 * (i - 5);
-                if (this.centerHz + this.spanHz > 1e9){
+                var freq = this.centreHz + this.spanHz / 10 * (i - 5);
+                if (this.centreHz + this.spanHz > 1e9){
                     freq = freq / 1e9;
                     freq = freq.toFixed(3) + "G";
                 }
-                else if (this.centerHz + this.spanHz > 1e6){
+                else if (this.centreHz + this.spanHz > 1e6){
                     freq = freq / 1e6;
                     freq = freq.toFixed(3) + "M";
                 }
-                else if (this.centerHz + this.spanHz > 1e3){
+                else if (this.centreHz + this.spanHz > 1e3){
                     freq = freq / 1e3;
                     freq = freq.toFixed(3) + "k";
                 }
@@ -358,12 +358,12 @@ Spectrum.prototype.rangeDecrease = function() {
         this.setRange(this.min_db + 5, this.max_db - 5);
 }
 
-Spectrum.prototype.setCenterFreq = function(MHz) {
-    this.centerHz = Math.trunc(MHz * 1e6);
+Spectrum.prototype.setcentreFreq = function(MHz) {
+    this.centreHz = Math.trunc(MHz * 1e6);
 }
 
-Spectrum.prototype.getCenterFreq = function() {
-    return Math.trunc(this.centerHz / 1e6);
+Spectrum.prototype.getcentreFreqHz = function() {
+    return this.centreHz;
 }
 
 Spectrum.prototype.setSps = function(sps) {
@@ -384,6 +384,10 @@ Spectrum.prototype.setSpanHz = function(hz) {
 
 Spectrum.prototype.getSpanHz = function() {
     return this.spanHz;
+}
+
+Spectrum.prototype.getStartTime = function() {
+    return this.firstTime;
 }
 
 Spectrum.prototype.setAveraging = function(num) {
@@ -484,7 +488,7 @@ Spectrum.prototype.onKeypress = function(e) {
 }
 
 Spectrum.prototype.addMarkerMHz = function(frequencyMHz, magdB, time_start, x_pos, y_pos, inputCount, spectrum_flag) {
-    // show markers if we are adding markers
+    // force showing of markers if we are adding markers
     if (this.hideAllMarkers){
         this.hideAllMarkers = false;
         $("#hideMarkersBut").button('toggle'); // update the UI button state
@@ -500,52 +504,51 @@ Spectrum.prototype.addMarkerMHz = function(frequencyMHz, magdB, time_start, x_po
     marker['inputCount'] = inputCount;
     marker['spectrumFlag'] = spectrum_flag;
 
-    let delta = 0;
+    let deltaMHz = 0;
+    let deltadB = 0;
+    let deltaTime = 0;
     if (this.markersSet.size != 0){
         let as_array = Array.from(this.markersSet);
         let previous_marker = as_array[this.markersSet.size-1];
-        delta = (frequencyMHz - previous_marker.freqMHz).toFixed(3);
+        deltaMHz = (frequencyMHz - previous_marker.freqMHz);
+        deltadB = (magdB - previous_marker.db);
+        deltaTime = (time_start - previous_marker.time);
     }
-    // do we have this one already, note .has(marker) doesn't work
-    let new_entry = true;
-    for (let item of this.markersSet) {
-        if (item.xpos == marker.xpos){
-            new_entry = false;
-        }
-    }
-    if (new_entry) {
-        this.markersSet.add(marker);
-        let number = this.markersSet.size-1;
-        let marker_id = "marker_" + number;
-        let bin_id = "bin_marker_" + number;
+    // we will allow duplicate markers, otheriwise we have to decide what is a duplicate - freq or time
+    this.markersSet.add(marker);
+    let number = this.markersSet.size-1;
+    let marker_id = "marker_" + number;
+    let bin_id = "bin_marker_" + number;
 
-        // add to table of markers
-        let new_row="<tr>";
+    // add to table of markers
+    let new_row="<tr>";
 
-        // marker number and checkbox
-        new_row += '<td>';
-        new_row += '<input type="checkbox" checked="true" id="'+marker_id+'"> ';
-        new_row += '<label for="'+marker_id+'"> '+number+'</label>';
-        new_row += '</td>';
+    // marker number and checkbox
+    new_row += '<td>'+number+'</td>';
+    new_row += '<td>';
+    new_row += '<input type="checkbox" checked="true" id="'+marker_id+'"> ';
+    new_row += '<label for="'+marker_id+'" /label>';
+    new_row += '</td>';
 
-        // data
-        new_row += "<td>"+frequencyMHz+"</td>";
-        new_row += "<td>"+magdB+"</td>";
-        new_row += "<td>"+time_start.toFixed(6)+"</td>";
-        new_row += "<td>"+delta+"</td>";
+    // data
+    new_row += "<td>"+frequencyMHz.toFixed(6)+"</td>";
+    new_row += "<td>"+magdB.toFixed(1)+"</td>";
+    new_row += "<td>"+time_start.toFixed(6)+"</td>";
+    new_row += "<td>"+deltaMHz.toFixed(6)+"</td>";
+    new_row += "<td>"+deltadB.toFixed(1)+"</td>";
+    new_row += "<td>"+deltaTime.toFixed(6)+"</td>";
 
-        // bin
-        new_row += '<td>';
-        new_row += '<input type="image" id="'+bin_id+'" src="./icons/bin.png"> ';
-        new_row += '</td>';
+    // bin
+    new_row += '<td>';
+    new_row += '<input type="image" id="'+bin_id+'" src="./icons/bin.png"> ';
+    new_row += '</td>';
 
-        new_row += "</tr>";
-        $('#marker_table').append(new_row);
+    new_row += "</tr>";
+    $('#markerTable').append(new_row);
 
-        // todo: had to use a global, can't work out how to get hold of this'
-        $('#'+marker_id).click(function() {spectrum.markerCheckBox(number);});
-        $('#'+bin_id).click(function() {spectrum.deleteMarker(number);});
-    }
+    // todo: had to use a global, can't work out how to get hold of this'
+    $('#'+marker_id).click(function() {spectrum.markerCheckBox(number);});
+    $('#'+bin_id).click(function() {spectrum.deleteMarker(number);});
 }
 
 Spectrum.prototype.markerCheckBox = function(id) {
@@ -564,14 +567,17 @@ Spectrum.prototype.markerCheckBox = function(id) {
 }
 
 Spectrum.prototype.liveMarkerOn = function() {
-    if (this.live_marker_type == 0) {
-        this.live_marker_type = 4;
-    } else {
-        this.live_marker_type = 0;
-        this.liveMarker = undefined;
-        if (!data_active) {
-            this.updateWhenPaused();
-        }
+    this.live_marker_type = 3;
+    if (!data_active) {
+        this.updateWhenPaused();
+    }
+}
+
+Spectrum.prototype.liveMarkerOff = function() {
+    this.live_marker_type = 0;
+    this.liveMarker = undefined;
+    if (!data_active) {
+        this.updateWhenPaused();
     }
 }
 
@@ -580,7 +586,7 @@ Spectrum.prototype.clearMarkers = function() {
     //  $(this).parents("tr").remove();
     let num_rows=this.markersSet.size;
     for (let i=num_rows; i>0; i--) {
-        $("#marker_table tr:eq("+i+")").remove(); //to delete row 'i', delrowId should be i+1
+        $("#markerTable tr:eq("+i+")").remove(); //to delete row 'i', delrowId should be i+1
     }
     this.markersSet.clear();
     this.liveMarker = undefined;
@@ -847,26 +853,12 @@ Spectrum.prototype.handleLeftMouseClick = function(evt) {
     if (values){
         // limit the number of markers
         if (this.markersSet.size < this.maxNumMarkers) {
-            this.addMarkerMHz((values.freq / 1e6).toFixed(3), values.power.toFixed(1), values.time,
+            this.addMarkerMHz((values.freq / 1e6), values.power, values.time,
                 values.x, values.y, this.inputCount, values.spectrum_flag);
             // allow markers to be added even when connection down
             if (!data_active){
                 this.updateWhenPaused();
             }
-        }
-    }
-}
-
-Spectrum.prototype.handleRightMouseClick = function(evt) {
-    // change the type of live marker line
-    if (this.live_marker_type == 0) {
-        this.live_marker_type = 4;
-        $("#liveMarkerBut").button('toggle'); // update the UI button state
-    } else {
-        this.live_marker_type -= 1;
-        if(this.live_marker_type < 1) {
-            this.live_marker_type = 0;
-            $("#liveMarkerBut").button('toggle'); // update the UI button state
         }
     }
 }
@@ -903,7 +895,7 @@ Spectrum.prototype.getValuesAtCanvasPosition = function(xpos, ypos, width) {
 
 Spectrum.prototype.getSpectrumValues = function(xpos, ypos, width) {
     let per_hz = this.spanHz / width;
-    let freq_value = (this.centerHz - (this.spanHz / 2)) + (xpos * per_hz);
+    let freq_value = (this.centreHz - (this.spanHz / 2)) + (xpos * per_hz);
     let spectrum_height = this.canvas.height * (this.spectrumPercent/100);
 
     let signal_db = 0.0;
@@ -947,7 +939,7 @@ Spectrum.prototype.getSpectrumValues = function(xpos, ypos, width) {
 
 Spectrum.prototype.getSpectrogramValues = function(xpos, ypos, width) {
     let per_hz = this.spanHz / width;
-    let freq_value = (this.centerHz - (this.spanHz / 2)) + (xpos * per_hz);
+    let freq_value = (this.centreHz - (this.spanHz / 2)) + (xpos * per_hz);
 
     let spectrum_height = this.canvas.height * (this.spectrumPercent/100);
     let spectrogram_height = this.canvas.height * (1.0-(this.spectrumPercent/100));
@@ -991,6 +983,11 @@ Spectrum.prototype.getSpectrogramValues = function(xpos, ypos, width) {
         }
     }
 
+    // if we don't have a spectrum then we are in the spectorgram display but it has no value here
+    if (!spec) {
+        return undefined;
+    }
+
     // return the frequency in Hz, the power and where we are on the display
     return {
           freq: freq_value,
@@ -1006,7 +1003,7 @@ Spectrum.prototype.getSpectrogramValues = function(xpos, ypos, width) {
 
 function Spectrum(id, options) {
     // Handle options
-    this.centerHz = (options && options.centerHz) ? options.centerHz : 0;
+    this.centreHz = (options && options.centreHz) ? options.centreHz : 0;
     this.spanHz = (options && options.spanHz) ? options.spanHz : 0;
     this.wf_size = (options && options.wf_size) ? options.wf_size : 0;
     this.wf_rows = (options && options.wf_rows) ? options.wf_rows : 2048;

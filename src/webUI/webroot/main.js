@@ -39,32 +39,44 @@ async function handleData(spec, binary_blob_data) {
     }
 
     // tell the spectrum how this data is configured, which could change
-    if ( (spec.getSps() != spsHz) || (spec.getCenterFreq != cfMHz) || (spec.getFftSize != num_floats)) {
+    let update = false;
+    if ( (spec.getSps() != spsHz) ||
+            (spec.getcentreFreqHz() != parseInt(cfMHz*1e6)) ||
+            (spec.getFftSize() != num_floats)) {
         spec.setSps(spsHz);
         spec.setSpanHz(spsHz);
-        spec.setCenterFreq(cfMHz);
+        spec.setcentreFreq(cfMHz);
         spec.updateAxes();
-        updateConfigTable(spec, spsHz, (cfMHz*1.0e6), num_floats);
+        update=true;
     }
     spec.addData(peaks, start_time_sec, start_time_nsec, end_time_sec, end_time_nsec);
+    if (update) {
+        updateConfigTable(spec);
+    }
 }
 
-function updateConfigTable(spec, spsHz, cfHz, points) {
+function updateConfigTable(spec) {
     // clear the config
-    let num_rows = 5; // because we know we have 5
+    let num_rows = 6; // because we know we have 6
     for (let i=num_rows; i > 0; i--) {
-        $("#config_table tr:eq("+i+")").remove();
+        $("#configTable tr:eq("+i+")").remove();
     }
-    let new_row="<tr><td><b>Centre</b></td><td>"+spec.convertFrequencyForDisplay(cfHz,3)+"</td></tr>";
-    $('#config_table').append(new_row);
-    new_row="<tr><td><b>SPS</b></b></td><td>"+spec.convertFrequencyForDisplay(spsHz,3)+"</td></tr>";
-    $('#config_table').append(new_row);
-    new_row="<tr><td><b>BW</b></td><td>"+spec.convertFrequencyForDisplay(spsHz,3)+"</td></tr>";
-    $('#config_table').append(new_row);
-    new_row="<tr><td><b>RBW</b></td><td>"+spec.convertFrequencyForDisplay(spsHz/points,3)+"</td></tr>";
-    $('#config_table').append(new_row);
+    let new_row="<tr><td><b>Centre</b></td><td>"+spec.convertFrequencyForDisplay(spec.getcentreFreqHz(),3)+"</td></tr>";
+    $('#configTable').append(new_row);
+    let sps = spec.getSps();
+    new_row="<tr><td><b>SPS</b></b></td><td>"+spec.convertFrequencyForDisplay(sps,3)+"</td></tr>";
+    $('#configTable').append(new_row);
+    new_row="<tr><td><b>BW</b></td><td>"+spec.convertFrequencyForDisplay(sps,3)+"</td></tr>";
+    $('#configTable').append(new_row);
+    new_row="<tr><td><b>RBW</b></td><td>"+spec.convertFrequencyForDisplay(sps/spec.getFftSize(),3)+"</td></tr>";
+    $('#configTable').append(new_row);
+    let start=spec.getStartTime();
+    let seconds = parseInt(start);
+    let usec = parseInt((start-seconds)*1e6);
+    new_row="<tr><td><b>Start</b></td><td>"+seconds+"Sec + "+usec.toFixed(0)+"usec</td></tr>";
+    $('#configTable').append(new_row);
     new_row="<tr><td><b>Avg</b></td><td>"+spec.averaging+"</td></tr>";
-    $('#config_table').append(new_row);
+    $('#configTable').append(new_row);
 }
 
 function connectWebSocket(spec) {
@@ -155,8 +167,7 @@ function main() {
     // the controls etc
     let rhcol = '<div>';
 
-    rhcol += '<div><h4>Configuration</h4></div>';
-    rhcol += '<table id="config_table" class="table table-hover table-striped table-bordered table-sm">';
+    rhcol += '<table id="configTable" class="table table-hover table-striped table-bordered table-sm">';
     rhcol += '<thead class="thead-dark">';
     rhcol += '<tr>';
     rhcol += '<th scope="col">Param</th>';
@@ -169,15 +180,31 @@ function main() {
 
     rhcol += '<div id="buttons"></div>'; // standard buttons
 
-    rhcol += '<div id="marker-buttons"><h4>Markers</h4></div>'; // markers
-    rhcol += '<table id="marker_table" class="table table-hover table-striped table-bordered table-sm">';
+    rhcol += '<div>';
+    rhcol += '<h4><b>Markers</b></h4>';
+    rhcol += '<b>Live </b>';
+    rhcol += '<div class="custom-control custom-radio custom-control-inline">';
+    rhcol += '<input type="radio" class="custom-control-input" id="markerRadio_off" name="markerRadio" checked="checked">';
+    rhcol += '<label class="custom-control-label" for="markerRadio_off">Off</label>';
+    rhcol += '</div>';
+    rhcol += '<div class="custom-control custom-radio custom-control-inline">';
+    rhcol += '<input type="radio" class="custom-control-input" id="markerRadio_on" name="markerRadio">';
+    rhcol += '<label class="custom-control-label" for="markerRadio_on">On</label>';
+    rhcol += '</div>';
+    rhcol += '<div id="marker-buttons"></div>';
+    rhcol += '</div>';
+
+    rhcol += '<table id="markerTable" class="table-condensed table-hover table-striped table-bordered table-sm">';
     rhcol += '<thead class="thead-dark">';
     rhcol += '<tr>';
-    rhcol += '<th scope="col">V #</th>';
+    rhcol += '<th scope="col">#</th>';
+    rhcol += '<th scope="col">V</th>';
     rhcol += '<th scope="col">MHz</th>';
     rhcol += '<th scope="col">dB</th>';
     rhcol += '<th scope="col">time</th>';
-    rhcol += '<th scope="col">d MHz</th>';
+    rhcol += '<th scope="col">D MHz</th>';
+    rhcol += '<th scope="col">D dB</th>';
+    rhcol += '<th scope="col">D Sec</th>';
     rhcol += '<th scope="col"></th>';
     rhcol += '</tr>';
     rhcol += '</thead>';
@@ -205,18 +232,16 @@ function main() {
     canvas.addEventListener('mousemove', function(evt) {
         spectrum.handleMouseMove(evt);
     }, false);
-    canvas.addEventListener('click', function(evt) { // left mouse click
+    canvas.addEventListener('click', function(evt) { // left mouse click by default
         spectrum.handleLeftMouseClick(evt);
-    }, false);
-    canvas.addEventListener('contextmenu', function(evt) { // Right click
-        spectrum.handleRightMouseClick(evt);
     }, false);
     canvas.addEventListener('wheel', function(evt) {
         spectrum.handleMouseWheel(evt);
     }, false);
 
-    // remove deafult canvas conext menu
-    $('body').on('contextmenu', '#spectrumanalyser', function(e){ return false; });
+    // remove default canvas conext menu if need to handle right mluse click
+    // then you can add an event listener for contextmenu as the right mouse click
+    // $('body').on('contextmenu', '#spectrumanalyser', function(e){ return false; });
 
     // bootstrap buttons
     let main_buttons = '<button type="button" id="pauseBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Pause</button>';
@@ -227,8 +252,7 @@ function main() {
     $('#buttons').append(main_buttons);
 
     // todo add auto peak detect button
-    let marker_buttons = '<button type="button" id="liveMarkerBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Live</button>';
-    marker_buttons += '<button type="button" id="hideMarkersBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Hide</button>';
+    let marker_buttons = '<button type="button" id="hideMarkersBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Hide</button>';
     marker_buttons += '<button type="button" id="clearMarkersBut" class="btn btn-outline-dark mx-1 my-1">Clear</button>';
     $('#marker-buttons').append(marker_buttons);
 
@@ -237,9 +261,11 @@ function main() {
     $('#maxHoldBut').click(function() {spectrum.toggleMaxHold();});
     $('#avgUpBut').click(function() {spectrum.incrementAveraging();});
     $('#avgDwnBut').click(function() {spectrum.decrementAveraging();});
-    $('#liveMarkerBut').click(function() {spectrum.liveMarkerOn();});
     $('#clearMarkersBut').click(function() {spectrum.clearMarkers();});
     $('#hideMarkersBut').click(function() {spectrum.hideMarkers();});
+
+    $('#markerRadio_off').click(function() {spectrum.liveMarkerOff();});
+    $('#markerRadio_on').click(function() {spectrum.liveMarkerOn();});
 
     // Connect to websocket
     connectWebSocket(spectrum);

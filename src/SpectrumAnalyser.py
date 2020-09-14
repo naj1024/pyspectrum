@@ -51,7 +51,7 @@ def signal_handler(sig, __):
 @gooey_ui.Gooey(tabbed_groups=True, monospace_display=True)
 def main() -> None:
     if sys.version_info < (3, 7):
-        logger.warning(f"Python version means sample timings are course, {sys.version}")
+        logger.warning(f"Python version means sample timings will be course, python V{sys.version}")
 
     global processing
     signal.signal(signal.SIGINT, signal_handler)
