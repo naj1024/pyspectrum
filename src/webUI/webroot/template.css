@@ -9,10 +9,11 @@ body {
     padding-top: 5rem;
 }
 
-/* force canvas to be 100% wide,, auto scale height */
+/* force canvas to be 100% wide, auto scale height */
 canvas {
     width: 100%;
     height: auto;
+    border: black 2px solid;
 }
 
 /* The configuration table */

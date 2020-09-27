@@ -93,7 +93,8 @@ class Input(DataSource.DataSource):
             self._sdr.rx_lo = int(self._centre_frequency)
             self._sdr.rx_rf_bandwidth = int(self._sample_rate)
             # AGC mode will depend on environment, lots of bursting signals or lots of continuous signals
-            self._sdr.gain_control_mode_chan0 = "slow_attack"
+            self._sdr.gain_control_mode_chan0 = "manual" # manual fast_attack slow_attack hybrid
+            self._sdr.rx_hardwaregain_chan0 = 40
         except Exception as err:
             msgs = f"{module_type} {err}"
             logger.error(msgs)

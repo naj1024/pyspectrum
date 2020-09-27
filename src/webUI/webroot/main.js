@@ -42,7 +42,9 @@ async function handleData(spec, binary_blob_data) {
     let update = false;
     if ( (spec.getSps() != spsHz) ||
             (spec.getcentreFreqHz() != parseInt(cfMHz*1e6)) ||
-            (spec.getFftSize() != num_floats)) {
+            (spec.getFftSize() != num_floats) ||
+            spec.getResetAvgChanged() ||
+            spec.getResetZoomChanged() ) {
         spec.setSps(spsHz);
         spec.setSpanHz(spsHz);
         spec.setcentreFreq(cfMHz);
@@ -57,7 +59,7 @@ async function handleData(spec, binary_blob_data) {
 
 function updateConfigTable(spec) {
     // clear the config
-    let num_rows = 6; // because we know we have 6
+    let num_rows = 8; // because we know we have 8
     for (let i=num_rows; i > 0; i--) {
         $("#configTable tr:eq("+i+")").remove();
     }
@@ -76,6 +78,11 @@ function updateConfigTable(spec) {
     new_row="<tr><td><b>Start</b></td><td>"+seconds+"Sec + "+usec.toFixed(0)+"usec</td></tr>";
     $('#configTable').append(new_row);
     new_row="<tr><td><b>Avg</b></td><td>"+spec.averaging+"</td></tr>";
+    $('#configTable').append(new_row);
+    new_row="<tr><td><b>Zoom</b></td><td>"+spec.zoom+"</td></tr>";
+    $('#configTable').append(new_row);
+    let zoomBw = sps/spec.zoom;
+    new_row="<tr><td><b>Zoom BW</b></td><td>"+spec.convertFrequencyForDisplay(zoomBw,3)+"</td></tr>";
     $('#configTable').append(new_row);
 }
 
@@ -153,6 +160,31 @@ function check_for_support(){
     return(ok);
 }
 
+function showConfig() {
+  var x = document.getElementById("config");
+  if (x.style.display === "none") {
+    x.style.display = "block";
+  } else {
+    x.style.display = "none";
+  }
+}
+function showControls() {
+  var x = document.getElementById("controls");
+  if (x.style.display === "none") {
+    x.style.display = "block";
+  } else {
+    x.style.display = "none";
+  }
+}
+function showMarkers() {
+  var x = document.getElementById("markers");
+  if (x.style.display === "none") {
+    x.style.display = "block";
+  } else {
+    x.style.display = "none";
+  }
+}
+
 function main() {
     let not_supported=check_for_support();
     if (not_supported != ""){
@@ -166,7 +198,9 @@ function main() {
 
     // the controls etc
     let rhcol = '<div>';
-
+    // config
+    rhcol += '<button type="button" id="configButton" data-toggle="button" class="btn-block btn btn-outline-dark mx-1 my-1">Config</button>';
+    rhcol += '<div id="config">';
     rhcol += '<table id="configTable" class="table table-hover table-striped table-bordered table-sm">';
     rhcol += '<thead class="thead-dark">';
     rhcol += '<tr>';
@@ -177,22 +211,32 @@ function main() {
     rhcol += '<tbody>';
     rhcol += '</tbody>';
     rhcol += '</table>';
+    rhcol += '</div>';
+    rhcol += '</div>';
 
-    rhcol += '<div id="buttons"></div>'; // standard buttons
-
+    // controls
     rhcol += '<div>';
-    rhcol += '<h4><b>Markers</b></h4>';
+    rhcol += '<button type="button" id="controlButton" data-toggle="button" class="btn-block btn btn-outline-dark mx-1 my-1">Control</button>';
+    rhcol += '<div id="controls">';
+    rhcol += '<div id="buttons"></div>'; // standard buttons
+    rhcol += '</div>';
+    rhcol += '</div>';
+
+    // markers
+    rhcol += '<div>';
+    rhcol += '<button type="button" id="markerButton" data-toggle="button" class="btn-block btn btn-outline-dark mx-1 my-1">Markers</button>';
+    rhcol += '<div id="markers">';
     rhcol += '<b>Live </b>';
     rhcol += '<div class="custom-control custom-radio custom-control-inline">';
-    rhcol += '<input type="radio" class="custom-control-input" id="markerRadio_off" name="markerRadio" checked="checked">';
+    rhcol += '<input type="radio" value="off" class="custom-control-input" id="markerRadio_off" name="markerRadio" checked="checked">';
     rhcol += '<label class="custom-control-label" for="markerRadio_off">Off</label>';
     rhcol += '</div>';
     rhcol += '<div class="custom-control custom-radio custom-control-inline">';
-    rhcol += '<input type="radio" class="custom-control-input" id="markerRadio_on" name="markerRadio">';
+    rhcol += '<input type="radio" value="on" class="custom-control-input" id="markerRadio_on" name="markerRadio">';
     rhcol += '<label class="custom-control-label" for="markerRadio_on">On</label>';
     rhcol += '</div>';
+
     rhcol += '<div id="marker-buttons"></div>';
-    rhcol += '</div>';
 
     rhcol += '<table id="markerTable" class="table-condensed table-hover table-striped table-bordered table-sm">';
     rhcol += '<thead class="thead-dark">';
@@ -205,13 +249,15 @@ function main() {
     rhcol += '<th scope="col">D MHz</th>';
     rhcol += '<th scope="col">D dB</th>';
     rhcol += '<th scope="col">D Sec</th>';
-    rhcol += '<th scope="col"></th>';
+    rhcol += '<th scope="col">x</th>';
     rhcol += '</tr>';
     rhcol += '</thead>';
     rhcol += '<tbody>';
     rhcol += '</tbody>';
     rhcol += '</table>';
+    rhcol += '</div>';
 
+    rhcol += '</div>';
     rhcol += '</div>';
 
     $('#metaData').append(rhcol);
@@ -239,15 +285,30 @@ function main() {
         spectrum.handleMouseWheel(evt);
     }, false);
 
-    // remove default canvas conext menu if need to handle right mluse click
+    // remove default canvas context menu if need to handle right mluse click
     // then you can add an event listener for contextmenu as the right mouse click
     // $('body').on('contextmenu', '#spectrumanalyser', function(e){ return false; });
 
-    // bootstrap buttons
-    let main_buttons = '<button type="button" id="pauseBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Pause</button>';
-    main_buttons += '<button type="button" id="maxHoldBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">MaxHold</button>';
-    main_buttons += '<button type="button" id="avgDwnBut" class="btn btn-outline-dark mx-1 my-1">Avg --</button>';
-    main_buttons += '<button type="button" id="avgUpBut" class="btn btn-outline-dark mx-1 my-1">Avg ++</button>';
+     // main buttons
+    let main_buttons = '<div class="btn-group">';
+    main_buttons += '<button type="button" id="pauseBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Pause</button>';
+    main_buttons += '<button type="button" id="maxHoldBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Max</button>';
+    main_buttons += '<button type="button" id="avgDwnBut" class="btn btn-outline-dark mx-1 my-1">Avg--</button>';
+    main_buttons += '<button type="button" id="avgUpBut" class="btn btn-outline-dark mx-1 my-1">Avg++</button>';
+    main_buttons += '</div>'
+
+    main_buttons += '<div class="btn-group">';
+    main_buttons += '<button type="button" id="refUpBut" class="btn btn-outline-dark mx-1 my-1">Ref--</button>';
+    main_buttons += '<button type="button" id="refDwnBut" class="btn btn-outline-dark mx-1 my-1">Ref++</button>';
+    main_buttons += '<button type="button" id="rangeDwnBut" class="btn btn-outline-dark mx-1 my-1">Range--</button>';
+    main_buttons += '<button type="button" id="rangeUpBut" class="btn btn-outline-dark mx-1 my-1">Range++</button>';
+    main_buttons += '</div>';
+
+    main_buttons += '<div class="btn-group">';
+    main_buttons += '<button type="button" id="unZoomBut" class="btn btn-outline-dark mx-1 my-1">UnZoom</button>';
+    main_buttons += '</div>';
+
+
     // btn-block
     $('#buttons').append(main_buttons);
 
@@ -256,11 +317,21 @@ function main() {
     marker_buttons += '<button type="button" id="clearMarkersBut" class="btn btn-outline-dark mx-1 my-1">Clear</button>';
     $('#marker-buttons').append(marker_buttons);
 
-    // bootstrap events
+    // events
+    $('#configButton').click(function() {showConfig();});
+    $('#controlButton').click(function() {showControls();});
+    $('#markerButton').click(function() {showMarkers();});
+
     $('#pauseBut').click(function() {spectrum.togglePaused();});
     $('#maxHoldBut').click(function() {spectrum.toggleMaxHold();});
     $('#avgUpBut').click(function() {spectrum.incrementAveraging();});
     $('#avgDwnBut').click(function() {spectrum.decrementAveraging();});
+    $('#unZoomBut').click(function() {spectrum.resetZoom();});
+
+    $('#refDwnBut').click(function() {spectrum.rangeDown();});
+    $('#refUpBut').click(function() {spectrum.rangeUp();});
+    $('#rangeDwnBut').click(function() {spectrum.rangeDecrease();});
+    $('#rangeUpBut').click(function() {spectrum.rangeIncrease();});
     $('#clearMarkersBut').click(function() {spectrum.clearMarkers();});
     $('#hideMarkersBut').click(function() {spectrum.hideMarkers();});
 
