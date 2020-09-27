@@ -883,7 +883,7 @@ Spectrum.prototype.handleMouseWheel = function(evt) {
     let x_pos = evt.clientX - rect.left;
     let y_pos = evt.clientY - rect.top;
 
-    // modifier on wheel use, shift key
+    // modifier on wheel for spectral zoom in
     if (evt.shiftKey) {
         let where = this.getSpectrumValues(x_pos, y_pos);
 
@@ -892,7 +892,7 @@ Spectrum.prototype.handleMouseWheel = function(evt) {
             this.zoomCentreBin = where.bin;
         }
         // zooming or unzooming
-        // powers of 2 keeps things in sync between spectrum and spectrogram as fft is power of 2
+        // powers of 2 keeps things in sync between spectrum and spectrogram as canvas and fft is power of 2
         if (evt.deltaY > 0){
             this.zoom /= 2.0;
         }
