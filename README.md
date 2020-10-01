@@ -13,17 +13,19 @@ sdr platforms have to do.
 
 * matplotlib - The first display written
         
-        This display is fairly rudimentary, but should work everywhere. There are mouse controlled
-        options. The display runs as a separate process (not thread) so that we don't have problems
-        with the display taking processing time from the input data.
+        This display is fairly rudimentary, but should work everywhere. There 
+        are mouse controlled options. The display runs as a separate process
+        (not thread) so that we don't have problems with the display taking 
+        processing time from the input data.
         
 ![Screenshot](screenShot.png)
    
 * web - The second display written
         
-        A websocket is used to pass data from the python to the javascript in the browser.
-        The web server and the websocket servers run as separate processes and we use the same queue 
-        as we did for the matplotlib display.
+        A websocket is used to pass data from the python to the javascript 
+        in the browser. The web server and the websocket servers run as 
+        separate processes and we use the same queue as we did for the 
+        matplotlib display.
         
 ![Screenshot](screenShot_web.png)
 
@@ -51,10 +53,11 @@ to stdout or an mqtt server.
 ## Tested with the following:
 
     Windows: audio, file, pluto (IP), rtltcp, socket
-    Linux  : audio, file, pluto (IP), rtlsdr, rtltcp, soapy(audio, rtlsdr, sdrplay), socket
+    Linux  : audio, file, pluto (IP), rtlsdr, rtltcp, socket
+             soapy(audio, rtlsdr, sdrplay)
     
-    Since, once, getting soapy to work under Linux i have failed to replicate this ever again 
-        - pity it was my only interface to an sdrplay device
+    Since, once, getting soapy to work under Linux i have failed to replicate 
+        this ever again - pity it was my only interface to an sdrplay device
         
 ## Examples
 
@@ -66,8 +69,9 @@ Some examples for running from command line.
 
     python ./SpectrumAnalyser.py -ipluto:192.168.2.1 -c433.92e6 -s600e3 -E -F1024
 
-    python ./SpectrumAnalyser.py -ipluto:192.168.2.1 -c433.92e6 -s1e6 -E --plugin analysis:peak:threshold:12 
-                          --plugin report:mqtt:broker:192.168.0.101 
+    python ./SpectrumAnalyser.py -ipluto:192.168.2.1 -c433.92e6 -s1e6 -E 
+                            --plugin analysis:peak:threshold:12 
+                            --plugin report:mqtt:broker:192.168.0.101 
 
     python ./SpectrumAnalyser.py -ifile:test.wav -LE -W7.5 -c433.92e6
 
@@ -102,7 +106,8 @@ The following python modules should be installed. Optional ones provide specific
         scipy       - another FFT library
         pyfftw      - another FFT library, faster above 8k size
         pyadi-iio   - pluto device
-        iio         - pluto device        pyrtlsdr    - rtlsdr devices
+        iio         - pluto device
+        pyrtlsdr    - rtlsdr devices
         sounddevice - audio devices
         soapysdr    - soapy support
         paho-mqtt   - mqtt functionality (client)
