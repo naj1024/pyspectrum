@@ -164,8 +164,10 @@ The following was done on a not very clean V4.2 image from https://github.com/lu
 
 ## TODO
  
-    * Convert inputs to a streaming interfaces.
-    * Make a proper GUI, maybe web based - beginings are done.
-    * Add control back from the display process.
-    * Allow retune of CF, sample rate and FFT size. FFT size changes cause my matplotlib code to get horribly confused. 
-    * Drop receiver outputs
+    * Convert inputs to streaming interfaces.
+    * Drop receivers
+    * Record button for raw samples at the server with web interface to recorded files
+    * More control of front ends - gain etc
+    * Marker to cf
+    * Peak marker
+    * Errors to web UI
