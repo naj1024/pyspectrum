@@ -19,6 +19,7 @@ class Variables:
 
         # web matplotlib_ui
         self.web_display = False
+        self.web_port = -1
 
         # where the data comes from
         self.input_type = "?"  # the source type e.g. file, socket, pluto, soapy, rtlsdr, audio ....

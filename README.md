@@ -1,9 +1,6 @@
 # A Python spectrum analyser 
 
-Takes raw IQ samples from some sdr source to give a live spectrum with optional spectrogram.
-
-![Screenshot](screenShot.png)
-![Screenshot](screenShot_web.png)
+Takes raw IQ samples from some sdr source to give a live spectrum and spectrogram.
 
 This was an exercise in writing some python. There are speed penalties in keeping to python in this. 
 Getting the different SDR platforms to work is through libraries, some were tested on windows, some 
@@ -11,21 +8,24 @@ were tested on Ubuntu Linux. Getting a driver to work can be challenging, gnu-ra
 that makes use outside gnu-radio almost impossible (iio). Overall it gave me an idea of what the various 
 sdr platforms have to do.
 
-### There are three options for display
+### There are two options for display
+    - Most work is now concentrated on the web interface
 
 * matplotlib - The first display written
         
         This display is fairly rudimentary, but should work everywhere. There are mouse controlled
         options. The display runs as a separate process (not thread) so that we don't have problems
         with the display taking processing time from the input data.
+        
+![Screenshot](screenShot.png)
    
-* web - The second display written, using [specrum.js](https://github.com/jledet/waterfall) from another repo
+* web - The second display written
         
         A websocket is used to pass data from the python to the javascript in the browser.
         The web server and the websocket servers run as separate processes and we use the same queue 
         as we did for the matplotlib display.
         
-* react - work in progress
+![Screenshot](screenShot_web.png)
 
 Performance wise it will depend on your machine. I have certainly kept up with streams of data at over 2Msps.
 The display gets updated between 10 and 20fps. The idea is to run real time, i.e. we are going to 
@@ -53,24 +53,27 @@ to stdout or an mqtt server.
     Windows: audio, file, pluto (IP), rtltcp, socket
     Linux  : audio, file, pluto (IP), rtlsdr, rtltcp, soapy(audio, rtlsdr, sdrplay), socket
     
+    Since, once, getting soapy to work under Linux i have failed to replicate this ever again 
+        - pity it was my only interface to an sdrplay device
+        
 ## Examples
 
-Some examples for running from command line, drop the --ignore-gooey if you don't have it installed.
+Some examples for running from command line.
 
-    python ./SpectrumAnalyser.py --ignore-gooey -H
+    python ./SpectrumAnalyser.py -H
 
-    python ./SpectrumAnalyser.py --ignore-gooey  -i?
+    python ./SpectrumAnalyser.py -i?
 
-    python ./SpectrumAnalyser.py --ignore-gooey -ipluto:192.168.2.1 -c433.92e6 -s600e3 -E -F1024
+    python ./SpectrumAnalyser.py -ipluto:192.168.2.1 -c433.92e6 -s600e3 -E -F1024
 
-    python ./SpectrumAnalyser.py --ignore-gooey  -ipluto:192.168.2.1 -c433.92e6 -s1e6 -E --plugin analysis:peak:threshold:12 
+    python ./SpectrumAnalyser.py -ipluto:192.168.2.1 -c433.92e6 -s1e6 -E --plugin analysis:peak:threshold:12 
                           --plugin report:mqtt:broker:192.168.0.101 
 
-    python ./SpectrumAnalyser.py --ignore-gooey  -ifile:test.wav -LE -W7.5 -c433.92e6
+    python ./SpectrumAnalyser.py -ifile:test.wav -LE -W7.5 -c433.92e6
 
-    python ./SpectrumAnalyser.py --ignore-gooey  -ifile:test.cf433.92.cplx.600000.16le -LE -W7
+    python ./SpectrumAnalyser.py -ifile:test.cf433.92.cplx.600000.16le -LE -W7
 
-    python ./SpectrumAnalyser.py --ignore-gooey  -iaudio:1 -s48e3 -F1024 -DE -c0 -iaudio:1
+    python ./SpectrumAnalyser.py -iaudio:1 -s48e3 -F1024 -DE -c0 -iaudio:1
 
     python ./SpectrumAnalyser.py -irtlsdr:kk -c433.92e6 -s1e6 -E
 
@@ -78,9 +81,9 @@ Some examples for running from command line, drop the --ignore-gooey if you don'
 
     python ./src/SpectrumAnalyser.py -isoapy:sdrplay -s2e6 c433.92e6 -F2048 -E
     
-    python ./src/SpectrumAnalyser.py -isoapy:sdrplay -s2e6 c433.92e6 -F2048 -w  
+    python ./src/SpectrumAnalyser.py -isoapy:sdrplay -s2e6 c433.92e6 -F2048 -w8080  
           
-          this last one is the WEB interface on 127.0.0.1:8080
+          This last one is the WEB interface on 127.0.0.1:8080
 
 
 ## Dependencies
@@ -99,15 +102,11 @@ The following python modules should be installed. Optional ones provide specific
         scipy       - another FFT library
         pyfftw      - another FFT library, faster above 8k size
         pyadi-iio   - pluto device
-        iio         - pluto device
-        pyrtlsdr    - rtlsdr devices
+        iio         - pluto device        pyrtlsdr    - rtlsdr devices
         sounddevice - audio devices
         soapysdr    - soapy support
         paho-mqtt   - mqtt functionality (client)
-        gooey       - simple UI over the comamnd line options
 
-
-If you don't mind installing them all then you can run:
 
 ```
 pip3 install -r src/requirements.txt

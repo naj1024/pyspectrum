@@ -8,6 +8,7 @@ import logging
 import time
 
 import websockets
+from websockets import WebSocketServerProtocol
 
 logger = logging.getLogger('web_socket_logger')
 logger.setLevel(logging.ERROR)
@@ -23,18 +24,20 @@ class WebSocketServer(multiprocessing.Process):
     def __init__(self,
                  data_queue: multiprocessing.Queue,
                  control_queue: multiprocessing.Queue,
-                 log_level: int):
+                 log_level: int,
+                 websocket_port: int):
         """
         Configure the basics of this class
 
         :param data_queue: we will receive structured data from this queue
         :param control_queue: Future use as data to be sent back from whatever UI will hang of us
         :param log_level: The logging level we wish to use
+        :param websocket_port: The port the web socket will be on
         """
         multiprocessing.Process.__init__(self)
         self._data_queue = data_queue
         self._control_queue = control_queue
-        self._port = 5555
+        self._port = websocket_port
         self._exit_now = False
 
         logger.setLevel(log_level)
@@ -48,7 +51,7 @@ class WebSocketServer(multiprocessing.Process):
         :return: None
         """
         logger.info(f"Web Socket starting on port {self._port}")
-        start_server = websockets.serve(self.serve_connection, "0.0.0.0", self._port)
+        start_server = websockets.serve(self.handler, "0.0.0.0", self._port)
 
         asyncio.get_event_loop().run_until_complete(start_server)
         asyncio.get_event_loop().run_forever()
@@ -56,16 +59,63 @@ class WebSocketServer(multiprocessing.Process):
         logger.error("Web Socket server process exited")
         return
 
-    async def serve_connection(self, web_socket, path):
+    async def handler(self, web_socket: WebSocketServerProtocol, path: str):
         """
-        Serve a connection passed to us
+        Handle both Rx and Tx to the client on of the websocket
 
-        :param web_socket: The client connection
-        :param path: not used
+        Tx goes from us (_data_queue) to the web client
+        Rx comes from the web client to us (_control_queue)
+
+        :param web_socket:
+        :param path: Not used, default is '/'
         :return: None
         """
+
         client = web_socket.remote_address[0]
-        logger.info(f"web socket serving client {client}")
+        logger.info(f"web socket serving client {client} {path}")
+
+        tx_task = asyncio.ensure_future(
+            self.tx_handler(web_socket))
+        rx_task = asyncio.ensure_future(
+            self.rx_handler(web_socket))
+        done, pending = await asyncio.wait(
+            [tx_task, rx_task],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        for task in pending:
+            task.cancel()
+        logger.info(f"Exited web socket serving client {client} {path}")
+
+    async def rx_handler(self, web_socket: WebSocketServerProtocol):
+        """
+        Receive JSON data from the client
+
+        :param web_socket: The client connection
+        :return: None
+        """
+
+        client = web_socket.remote_address[0]
+        logger.info(f"web socket Rx for client {client}")
+        try:
+            async for message in web_socket:
+                # message is json e.g.
+                # {"name":"unknown","centreFrequencyHz":433799987.79296875,
+                #    "sps":1500000,"bw":1500000,"fftSize":"8192","sdrStateUpdated":false}
+                self._control_queue.put(message, timeout=0.1)
+
+        except Exception as msg:
+            logger.error(f"web socket Rx exception for {client}, {msg}")
+
+    async def tx_handler(self, web_socket: WebSocketServerProtocol):
+        """
+        Send data packed binary data to the client
+
+        :param web_socket: The client connection
+        :return: None
+        """
+
+        client = web_socket.remote_address[0]
+        logger.info(f"web socket Tx for client {client}")
         # NOTE this is not going to end
         try:
             while not self._exit_now:
@@ -85,8 +135,10 @@ class WebSocketServer(multiprocessing.Process):
                     num_floats = int(peaks.size)
                     # pack the data up in binary, watch out for sizes
                     # ignoring times for now as still to handle 8byte ints in javascript
-                    # !if5i{num_floats}f{num_floats}f is in network order 1 int, 1 float, 5 int, N float
-                    message = struct.pack(f"!if5i{num_floats}f",
+                    # !2if5i{num_floats}f{num_floats}f is in network order 2 int, 1 float, 5 int, N float
+                    data_type: int = 1  # magnitude data
+                    message = struct.pack(f"!2if5i{num_floats}f",  # format
+                                          int(data_type),  # 4bytes
                                           int(sps),  # 4bytes
                                           float(centre_MHz),  # 4byte float (32bit)
                                           int(start_sec),  # 4bytes
@@ -100,7 +152,7 @@ class WebSocketServer(multiprocessing.Process):
                     await web_socket.send(message)
 
                     # wait 1/fps before proceeding - this limits us to this fps
-                    # sleep using asyncio allows web_socket to service connections etc
+                    # using asyncio.sleep() allows web_socket to service connections etc
                     end_time = time.time() + (1 / MAX_FPS)
                     while (end_time - time.time()) > 0:
                         await asyncio.sleep(1 / MAX_FPS)  # we will not sleep this long
@@ -110,4 +162,4 @@ class WebSocketServer(multiprocessing.Process):
                     await asyncio.sleep(0.1)
 
         except Exception as msg:
-            logger.info(f"web socket ended for {client}, {msg}")
+            logger.error(f"web socket Tx exception for {client}, {msg}")

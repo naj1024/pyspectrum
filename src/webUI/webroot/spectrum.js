@@ -103,7 +103,7 @@ Spectrum.prototype.drawFFT = function(bins, colour) {
             if (point == bins.length - 1)
                 this.ctx.lineTo(this.wf_size + 1, y);
         }
-        this.ctx.lineTo(this.wf_size + 1, this.spectrumHeight + 1);
+        //this.ctx.lineTo(this.wf_size + 1, this.spectrumHeight + 1);
         this.ctx.strokeStyle = colour;
         this.ctx.lineWidth = 1;
         this.ctx.stroke();
@@ -118,32 +118,31 @@ Spectrum.prototype.drawSpectrum = function(bins) {
     this.ctx.fillStyle = this.backgroundColour;
     this.ctx.fillRect(0, 0, width, height);
 
-    //if (!this.paused) {
-        // Max hold, before averaging
-        if (this.maxHold) {
-            if (!this.binsMax || this.binsMax.length != bins.length) {
-                this.binsMax = Array.from(bins);
-            } else {
-                for (var i = 0; i < bins.length; i++) {
-                    if (bins[i] > this.binsMax[i]) {
-                        this.binsMax[i] = bins[i];
-                    }
+    // should we max hold and average in a paused state?
+    // Max hold, before averaging
+    if (this.maxHold) {
+        if (!this.binsMax || this.binsMax.length != bins.length) {
+            this.binsMax = Array.from(bins);
+        } else {
+            for (var i = 0; i < bins.length; i++) {
+                if (bins[i] > this.binsMax[i]) {
+                    this.binsMax[i] = bins[i];
                 }
             }
         }
+    }
 
-        // Averaging
-        if (this.averaging > 0) {
-            if (!this.binsAverage || this.binsAverage.length != bins.length) {
-                this.binsAverage = Array.from(bins);
-            } else {
-                for (var i = 0; i < bins.length; i++) {
-                    this.binsAverage[i] += this.alpha * (bins[i] - this.binsAverage[i]);
-                }
+    // Averaging
+    if (this.averaging > 0) {
+        if (!this.binsAverage || this.binsAverage.length != bins.length) {
+            this.binsAverage = Array.from(bins);
+        } else {
+            for (var i = 0; i < bins.length; i++) {
+                this.binsAverage[i] += this.alpha * (bins[i] - this.binsAverage[i]);
             }
-            bins = this.binsAverage;
         }
-    //}
+        bins = this.binsAverage;
+    }
 
     // Do not draw anything if spectrum is not visible
     if (this.ctx_axes.canvas.height < 1)
@@ -371,28 +370,62 @@ Spectrum.prototype.setRange = function(min_db, max_db) {
     this.updateAxes();
 }
 
-Spectrum.prototype.rangeUp = function() {
+Spectrum.prototype.refUp = function() {
+    // keep range the same
     this.setRange(this.min_db - 5, this.max_db - 5);
 }
 
-Spectrum.prototype.rangeDown = function() {
+Spectrum.prototype.refDown = function() {
+    // keep range the same
     this.setRange(this.min_db + 5, this.max_db + 5);
 }
 
 Spectrum.prototype.rangeIncrease = function() {
-    this.setRange(this.min_db - 5, this.max_db + 5);
+    // keep max same, i.e. reference level
+    this.setRange(this.min_db - 5, this.max_db);
 }
 
 Spectrum.prototype.rangeDecrease = function() {
-    if (this.max_db - this.min_db > 10)
-        this.setRange(this.min_db + 5, this.max_db - 5);
+    // keep max the same, i.e. reference level
+    if ( (this.max_db - this.min_db) > 10)
+        // don't change range below 10dB
+        this.setRange(this.min_db + 5, this.max_db);
 }
 
-Spectrum.prototype.setcentreFreq = function(MHz) {
+Spectrum.prototype.roundTo10 =  function(num) {
+    let smallest = parseInt(parseInt(num / 10) * 10);
+    let largest = parseInt(smallest + 10);
+    // Return of closest of two
+    return (num - smallest > largest - num)? largest : smallest;
+}
+
+Spectrum.prototype.autoRange = function() {
+    // Find max and min
+    let max = -1000; // suitable small dB
+    let min = 1000; // suitable large dB
+    for (const s of this.spectrums) {
+        if (s) {
+            let smax = Math.max(...s.spectrum[0]);
+            let smin = Math.min(...s.spectrum[0]);
+            if (smin < min)
+                min = smin;
+            if (smax > max)
+                max = smax;
+        }
+    }
+    if (max != -1000 && min != 1000) {
+        // to nearest 10dB
+        this.max_db = this.roundTo10(max+16); // 10dB headroom
+        this.min_db = this.roundTo10(min-6);
+        this.setRange(this.min_db, this.max_db);
+    }
+}
+
+Spectrum.prototype.setCentreFreq = function(MHz) {
     this.centreHz = Math.trunc(MHz * 1e6);
 }
 
-Spectrum.prototype.getcentreFreqHz = function() {
+Spectrum.prototype.getCentreFreqHz = function() {
     return this.centreHz;
 }
 
@@ -406,6 +439,10 @@ Spectrum.prototype.getSps = function() {
 
 Spectrum.prototype.getFftSize = function() {
     return this.fftSize;
+}
+
+Spectrum.prototype.setFftSize = function(fftSize) {
+    this.fftSize = fftSize;
 }
 
 Spectrum.prototype.setSpanHz = function(hz) {
@@ -530,15 +567,15 @@ Spectrum.prototype.onKeypress = function(e) {
         this.togglePaused();
         $("#pauseBut").button('toggle'); // update the UI button state
     } else if (e.key == "ArrowUp") {
-        this.rangeUp();
+        this.refUp();
     } else if (e.key == "ArrowDown") {
-        this.rangeDown();
+        this.refDown();
     } else if (e.key == "ArrowLeft") {
         this.rangeDecrease();
     } else if (e.key == "ArrowRight") {
         this.rangeIncrease();
     }
-    // moving the ratio of spectrum to spectrogram makes things tough, TODO: allow this
+    // moving the ratio of spectrum to spectrogram makes things tough, TODO: allow this ?
 //    else if (e.key == "s") {
 //        this.incrementSpectrumPercent();
 //    } else if (e.key == "w") {
@@ -559,13 +596,13 @@ Spectrum.prototype.addMarkerHz = function(frequencyHz, magdB, time_start, spectr
     marker['inputCount'] = inputCount;
     marker['spectrumFlag'] = spectrum_flag;
 
-    let deltaMHz = 0;
+    let deltaHz = 0;
     let deltadB = 0;
     let deltaTime = 0;
     if (this.markersSet.size != 0){
         let as_array = Array.from(this.markersSet);
         let previous_marker = as_array[this.markersSet.size-1];
-        deltaMHz = (frequencyHz - previous_marker.freqHz) / 1e6;
+        deltaHz = (frequencyHz - previous_marker.freqHz);
         deltadB = (magdB - previous_marker.power);
         deltaTime = (time_start - previous_marker.diffTime);
     }
@@ -589,7 +626,7 @@ Spectrum.prototype.addMarkerHz = function(frequencyHz, magdB, time_start, spectr
     new_row += "<td>"+(frequencyHz/1e6).toFixed(6)+"</td>";
     new_row += "<td>"+magdB.toFixed(1)+"</td>";
     new_row += "<td>"+time_start.toFixed(6)+"</td>";
-    new_row += "<td>"+deltaMHz.toFixed(6)+"</td>";
+    new_row += "<td>"+this.convertFrequencyForDisplay(deltaHz,3)+"</td>";
     new_row += "<td>"+deltadB.toFixed(1)+"</td>";
     new_row += "<td>"+deltaTime.toFixed(6)+"</td>";
 
@@ -876,20 +913,34 @@ Spectrum.prototype.updateIndexedMarkers = function() {
         marker_num+=1;
     }
 }
-
 Spectrum.prototype.handleMouseWheel = function(evt) {
-
     let rect = this.canvas.getBoundingClientRect();
     let x_pos = evt.clientX - rect.left;
     let y_pos = evt.clientY - rect.top;
+    let inSpectrum = this.areWeInSpectrum(y_pos);
+    let allowZoom = true;
 
-    // modifier on wheel for spectral zoom in
-    if (evt.shiftKey) {
-        let where = this.getSpectrumValues(x_pos, y_pos);
+    // Are we in spectrogram and paused then update the spectrum for this spectrogram row
+    // note we will snap to the current mouse position if the mouse moves
+    if ( !data_active || this.paused) {
+        if (!inSpectrum) {
+            allowZoom = false; // if we are paused and in the spectrogram then don't zoom
 
+            // fine movement on wheel changes
+            if (evt.deltaY > 0) {
+                this.spectrogramLiveMakerY += 1;
+            } else {
+                this.spectrogramLiveMakerY -= 1;
+            }
+            this.updateLiveMarkerAtPosition(x_pos, this.spectrogramLiveMakerY);
+        }
+    }
+
+    if (allowZoom) {
+        // zoom the spectrum
         // fix centre on first zoom
         if (this.zoomCentreBin < 0) {
-            this.zoomCentreBin = where.bin;
+            this.zoomCentreBin = this.getSpectrumValues(x_pos, y_pos).bin;
         }
         // zooming or unzooming
         // powers of 2 keeps things in sync between spectrum and spectrogram as canvas and fft is power of 2
@@ -902,42 +953,10 @@ Spectrum.prototype.handleMouseWheel = function(evt) {
         if (this.zoom <= 1.0) {
             this.zoom = 1.0;
             this.zoomCentreBin = -1;
+        } else if ((this.fftSize / this.zoom) < 4) {
+            this.zoom /= 2.0; // put zoom back to have at least 8points across
         }
         this.updatedZoom = true;
-    }
-    else {
-        let inSpectrum = this.areWeInSpectrum(y_pos);
-        if (inSpectrum) {
-            // Change dB scale if in spectrum
-            // level and range functionality
-            if (evt.buttons == 0) {
-                if (evt.deltaY > 0){
-                    this.rangeUp();
-                }
-                else {
-                    this.rangeDown();
-                }
-            } else if(evt.buttons == 4) {
-                // scroll wheel clicked and moved
-                if (evt.deltaY > 0){
-                    this.rangeIncrease();
-                }
-                else {
-                    this.rangeDecrease();
-                }
-            }
-        } else {
-            // We are in spectrogram
-            // note we will snap to the current mouse position if the mouse moves
-            if ( this.live_marker_on && (!data_active || this.paused) ) {
-                if (evt.deltaY > 0) {
-                    this.spectrogramLiveMakerY += 1;
-                } else {
-                    this.spectrogramLiveMakerY -= 1;
-                }
-                this.updateLiveMarkerAtPosition(x_pos, this.spectrogramLiveMakerY);
-            }
-        }
     }
 }
 
@@ -1207,7 +1226,7 @@ function Spectrum(id, options) {
     this.centreHz = (options && options.centreHz) ? options.centreHz : 0;
     this.spanHz = (options && options.spanHz) ? options.spanHz : 0;
     this.wf_size = (options && options.wf_size) ? options.wf_size : 0;
-    this.wf_rows = (options && options.wf_rows) ? options.wf_rows : 2048;
+    this.wf_rows = (options && options.wf_rows) ? options.wf_rows : 256;
     this.spectrumPercent = (options && options.spectrumPercent) ? options.spectrumPercent : 25;
     this.spectrumPercentStep = (options && options.spectrumPercentStep) ? options.spectrumPercentStep : 5;
     this.averaging = (options && options.averaging) ? options.averaging : 0;

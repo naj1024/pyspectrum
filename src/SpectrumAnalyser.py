@@ -2,9 +2,6 @@
 """
 Provide a basic spectrum analyser for digitised complex samples
 
-If you need to get the full options on the command line and the commandlineUI
-is appearing the use --ignore-gooey
-
 """
 
 import argparse
@@ -17,6 +14,7 @@ import logging
 from typing import Tuple
 import random
 import sys
+import json
 
 import numpy as np
 
@@ -27,7 +25,6 @@ from dataProcessing import ProcessSamples
 from misc import Ewma
 from misc import PluginManager
 from misc import Variables
-from commandlineUI import gooey_ui
 from webUI import WebServer
 
 processing = True  # global to be set to False from ctrl-c
@@ -47,8 +44,6 @@ def signal_handler(sig, __):
     print("Received signal", sig)
 
 
-# uncomment if you want the gooey commandlineUI wrapped command line
-@gooey_ui.Gooey(tabbed_groups=True, monospace_display=True)
 def main() -> None:
     if sys.version_info < (3, 7):
         logger.warning(f"Python version means sample timings will be course, python V{sys.version}")
@@ -87,7 +82,7 @@ def main() -> None:
     reconnect_count = 0
 
     # keep processing until told to stop or an error occurs
-    loop_count = 0
+    # loop_count = 0
     peak_average = Ewma.Ewma(0.1)
     current_peak_count = 0
     max_peak_count = 0
@@ -95,15 +90,18 @@ def main() -> None:
 
         # TODO: Testing changing parameters on the fly
         # loop_count += 1
-        # if loop_count == 3000:
+        # if loop_count == 9000:
         #     print("Changing source")
-        #     configuration.centre_frequency_hz = 433.5e6
+        #     configuration.centre_frequency_hz = 153.2e6
         #     configuration.sample_rate = 2e6
         #     configuration.fft_size = 4096
         #     # input source has to be changed, or in the future updated to new parameters
         #     data_source.close()
         #     data_source = create_source(configuration, source_factory)
         #     peak_powers_since_last_display = np.full(configuration.fft_size, -200)
+
+        # if there is a control message then it may change what the fron end is doing
+        data_source = check_control_queue(configuration, control_queue, data_source, source_factory)
 
         ###########################################
         # Get the complex samples we will work on
@@ -148,7 +146,6 @@ def main() -> None:
             peak_powers_since_last_display, current_peak_count, max_peak_count = \
                 update_display(configuration,
                                display_queue,
-                               control_queue,
                                processor.get_powers(
                                    False),
                                peak_powers_since_last_display,
@@ -245,7 +242,7 @@ def initialise(configuration: Variables):
         control_queue = multiprocessing.Queue()
 
         if configuration.web_display:
-            display = WebServer.WebServer(data_queue, control_queue, logger.level)
+            display = WebServer.WebServer(data_queue, control_queue, logger.level, configuration.web_port)
             display.start()
         else:
             display = display_create(configuration, data_queue, control_queue, data_source.get_display_name())
@@ -357,8 +354,7 @@ def parse_command_line(configuration: Variables) -> None:
     misc_opts.add_argument('-E', '--spectrogram',
                            help=f'Add a spectrogram on matplotlib_ui',
                            default=False, required=False, action='store_true')
-    misc_opts.add_argument('-w', '--web', help=f'Web browser UI',
-                           default=False, required=False, action='store_true')
+    misc_opts.add_argument('-w', '--web', type=int, help=f'Web interface port plus websocket one up from this', required=False)
     misc_opts.add_argument('-v', '--verbose', help='Verbose, -vvv debug, -vv info, -v warn', required=False,
                            action='count', default=0)
     misc_opts.add_argument('-H', '--HELP', help='Full help (even within gooey)', required=False, action='store_true')
@@ -421,7 +417,8 @@ def parse_command_line(configuration: Variables) -> None:
         configuration.spectrogram_flag = args['spectrogram']
 
     if args['web']:
-        configuration.web_display = args['web']
+        configuration.web_display = True;
+        configuration.web_port = abs(int(args['web']))
 
     if args['verbose']:
         if args['verbose'] > 2:
@@ -522,10 +519,69 @@ def time_spectral(configuration: Variables):
         print(f"{fft_size} \t{processing_time * 1e6:0.1f} \t{max_sps / 1e6:0.3f}")
     print("")
 
+def check_control_queue(configuration: Variables,
+                        control_queue: multiprocessing.Queue,
+                        data_source,
+                        source_factory):
+    """
+    Check the control queue for messages and handle them
+
+    :param configuration: the current configuration
+    :param control_queue: The queue to check on
+    :param data_source:
+    :param source_factory:
+    :return:
+    """
+    try:
+        config = control_queue.get(block=False)
+        if config:
+            # config message is a json string
+            # e.g. {"name":"unknown","centreFrequencyHz":433799987,"sps":600000,
+            #       "bw":600000,"fftSize":"8192","sdrStateUpdated":false}
+            try:
+                new_config = json.loads(config)
+                reconfigure = False
+                old_cf = configuration.centre_frequency_hz;
+                old_sps = configuration.sample_rate;
+                old_fft = configuration.fft_size;
+
+                if new_config['centreFrequencyHz'] != old_cf:
+                    configuration.centre_frequency_hz = new_config['centreFrequencyHz']
+                    reconfigure = True
+                if new_config['sps'] != old_sps:
+                    configuration.sample_rate = new_config['sps']
+                    reconfigure = True
+                if new_config['fftSize'] != old_fft:
+                    configuration.fft_size = new_config['fftSize']
+                    reconfigure = True
+
+                if reconfigure:
+                    data_source.close()
+                    try:
+                        data_source = create_source(configuration, source_factory)
+                    except ValueError as msg:
+                        logger.error(f"Problem with new configuration, {msg} "
+                                     f"{configuration.centre_frequency_hz} "
+                                     f"{configuration.sample_rate} "
+                                     f"{configuration.fft_size}")
+                        # put things back
+                        configuration.centre_frequency_hz = old_cf
+                        configuration.sample_rate = old_sps
+                        # bodge just to get config table updated
+                        configuration.fft_size = old_fft // 2  # TODO handle errors back to UI
+                        data_source = create_source(configuration, source_factory)
+
+            except ValueError as msg:
+                logger.error(f"Problem with json control message {config}, {msg}")
+                pass
+
+    except queue.Empty:
+        pass
+
+    return data_source
 
 def update_display(configuration: Variables,
                    display_queue: multiprocessing.Queue,
-                   control_queue: multiprocessing.Queue,
                    powers: np.ndarray,
                    peak_powers_since_last_display: np.ndarray,
                    current_peak_count: int,
@@ -536,7 +592,6 @@ def update_display(configuration: Variables,
 
     :param configuration: Our programme state variables
     :param display_queue: The queue used for talking to the matplotlib_ui process
-    :param control_queue: The queue used for control back from the matplotlib_ui process
     :param powers: The powers of the spectrum bins
     :param peak_powers_since_last_display: The powers since we last updated the matplotlib_ui
     :param current_peak_count: count of spectrums we have peak held on
@@ -573,13 +628,6 @@ def update_display(configuration: Variables,
         print("Spectrum window closed")
         global processing
         processing = False  # we will exit mow
-
-    try:
-        control = control_queue.get(block=False)
-        if control:
-            print(control)
-    except queue.Empty:
-        pass
 
     return peak_powers_since_last_display, current_peak_count, max_peak_count
 

@@ -36,3 +36,18 @@ canvas {
 .table-hover tbody tr:hover td, .table-hover tobody th {
     background-color: #d0d0d0;
 }
+
+/* remove arrow functionality from form number input boxes
+/* Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* hide submit buttons */
+#submitbtn{display:none;}

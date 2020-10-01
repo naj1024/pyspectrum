@@ -37,20 +37,22 @@ class WebServer(multiprocessing.Process):
     def __init__(self,
                  data_queue: multiprocessing.Queue,
                  control_queue: multiprocessing.Queue,
-                 log_level: int):
+                 log_level: int,
+                 web_port: int):
         """
         Initialise the web server
 
         :param data_queue: The queue data will arrive on, we do not use it but pass it to a web socket server
         :param control_queue: Data back from whatever is the UI, not used yet
         :param log_level: The logging level we wish to use
+        :param web_port: The port the web server will serve on
         """
         multiprocessing.Process.__init__(self)
 
         # queues are for the web socket, not used in the web server
         self._data_queue = data_queue
         self._control_queue = control_queue
-        self._port = 8080
+        self._port = web_port
         self._httpd = None
         self._web_socket_server = None
         logger.setLevel(log_level)
@@ -80,7 +82,8 @@ class WebServer(multiprocessing.Process):
 
         # start a web socket server for the remote client to connect to
         #  must be done here not in __init__ as otherwise fork/etc would stop it working as expected
-        self._web_socket_server = WebSocketServer.WebSocketServer(self._data_queue, self._control_queue, logger.level)
+        self._web_socket_server = WebSocketServer.WebSocketServer(self._data_queue, self._control_queue,
+                                                                  logger.level, self._port+1)
         self._web_socket_server.start()
 
         global web_root
