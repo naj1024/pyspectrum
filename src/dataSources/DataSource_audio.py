@@ -40,7 +40,7 @@ def audio_callback(incoming_samples: np.ndarray, frames: int, time_1, status):
         raise ValueError(f"Error: {module_type} had a problem, {status}")
 
     # make complex array with left/right as real/imaginary
-    # this wrong unless you are feeding the audio LR with a complex source
+    # this is wrong unless you are feeding the audio LR with a complex source
     # frames is the number of left/right sample pairs, i.e. the samples
     complex_data = np.zeros(shape=(frames,), dtype=np.complex64)
     for n in range(frames):
@@ -87,6 +87,7 @@ class Input(DataSource.DataSource):
                                                 blocksize=self._number_complex_samples,  # NOTE the size, not zero
                                                 dtype="float32")
             self._audio_stream.start()  # required as we are not using 'with'
+            logger.info("Audio stream started")
         except sd.PortAudioError as err_msg:
             msgs = f"{module_type} error: {err_msg}"
             logger.error(msgs)

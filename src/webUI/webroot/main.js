@@ -397,6 +397,8 @@ function Main() {
     // todo add auto peak detect button
     let marker_buttons = '<button type="button" id="hideMarkersBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Hide</button>';
     marker_buttons += '<button type="button" id="clearMarkersBut" class="btn btn-outline-dark mx-1 my-1">Clear</button>';
+    marker_buttons += '<button type="button" id="searchPeakBut" class="btn btn-outline-dark mx-1 my-1">Peak</button>';
+    marker_buttons += '<button type="button" id="peakTrackBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Track</button>';
     $('#marker-buttons').append(marker_buttons);
 
     // events
@@ -415,11 +417,13 @@ function Main() {
     $('#refUpBut').click(function() {spectrum.refUp();});
     $('#rangeDwnBut').click(function() {spectrum.rangeDecrease();});
     $('#rangeUpBut').click(function() {spectrum.rangeIncrease();});
-    $('#clearMarkersBut').click(function() {spectrum.clearMarkers();});
-    $('#hideMarkersBut').click(function() {spectrum.hideMarkers();});
 
     $('#markerRadio_off').click(function() {spectrum.liveMarkerOff();});
     $('#markerRadio_on').click(function() {spectrum.liveMarkerOn();});
+    $('#clearMarkersBut').click(function() {spectrum.clearMarkers();});
+    $('#hideMarkersBut').click(function() {spectrum.hideMarkers();});
+    $('#peakTrackBut').click(function() {spectrum.toggleTrackPeak();});
+    $('#searchPeakBut').click(function() {spectrum.findPeak();});
 
     // Connect to websocket
     connectWebSocket(spectrum);
