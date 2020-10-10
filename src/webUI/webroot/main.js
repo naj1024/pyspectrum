@@ -360,6 +360,9 @@ function Main() {
     canvas.addEventListener('mousemove', function(evt) {
         spectrum.handleMouseMove(evt);
     }, false);
+    canvas.addEventListener('mouseout', function(evt) {
+        spectrum.handleMouseOut(evt);
+    }, false);
     canvas.addEventListener('click', function(evt) { // left mouse click by default
         spectrum.handleLeftMouseClick(evt);
     }, false);

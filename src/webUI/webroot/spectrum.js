@@ -35,10 +35,10 @@ Spectrum.prototype.rowToImageData = function(bins) {
         let dataIndex = parseInt(dataPointIndex); // nearest integer bin index
         let cindex = this.squeeze(bins[dataIndex], 0, 255);
         let colour = 0;
-        if ( (cindex < this.colormap.length) && (cindex >= 0) )
-            colour = this.colormap[cindex];
+        if ( (cindex < this.colourmap.length) && (cindex >= 0) )
+            colour = this.colourmap[cindex];
         else
-            colour = this.colormap[0];
+            colour = this.colourmap[0];
         this.imagedata.data[i+0] = colour[0];
         this.imagedata.data[i+1] = colour[1];
         this.imagedata.data[i+2] = colour[2];
@@ -317,9 +317,9 @@ Spectrum.prototype.updateSpectrumRatio = function() {
     this.spectrumHeight = Math.round(this.canvas.height * this.spectrumPercent / 100.0);
 
     this.gradient = this.ctx.createLinearGradient(0, 0, 0, this.spectrumHeight);
-    for (var i = 0; i < this.colormap.length; i++) {
-        var c = this.colormap[this.colormap.length - 1 - i];
-        this.gradient.addColorStop(i / this.colormap.length,
+    for (var i = 0; i < this.colourmap.length; i++) {
+        var c = this.colourmap[this.colourmap.length - 1 - i];
+        this.gradient.addColorStop(i / this.colourmap.length,
             "rgba(" + c[0] + "," + c[1] + "," + c[2] + ", 1.0)");
     }
 }
@@ -363,11 +363,11 @@ Spectrum.prototype.decrementSpectrumPercent = function() {
     }
 }
 
-Spectrum.prototype.toggleColor = function() {
-    this.colorindex++;
-    if (this.colorindex >= colormaps.length)
-        this.colorindex = 0;
-    this.colormap = colormaps[this.colorindex];
+Spectrum.prototype.togglecolour = function() {
+    this.colourindex++;
+    if (this.colourindex >= colourmaps.length)
+        this.colourindex = 0;
+    this.colourmap = colourmaps[this.colourindex];
     this.updateSpectrumRatio();
 }
 
@@ -496,14 +496,6 @@ Spectrum.prototype.getResetZoomChanged = function() {
     return updated;
 }
 
-Spectrum.prototype.setPaused = function(paused) {
-    this.lockedSpectrogramRowInPaused = false;
-    this.lockedSpectrogramMarkerValues = undefined;
-    this.paused = paused;
-    this.pausedSpectrogramIndex = -1;
-    this.liveMarkersAndUnHideMarkers();
-}
-
 Spectrum.prototype.liveMarkersAndUnHideMarkers = function() {
     this.liveMarkerOn(); // Expected operation when paused
     $('input:radio[name=markerRadio]')[1].checked = true; // for completeness
@@ -511,6 +503,16 @@ Spectrum.prototype.liveMarkersAndUnHideMarkers = function() {
         this.hideAllMarkers = false;
         $("#hideMarkersBut").button('toggle'); // update the UI button state
     }
+}
+
+Spectrum.prototype.setPaused = function(paused) {
+    // pause or unpause must unlock any locked spectrogram
+    this.lockedSpectrogram = false;
+    this.lockedSpectrogramMarkerValues = undefined;
+    this.lockedSpectrogramIndex = null;
+
+    this.paused = paused;
+    this.liveMarkersAndUnHideMarkers();
 }
 
 Spectrum.prototype.togglePaused = function() {
@@ -555,42 +557,37 @@ Spectrum.prototype.toggleFullscreen = function() {
 }
 
 Spectrum.prototype.onKeypress = function(e) {
-    if (e.key == "f") {
-        this.toggleFullscreen();
-    } else if (e.key == "c") {
-        this.toggleColor();
-    } else if (e.key == "+") {
-        this.incrementAveraging();
-    } else if (e.key == "-") {
-        this.decrementAveraging();
-    } else if (e.key == "m") {
-        this.toggleMaxHold();
-        $("#maxHoldBut").button('toggle'); // update the UI button state
-    } else if (e.key == "l") {
-        if (this.paused) {
-            this.lockedSpectrogramRowInPaused = !this.lockedSpectrogramRowInPaused;
+    // only respond if the mouse is in the canvas
+    if (this.mouseInCanvas) {
+        if (e.key == "f") {
+            this.toggleFullscreen();
+        } else if (e.key == "c") {
+            this.togglecolour();
+        } else if (e.key == "+") {
+            this.incrementAveraging();
+        } else if (e.key == "-") {
+            this.decrementAveraging();
+        } else if (e.key == "m") {
+            this.toggleMaxHold();
+            $("#maxHoldBut").button('toggle'); // update the UI button state
+        } else if (e.key == "l") {
+            this.updateSpectrogramLock();
+        } else if (e.key == "p") {
+            this.togglePaused();
+            $("#pauseBut").button('toggle'); // update the UI button state
+        } else if (e.key == "ArrowUp") {
+            this.refUp();
+        } else if (e.key == "ArrowDown") {
+            this.refDown();
+        } else if (e.key == "ArrowLeft") {
+            this.rangeDecrease();
+        } else if (e.key == "ArrowRight") {
+            this.rangeIncrease();
         }
-    } else if (e.key == "p") {
-        this.togglePaused();
-        $("#pauseBut").button('toggle'); // update the UI button state
-    } else if (e.key == "ArrowUp") {
-        this.refUp();
-    } else if (e.key == "ArrowDown") {
-        this.refDown();
-    } else if (e.key == "ArrowLeft") {
-        this.rangeDecrease();
-    } else if (e.key == "ArrowRight") {
-        this.rangeIncrease();
     }
-    // moving the ratio of spectrum to spectrogram makes things tough, TODO: allow this ?
-//    else if (e.key == "s") {
-//        this.incrementSpectrumPercent();
-//    } else if (e.key == "w") {
-//        this.decrementSpectrumPercent();
-//    }
 }
 
-Spectrum.prototype.addMarkerHz = function(frequencyHz, magdB, time_start, spectrogram_canvas_y, inputCount, spectrum_flag) {
+Spectrum.prototype.addMarker = function(frequencyHz, magdB, time_start, spectrogram_canvas_y, inputCount, spectrum_flag) {
     // force showing of markers if we are adding markers
     this.liveMarkersAndUnHideMarkers();
 
@@ -701,7 +698,7 @@ Spectrum.prototype.deleteMarker =  function(id) {
     // add back all markers but the one we need to delete
     for (let item of oldMarkers) {
         if (id != marker_num) {
-            this.addMarkerHz(item.freqHz, item.power, item.diffTime, item.spectrogram_canvas_y, item.inputCount, item.spectrumFlag);
+            this.addMarker(item.freqHz, item.power, item.diffTime, item.spectrogram_canvas_y, item.inputCount, item.spectrumFlag);
         }
         marker_num += 1;
     }
@@ -725,23 +722,29 @@ Spectrum.prototype.toggleTrackPeak = function() {
 }
 
 Spectrum.prototype.findPeak = function() {
-    this.liveMarkersAndUnHideMarkers();
+    // called from button
 
+    this.liveMarkersAndUnHideMarkers();
     if (this.live_peak_search) {
-        // we don't want live peak tracking if we asked for the peak
+        // we don't want live peak tracking on if we asked for the peak
         this.toggleTrackPeak();
         $("#peakTrackBut").button('toggle'); // update the UI button state
     }
 
-    let peakSpectrum = undefined;
-    if (this.paused) {
-        // find peak in spectrum data not the spectrogram
-        if(this.lockedSpectrogramMarkerValues && this.lockedSpectrogramMarkerValues.spectrum) {
-            this.liveMarker = this.getValuesFromSpectrum(this.lockedSpectrogramMarkerValues.spectrum);
-        }
+    // if we are in max-hold then we need the peak of the maximum trace
+    // else if we are locked to a spectrogram row then find max in that spectrum
+    // else find the maximum in the spectrogram
+    let markerValues = undefined;
+
+    if (this.maxHold) {
+        markerValues = this.getMarkerValuesForMaxHold();
+    } else if (this.lockedSpectrogramMarkerValues) {
+        // find peak in spectrum of the locked spectrogram
+        markerValues = this.getMarkerValuesFromSpectrum(this.lockedSpectrogramMarkerValues.spectrum);
     } else {
         // find row holding peak power in spectrogram data
         let max = -1000;
+        let peakSpectrum = undefined;
         for (const s of this.spectrums) {
             if (s) {
                 let smax = Math.max(...s.magnitudes[0]);
@@ -752,8 +755,13 @@ Spectrum.prototype.findPeak = function() {
             }
         }
         if (typeof peakSpectrum != 'undefined') {
-            this.liveMarker = this.getValuesFromSpectrum(peakSpectrum);
+            markerValues = this.getMarkerValuesFromSpectrum(peakSpectrum);
         }
+    }
+    if (markerValues != undefined) {
+        this.liveMarker = markerValues;
+        this.addMarker(markerValues.freqHz, markerValues.power, markerValues.diffTime,
+                        markerValues.spectrogram_canvas_y, markerValues.inputCount, markerValues.spectrum_flag);
     }
 
     if (!data_active) {
@@ -761,33 +769,72 @@ Spectrum.prototype.findPeak = function() {
     }
 }
 
-Spectrum.prototype.getValuesFromSpectrum = function(spec) {
-    // return marker type values from a spectrum, spectrum includes time etc
+Spectrum.prototype.getMarkerValuesForMaxHold = function() {
+    // return a marker set from the max held values
+    let values = undefined;
+    if (this.maxHold && this.binsMax != undefined) {
+        let basic = this.getBasicValuesFromMagnitudes(this.binsMax);
+
+        // markers format
+        values = {
+              freqHz: basic.freqHz,
+              spectrum_flag: true,
+              power: basic.power,
+              diffTime: -1,
+              spectrogram_canvas_y: -1,
+              bin: basic.bin,
+              spectrum: undefined,
+              magnitudes: this.binsMax
+        };
+    }
+
+    return values;
+}
+
+Spectrum.prototype.getBasicValuesFromMagnitudes = function(mags) {
+    // return basic info about the magnitudes
+    // we account for the zoom we have
+
+    // When zoomed in only look over the zoomed spectrum
+    let magnitudes = mags;
+    let offset = 0;
+    if (this.zoom > 1) {
+        magnitudes = mags.slice(this.zoomStartBin, this.zoomEndBin);
+        offset = this.zoomStartBin;
+    }
 
     // stackoverflow 11301438, index of peak value
-    let indexOfPeak = spec.magnitudes[0].reduce((bestIndexSoFar, currentlyTestedValue, currentlyTestedIndex, array) => currentlyTestedValue > array[bestIndexSoFar] ? currentlyTestedIndex : bestIndexSoFar, 0);
+    let indexOfPeak = magnitudes.reduce((bestIndexSoFar, currentlyTestedValue, currentlyTestedIndex, array) => currentlyTestedValue > array[bestIndexSoFar] ? currentlyTestedIndex : bestIndexSoFar, 0);
+    indexOfPeak += offset; // patch up where we are in the given array
+
+    let freq_value = this.convertFftBinToFrequency(indexOfPeak);
+    let power = mags[indexOfPeak];
+
+    return {
+        freqHz: freq_value,
+        power: power,
+        bin: indexOfPeak
+    };
+}
+
+Spectrum.prototype.getMarkerValuesFromSpectrum = function(spec) {
+    // return marker type values from a spectrum, spectrum includes time etc
+
+    let basic = this.getBasicValuesFromMagnitudes(spec.magnitudes[0]);
 
     // calculate the time of this spectrum
     let t =  spec.start_sec;
     t += spec.start_nsec/1e9;
     let diff_time =  t - this.firstTime;
 
-    // calculate the frequency of this bin
-    let spanHz = this.spanHz;
-    let centreHz = this.centreHz;
-    let per_hz = spanHz / this.fftSize;
-    let freq_value = (centreHz - (spanHz / 2)) + (indexOfPeak * per_hz);
-
-    let power = spec.magnitudes[0][indexOfPeak]
-
-    // same format as markers have
+    // markers format
     let values = {
-          freqHz: freq_value,
+          freqHz: basic.freqHz,
           spectrum_flag: true,
-          power: power,
+          power: basic.power,
           diffTime: diff_time,
           spectrogram_canvas_y: -1,
-          bin: indexOfPeak,
+          bin: basic.bin,
           spectrum: spec,
           magnitudes: spec
     };
@@ -796,14 +843,29 @@ Spectrum.prototype.getValuesFromSpectrum = function(spec) {
 
 Spectrum.prototype.searchForPeak = function() {
     // look through current spectrum and set the live marker to the peak
-    this.liveMarker = this.getValuesFromSpectrum(this.currentSpectrum);
+    this.liveMarker = this.getMarkerValuesFromSpectrum(this.currentSpectrum);
     if (!data_active) {
         this.updateWhenPaused();
     }
 }
 
 Spectrum.prototype.convertFftBinToFrequency =  function(binNumber) {
-    // TODO: refactor code to have this function used
+    let freq_value = (this.centreHz - (this.spanHz / 2)) + (binNumber * (this.spanHz / this.fftSize));
+    return freq_value;
+}
+
+Spectrum.prototype.convertFrequencyToFftBin =  function(frequencyHz) {
+    let binNumber = (frequencyHz - this.centreHz + (this.spanHz/ 2)) * (this.fftSize / this.spanHz)
+    return parseInt(binNumber);
+}
+
+Spectrum.prototype.convertCanvasXToFrequencyHz = function(xpos) {
+    // no checks for being in range
+    let spanHz = this.getZoomSpanHz();
+    let centreHz = this.getZoomCfHz();
+    let perHz = spanHz / this.canvas.width;
+    let freq_value = (centreHz - (spanHz / 2)) + (xpos * perHz);
+    return freq_value;
 }
 
 Spectrum.prototype.convertFrequencyHzToCanvasX = function(freqHz) {
@@ -859,8 +921,9 @@ Spectrum.prototype.updateMarkers = function() {
     if (this.hideAllMarkers)
         return;
 
-    this.updateLiveMarker()
-    this.updateIndexedMarkers()
+    this.updateLiveMarker();
+    this.updateLockedMarker();
+    this.updateIndexedMarkers();
 }
 
 Spectrum.prototype.updateLiveMarker = function() {
@@ -888,30 +951,35 @@ Spectrum.prototype.updateLiveMarker = function() {
     this.ctx.stroke();
 
     // horizontal db marker on spectrum, or time in spectrogram
-    let y_pos = 0;
+    let canvasY = 0;
     if(this.liveMarker.spectrum_flag) {
-        y_pos = this.convertdBtoCanvasYOnSpectrum(this.liveMarker.power);  // spectrum
+        canvasY = this.convertdBtoCanvasYOnSpectrum(this.liveMarker.power);  // spectrum
     } else {
-        y_pos = this.liveMarker.spectrogram_canvas_y; // spectrogram
+        canvasY = this.liveMarker.spectrogram_canvas_y; // spectrogram
     }
+
     this.ctx.beginPath();
-    this.ctx.moveTo(0, y_pos);
-    this.ctx.lineTo(this.canvas.width, y_pos);
+    this.ctx.moveTo(0, canvasY);
+    this.ctx.lineTo(this.canvas.width, canvasY);
     this.ctx.setLineDash([10,10]);
     this.ctx.strokeStyle = this.liveMarkerColour;
     this.ctx.lineWidth = 1;
     this.ctx.stroke();
-
-    // reset line style lest we forget
-    this.ctx.setLineDash([]);
+    this.ctx.setLineDash([]); // reset line style lest we forget
 
     context.fillStyle = this.liveMarkerColour
-    // update the value, so we get a live update
-    let marker_value = this.getValuesAtCanvasPosition(canvasX, this.liveMarker.spectrogram_canvas_y);
-    if (typeof marker_value !== 'undefined') {
+
+    let marker_value = this.getValuesAtCanvasPosition(canvasX, canvasY);
+    if (typeof marker_value != 'undefined') {
         let marker_text = " " + this.convertFrequencyForDisplay(marker_value.freqHz, 3);
+
         if (typeof marker_value.power !== 'undefined') // TODO: fix undefined - but only on power, why?
             marker_text += " " + marker_value.power.toFixed(1) + "dB ";
+        else {
+            marker_text += " missing ";
+            marker_value.power = 0;
+        }
+        
         marker_text += " " + marker_value.diffTime.toFixed(3) + "s ";
 
         // are we past half way, then put text on left
@@ -935,6 +1003,20 @@ Spectrum.prototype.updateLiveMarker = function() {
             diff_text += " " + time_diff.toFixed(3) + "s ";
             context.fillText(diff_text, canvasX, 42);
         }
+    }
+}
+
+Spectrum.prototype.updateLockedMarker = function() {
+    // if we are locked to a spectrogram line while paused draw a line on the spectrogram
+    if (this.paused && this.lockedSpectrogram) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, this.lockedSpectrogramMarkerValues.spectrogram_canvas_y);
+        this.ctx.lineTo(this.canvas.width, this.lockedSpectrogramMarkerValues.spectrogram_canvas_y);
+        this.ctx.setLineDash([10,2,10]);
+        this.ctx.strokeStyle = this.lockedSpectrumColour;
+        this.ctx.lineWidth = 1;
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
     }
 }
 
@@ -1013,7 +1095,7 @@ Spectrum.prototype.handleMouseWheel = function(evt) {
     let rect = this.canvas.getBoundingClientRect();
     let x_pos = evt.clientX - rect.left;
     let y_pos = evt.clientY - rect.top;
-    let inSpectrum = this.areWeInSpectrum(y_pos);
+    let inSpectrum = this.inSpectrum(y_pos);
     let allowZoom = true;
 
     // Are we in spectrogram and paused then update the spectrum for this spectrogram row
@@ -1022,10 +1104,10 @@ Spectrum.prototype.handleMouseWheel = function(evt) {
         if (!inSpectrum) {
             allowZoom = false; // if we are paused and in the spectrogram then don't zoom
 
-            // fine movement on wheel changes
+            // fine movement of selected spectrogram line on wheel changes
             if (evt.deltaY > 0) {
                 this.spectrogramLiveMakerY += 1;
-            } else {
+            } else if (evt.deltaY < 0) {
                 this.spectrogramLiveMakerY -= 1;
             }
             this.updateLiveMarkerAtPosition(x_pos, this.spectrogramLiveMakerY);
@@ -1036,7 +1118,7 @@ Spectrum.prototype.handleMouseWheel = function(evt) {
         // zoom the spectrum
         // fix centre on first zoom
         if (this.zoomCentreBin < 0) {
-            this.zoomCentreBin = this.getSpectrumValues(x_pos, y_pos).bin;
+            this.zoomCentreBin = this.getSpectrumMarkerValues(x_pos, y_pos).bin;
         }
         // zooming or unzooming
         // powers of 2 keeps things in sync between spectrum and spectrogram as canvas and fft is power of 2
@@ -1049,21 +1131,52 @@ Spectrum.prototype.handleMouseWheel = function(evt) {
         if (this.zoom <= 1.0) {
             this.zoom = 1.0;
             this.zoomCentreBin = -1;
-        } else if ((this.fftSize / this.zoom) < 64) {
-            this.zoom /= 2.0; // put zoom back to have at least 128points across
+            this.zoomStartBin = -1;
+            this.zoomEndBin = -1;
+        } else if ((this.fftSize / this.zoom) <= 64) {
+            this.zoom /= 2.0; // put zoom back to have at least 128 points across
+        }
+        if(this.zoom > 1) {
+            let bins = this.fftSize / this.zoom;
+            this.zoomStartBin = this.zoomCentreBin - bins/2;
+            this.zoomEndBin = this.zoomStartBin + bins;
         }
         this.updatedZoom = true;
     }
 }
 
 Spectrum.prototype.handleMouseMove = function(evt) {
+    let rect = this.canvas.getBoundingClientRect();
+    this.canvasX = evt.clientX - rect.left;
+    this.canvasY = evt.clientY - rect.top;
+    this.mouseInCanvas = true;
     // live maker is on
     if (this.live_marker_on) {
-        let rect = this.canvas.getBoundingClientRect();
-        let x_pos = evt.clientX - rect.left;
-        let y_pos = evt.clientY - rect.top;
-        this.spectrogramLiveMakerY = y_pos; // we may not be in the spectrogram though
-        this.updateLiveMarkerAtPosition(x_pos, y_pos);
+        this.spectrogramLiveMakerY = this.canvasY; // we may not be in the spectrogram though
+        this.updateLiveMarkerAtPosition(this.canvasX, this.canvasY);
+    }
+}
+Spectrum.prototype.handleMouseOut = function(evt) {
+    this.mouseInCanvas = false;
+}
+
+Spectrum.prototype.updateSpectrogramLock = function() {
+    if (this.paused && this.mouseInCanvas && !this.inSpectrum(this.canvasY)) {
+        this.lockedSpectrogram = !this.lockedSpectrogram;
+        if (this.lockedSpectrogram) {
+            // allow for wheel correction, so don't use canvasY
+            this.lockedSpectrogramMarkerValues = this.getValuesAtCanvasPosition(this.canvasX,
+                                                    this.spectrogramLiveMakerY, this.canvas.width);
+            this.liveMarker = this.lockedSpectrogramMarkerValues;
+            if (this.lockedSpectrogramMarkerValues.magnitudes) {
+                this.currentMagnitudes = this.lockedSpectrogramMarkerValues.magnitudes; // will update the spectrum display
+            }
+            this.lockedSpectrogramIndex = this.getSpectrogramArrayIndex(this.spectrogramLiveMakerY);
+        } else {
+            this.lockedSpectrogramIndex = null;
+            this.lockedSpectrogramMarkerValues = undefined;
+        }
+        this.updateWhenPaused();
     }
 }
 
@@ -1072,26 +1185,18 @@ Spectrum.prototype.updateLiveMarkerAtPosition = function(x_pos, y_pos) {
     if (typeof values == 'undefined') {
         return;
     }
-    if (this.areWeInSpectrum(y_pos)) {
+    if (this.inSpectrum(y_pos)) {
         this.liveMarker = values;
     } else {
         // in spectrogram
         if (!data_active || this.paused) {
-            if (!this.lockedSpectrogramRowInPaused) {
+            if (!this.lockedSpectrogram) {
                 // not locked to a row
                 this.liveMarker = values;
                 if (values.magnitudes) {
                     this.currentMagnitudes = values.magnitudes;
                 }
-            } else if (typeof this.lockedSpectrogramMarkerValues == 'undefined') {
-                // first time since locking event so use this spectrogram row
-                this.lockedSpectrogramMarkerValues = values;
-                this.liveMarker = values;
-                if (values.magnitudes) {
-                    this.currentMagnitudes = values.magnitudes; // will update the spectrum display
-                }
             }
-            this.updateWhenPaused();
         } else {
             // not paused
             this.liveMarker = values;
@@ -1108,16 +1213,14 @@ Spectrum.prototype.handleLeftMouseClick = function(evt) {
 
         // if in spectrogram and mouse wheel has moved the live marker then use
         // that as the y position instead
-        let spectrum_height = this.canvas.height * (this.spectrumPercent/100);
-        if ( this.live_marker_on && (y_pos > spectrum_height) ) {
-            if (this.spectrogramLiveMakerY != y_pos) {
-                y_pos = this.spectrogramLiveMakerY;
-            }
+        if ( this.live_marker_on && !this.inSpectrum(y_pos) ) {
+            y_pos = this.spectrogramLiveMakerY;
         }
 
         let values = this.getValuesAtCanvasPosition(x_pos, y_pos);
+
         if (typeof values !== 'undefined') {
-            this.addMarkerHz(values.freqHz, values.power, values.diffTime,
+            this.addMarker(values.freqHz, values.power, values.diffTime,
                 values.spectrogram_canvas_y, this.inputCount, values.spectrum_flag);
             // allow markers to be added even when connection down
             if (!data_active){
@@ -1151,7 +1254,7 @@ Spectrum.prototype.convertFrequencyForDisplay = function(freqHz, decimalPoints) 
     return displayValue;
 }
 
-Spectrum.prototype.areWeInSpectrum = function(y_pos) {
+Spectrum.prototype.inSpectrum = function(y_pos) {
     // true if we are in the spectrum part of the canvas
     let spectrum_height = this.canvas.height * (this.spectrumPercent/100);
     if (y_pos <= spectrum_height) {
@@ -1163,7 +1266,7 @@ Spectrum.prototype.areWeInSpectrum = function(y_pos) {
 Spectrum.prototype.getZoomCfHz = function() {
     let zoomCfHz = this.centreHz;
     if (this.zoomCentreBin >= 0) {
-         zoomCfHz = (this.centreHz - (this.spanHz / 2)) + (this.zoomCentreBin * (this.spanHz / this.fftSize));
+         zoomCfHz = this.convertFftBinToFrequency(this.zoomCentreBin);
     }
     return zoomCfHz;
 }
@@ -1174,59 +1277,46 @@ Spectrum.prototype.getZoomSpanHz = function() {
 
 Spectrum.prototype.getValuesAtCanvasPosition = function(xpos, ypos) {
     // get signal frequency and dB values for the given canvas position
-    if(!this.currentMagnitudes)
-        return undefined;
-
-    let spectrum_height = this.canvas.height * (this.spectrumPercent/100);
-    if (ypos <= spectrum_height) {
-        return this.getSpectrumValues(xpos, ypos);
+    if(this.inSpectrum(ypos) ) {
+        return this.getSpectrumMarkerValues(xpos, ypos);
     }
-    return this.getSpectrogramValues(xpos, ypos);
+    return this.getSpectrogramMarkerValues(xpos, ypos);
 }
 
-Spectrum.prototype.getSpectrumValues = function(xpos, ypos) {
-    let spanHz = this.getZoomSpanHz();
-    let centreHz = this.getZoomCfHz();
+Spectrum.prototype.getSpectrumMarkerValues = function(xpos, ypos) {
+     // even when locked to a spectrogram row the xpos will still give valid values for these two
+    let freq_value = this.convertCanvasXToFrequencyHz(xpos); // may be out of range
+    let bin_index = this.convertFrequencyToFftBin(freq_value);
 
-    let perHz = spanHz / this.canvas.width;
-    let freq_value = (centreHz - (spanHz / 2)) + (xpos * perHz);
-
-    let spectrum_height = this.canvas.height * (this.spectrumPercent/100);
+     // bomb out now if we are off the array
+    if((bin_index<0) || (bin_index >= this.fftSize)) {
+        return undefined;
+    }
 
     let signal_db = 0.0; // to be found
-    let time_value = this.currentTime - this.firstTime;
-
-    let range_db = this.max_db - this.min_db;
-    let db_point = range_db / spectrum_height;
-
-    // where are we in the array of powers
-    // account for zoom
-    let points = parseInt(this.fftSize / this.zoom);
-    let centre  = parseInt(this.fftSize / 2);
-    if (this.zoomCentreBin >= 0) {
-        centre = this.zoomCentreBin;
-    }
-    let start = parseInt(centre - (points / 2)); // may be -ve
-    let bin_index = parseInt(start + xpos * points / this.canvas.width);
-
-    // if in max hold then get that power
-    if (this.binsMax) {
-        signal_db = this.binsMax[bin_index];
-    }else if (this.averaging > 0 ) {
-        signal_db = this.binsAverage[bin_index];
-    } else {
-        signal_db = this.currentMagnitudes[bin_index];
-    }
-
+    let time_value = this.currentTime - this.firstTime; // i.e. now but relative
+    let spectrum_height = this.canvas.height * (this.spectrumPercent/100);
     let spectrogram_canvas_y = spectrum_height; // current spectrum is first spectrogram row (unless paused !)
-    if (this.paused && (this.pausedSpectrogramIndex > 0)) {
+
+    if (this.lockedSpectrogram) {
+        let spectrum = this.spectrums[this.lockedSpectrogramIndex];
+        signal_db = spectrum.magnitudes[0][bin_index];
         // update the time
-        let t =  this.spectrums[this.pausedSpectrogramIndex].start_sec;
-        t += this.spectrums[this.pausedSpectrogramIndex].start_nsec/1e9;
+        let t =  spectrum.start_sec;
+        t += spectrum.start_nsec/1e9;
         time_value =  t - this.firstTime;
+
         // need y position on the spectrogram canvas for this spectrum
         spectrogram_canvas_y = spectrum_height +
-                this.convertInputCountToSpectrogramCanvasRow(this.spectrums[this.pausedSpectrogramIndex].inputCount);
+                this.convertInputCountToSpectrogramCanvasRow(spectrum.inputCount);
+    } else {
+        if (this.binsMax) {
+            signal_db = this.binsMax[bin_index];      // if in max hold then get that power
+        } else if (this.averaging > 0 ) {
+            signal_db = this.binsAverage[bin_index];  // or average
+        } else {
+            signal_db = this.currentMagnitudes[bin_index]; // or current
+        }
     }
 
     // return the frequency in Hz, the power and where we are on the display
@@ -1242,12 +1332,14 @@ Spectrum.prototype.getSpectrumValues = function(xpos, ypos) {
     };
 }
 
-Spectrum.prototype.getSpectrogramValues = function(xpos, ypos) {
-    let spanHz = this.getZoomSpanHz();
-    let centreHz = this.getZoomCfHz();
+Spectrum.prototype.getSpectrogramMarkerValues = function(xpos, ypos) {
+    let freq_value = this.convertCanvasXToFrequencyHz(xpos); // may be out of range
+    let bin_index = this.convertFrequencyToFftBin(freq_value);
 
-    let per_hz = spanHz / this.canvas.width;
-    let freq_value = (centreHz - (spanHz / 2)) + (xpos * per_hz);
+     // bomb out now if we are off the array
+    if((bin_index<0) || (bin_index >= this.fftSize)) {
+        return undefined;
+    }
 
     let spectrum_height = this.canvas.height * (this.spectrumPercent/100);
     let spectrogram_height = this.canvas.height * (1.0-(this.spectrumPercent/100));
@@ -1255,42 +1347,13 @@ Spectrum.prototype.getSpectrogramValues = function(xpos, ypos) {
     let signal_db = 0.0;
     let time_value = 0.0;
     let mags = undefined;
-
-    // where are we in the array of powers
-    // account for zoom
-    let points = parseInt(this.fftSize / this.zoom);
-    let centre  = parseInt(this.fftSize / 2);
-    if (this.zoomCentreBin >= 0) {
-        centre = this.zoomCentreBin;
-    }
-    let start = parseInt(centre - (points / 2)); // may be -ve
-    let bin_index = parseInt(start + xpos * points / this.canvas.width);
-
-    // where are we in the rows, ypos != row
-    let row_per_canvas_row = this.spectrums.length / spectrogram_height;
-    // where do we think we are from the top, yes spectrum_height
-    let actual_spectrogram_row = ypos - spectrum_height;
-    let spectrogram_row =  0;
-    if (row_per_canvas_row < 1.0) {
-        // spectrogram is adding lines
-        spectrogram_row = parseInt(actual_spectrogram_row * row_per_canvas_row);
-    } else {
-        // spectrogram canvas shows actual rows
-        spectrogram_row = parseInt(actual_spectrogram_row);
-    }
-
-    // because the display scrolls and our array does not we must modify the array index
-    let spectrogram_array_index = 0;
-    spectrogram_array_index = this.inputCount - spectrogram_row;
-    spectrogram_array_index = spectrogram_array_index % this.spectrums.length;
+    let spectrogram_array_index = this.getSpectrogramArrayIndex(ypos);
 
     // find signal_db and time
-    let spectrogramIndex = -1;
     let spec = undefined;
     if ( (spectrogram_array_index >= 0) && (spectrogram_array_index < this.spectrums.length)) {
         spec = this.spectrums[spectrogram_array_index];
         if (spec) {
-            this.pausedSpectrogramIndex = spectrogram_array_index;
             mags = spec.magnitudes[0];
             if(mags) {
                 if (bin_index < mags.length) {
@@ -1317,6 +1380,31 @@ Spectrum.prototype.getSpectrogramValues = function(xpos, ypos) {
           spectrum: spec,
           magnitudes: mags
     };
+}
+
+Spectrum.prototype.getSpectrogramArrayIndex = function(ypos) {
+    // where are we in the rows, ypos != row
+
+    let spectrum_height = this.canvas.height * (this.spectrumPercent/100);
+    let spectrogram_height = this.canvas.height * (1.0-(this.spectrumPercent/100));
+    let row_per_canvas_row = this.spectrums.length / spectrogram_height;
+    // where do we think we are from the top, yes spectrum_height
+    let actual_spectrogram_row = ypos - spectrum_height;
+    let spectrogram_row =  0;
+    if (row_per_canvas_row < 1.0) {
+        // spectrogram is adding lines
+        spectrogram_row = parseInt(actual_spectrogram_row * row_per_canvas_row);
+    } else {
+        // spectrogram canvas shows actual rows
+        spectrogram_row = parseInt(actual_spectrogram_row);
+    }
+
+    // because the display scrolls and our array does not we must modify the array index
+    let spectrogram_array_index = 0;
+    spectrogram_array_index = this.inputCount - spectrogram_row;
+    spectrogram_array_index = spectrogram_array_index % this.spectrums.length;
+
+    return spectrogram_array_index;
 }
 
 function Spectrum(id, options) {
@@ -1346,7 +1434,6 @@ function Spectrum(id, options) {
     this.firstTime = 0;          // set to time of first spectrum so we can do relative to the start of the run
     this.currentTime = 0;        // the most recent time we have, not updated when paused
     this.oldestTime = 0;         // the oldest timestamp we have in the spectrums
-    this.spectrogramLiveMakerY = 0;  // for the scroll wheel moving the spectrogram row away from the mouse position
 
     // copies of the data that went to the canvas, allows replay when paused or disconnected
     this.spectrums = new Array(this.wf_rows); // copy of all fft data in spectrogram along with times
@@ -1354,29 +1441,41 @@ function Spectrum(id, options) {
 
     this.currentMagnitudes = null; // copy of just the current fft data for use when disconnected or paused
     this.currentSpectrum = null;   // as above but also includes times etc
+    this.binsMax = undefined;      // only present when max hold on
 
     // one up count of all spectrums received when not paused
     this.inputCount = 0;
 
     // Setup state
-    this.paused = false;  // true would require updating the button
+    this.paused = false;
     this.fullscreen = false;
     this.min_db = -80;
     this.max_db = 20;
     this.spectrumHeight = 0;
-    this.pausedSpectrogramIndex = -1;
-    this.lockedSpectrogramRowInPaused = false;
-    this.lockedSpectrogramMarkerValues = undefined;
+    
+    // when paused we can lock to a particular spectrogram row
+    this.lockedSpectrogram = false;                 // are we locked to a row
+    this.lockedSpectrogramIndex = null;             // index into the spectrums[] when we are locked to a row
+    this.lockedSpectrogramMarkerValues = undefined; // the marker values for the locked row
+
+    // mouse position, as we need to know this for some events
+    this.canvasX = 0;
+    this.canvasY = 0;
+    this.spectrogramLiveMakerY = 0;  // for the scroll wheel moving the spectrogram row away from the mouse position
+    this.mouseInCanvas = false;
 
     // zoom
     this.zoom = 1.0;
     this.zoomCentreBin = -1;
+    this.zoomStartBin = -1;
+    this.zoomEndBin = -1;
     this.updatedZoom = false;
 
     // Colours
-    this.colorindex = 0;
-    this.colormap = colormaps[0]; // map for spectrogram only
+    this.colourindex = 0;
+    this.colourmap = colourmaps[0]; // map for spectrogram only
     this.liveMarkerColour = "black";
+    this.lockedSpectrumColour = "black"
     this.markersColour = "red";
     this.backgroundColour = "white";
     this.maxHoldColour = "green";
@@ -1392,13 +1491,13 @@ function Spectrum(id, options) {
     this.ctx.fillStyle = this.backgroundColour;
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Create offscreen canvas for axes
+    // Create off screen canvas for axes
     this.axes = document.createElement("canvas");
     this.axes.height = 1; // Updated later
     this.axes.width = this.canvas.width;
     this.ctx_axes = this.axes.getContext("2d");
 
-    // Create offscreen canvas for waterfall
+    // Create off screen canvas for waterfall
     this.wf = document.createElement("canvas");
     this.wf.height = this.wf_rows;
     this.wf.width = this.wf_size;
