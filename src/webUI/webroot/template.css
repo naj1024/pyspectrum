@@ -51,3 +51,20 @@ input[type=number] {
 
 /* hide submit buttons */
 #submitbtn{display:none;}
+
+/* the font for our buttons */
+.specbuttons{
+    font-weight: 700;
+    font-family: 'Courier New';
+}
+
+/* for the heading above the buttons */
+.btnHeadings{
+    font-weight: 700;
+    width: 95%;
+}
+
+/* for borders around each button section */
+.section{
+    border: 2px solid black;
+}

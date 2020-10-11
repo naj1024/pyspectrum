@@ -741,6 +741,8 @@ Spectrum.prototype.findPeak = function() {
     } else if (this.lockedSpectrogramMarkerValues) {
         // find peak in spectrum of the locked spectrogram
         markerValues = this.getMarkerValuesFromSpectrum(this.lockedSpectrogramMarkerValues.spectrum);
+    } else if (this.averaging > 0) {
+        markerValues = this.getMarkerValuesForAveraging();
     } else {
         // find row holding peak power in spectrogram data
         let max = -1000;
@@ -750,7 +752,7 @@ Spectrum.prototype.findPeak = function() {
                 let smax = Math.max(...s.magnitudes[0]);
                 if (smax > max) {
                     max = smax;
-                    peakSpectrum = s; // this is it
+                    peakSpectrum = s; // best so far
                 }
             }
         }
@@ -767,6 +769,31 @@ Spectrum.prototype.findPeak = function() {
     if (!data_active) {
         this.updateWhenPaused();
     }
+}
+
+Spectrum.prototype.findNextPeak = function() {
+    console.log("Next peak button support not available yet");
+}
+
+Spectrum.prototype.getMarkerValuesForAveraging = function() {
+    // return a marker set from the average values
+    let values = undefined;
+    if ((this.averaging > 0) && this.binsAverage != undefined) {
+        let basic = this.getBasicValuesFromMagnitudes(this.binsAverage);
+
+        // markers format
+        values = {
+              freqHz: basic.freqHz,
+              spectrum_flag: true,
+              power: basic.power,
+              diffTime: -1,
+              spectrogram_canvas_y: -1,
+              bin: basic.bin,
+              spectrum: undefined,
+              magnitudes: this.binsMax
+        };
+    }
+    return values;
 }
 
 Spectrum.prototype.getMarkerValuesForMaxHold = function() {
@@ -787,7 +814,6 @@ Spectrum.prototype.getMarkerValuesForMaxHold = function() {
               magnitudes: this.binsMax
         };
     }
-
     return values;
 }
 
@@ -976,10 +1002,10 @@ Spectrum.prototype.updateLiveMarker = function() {
         if (typeof marker_value.power !== 'undefined') // TODO: fix undefined - but only on power, why?
             marker_text += " " + marker_value.power.toFixed(1) + "dB ";
         else {
-            marker_text += " missing ";
+            marker_text += " missing "; // may be fixed
             marker_value.power = 0;
         }
-        
+
         marker_text += " " + marker_value.diffTime.toFixed(3) + "s ";
 
         // are we past half way, then put text on left
@@ -1021,8 +1047,11 @@ Spectrum.prototype.updateLockedMarker = function() {
 }
 
 Spectrum.prototype.updateIndexedMarkers = function() {
-    if (this.markersSet.size == 0)
+    if (this.markersSet.size == 0) {
+        $('#theMarkerTable').hide();
         return;
+    }
+    $('#theMarkerTable').show();
 
     var context = this.canvas.getContext('2d');
     context.font = '12px sans-serif'; // if text px changed y offset for diff text has to be changed

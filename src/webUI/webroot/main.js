@@ -285,10 +285,11 @@ function Main() {
     // create sdrState object
     sdrState = new sdrState("unknown");
 
-    // the controls etc
-    let rhcol = '<div>';
+    // all the things apart from the spectral display
+    let rhcol = '<div class="section">';
+
     // config
-    rhcol += '<button type="button" id="configButton" data-toggle="button" class="btn-block btn btn-outline-dark mx-1 my-1">Config</button>';
+    rhcol += '<button type="button" id="configButton" data-toggle="button" class="btnHeadings btn-block btn btn-outline-dark mx-auto my-1">Configuration</button>';
     rhcol += '<div id="config">';
     rhcol += '<table id="configTable" class="table table-hover table-striped table-bordered table-sm">';
     rhcol += '<thead class="thead-dark">';
@@ -303,17 +304,21 @@ function Main() {
     rhcol += '</div>';
     rhcol += '</div>';
 
+    rhcol += '<div>&nbsp</div>';
+
     // controls
-    rhcol += '<div>';
-    rhcol += '<button type="button" id="controlButton" data-toggle="button" class="btn-block btn btn-outline-dark mx-1 my-1">Control</button>';
+    rhcol += '<div class="section">';
+    rhcol += '<button type="button" id="controlButton" data-toggle="button" class="btnHeadings btn-block btn btn-outline-dark mx-auto my-1">Display control</button>';
     rhcol += '<div id="controls">';
     rhcol += '<div id="buttons"></div>'; // standard buttons
     rhcol += '</div>';
     rhcol += '</div>';
 
+    rhcol += '<div>&nbsp</div>';
+
     // markers
-    rhcol += '<div>';
-    rhcol += '<button type="button" id="markerButton" data-toggle="button" class="btn-block btn btn-outline-dark mx-1 my-1">Markers</button>';
+    rhcol += '<div class="section">';
+    rhcol += '<button type="button" id="markerButton" data-toggle="button" class="btnHeadings btn-block btn btn-outline-dark mx-auto my-1">Markers</button>';
     rhcol += '<div id="markers">';
     rhcol += '<b>Live </b>';
     rhcol += '<div class="custom-control custom-radio custom-control-inline">';
@@ -327,6 +332,7 @@ function Main() {
 
     rhcol += '<div id="marker-buttons"></div>';
 
+    rhcol += '<div id="theMarkerTable">'
     rhcol += '<table id="markerTable" class="table-condensed table-hover table-striped table-bordered table-sm">';
     rhcol += '<thead class="thead-dark">';
     rhcol += '<tr>';
@@ -342,6 +348,7 @@ function Main() {
     rhcol += '<tbody>';
     rhcol += '</tbody>';
     rhcol += '</table>';
+    rhcol += '</div>';
     rhcol += '</div>';
 
     rhcol += '</div>';
@@ -376,32 +383,33 @@ function Main() {
 
      // main buttons
     let main_buttons = '<div class="btn-group">';
-    main_buttons += '<button type="button" id="pauseBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Pause</button>';
-    main_buttons += '<button type="button" id="maxHoldBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Max</button>';
-    main_buttons += '<button type="button" id="avgDwnBut" class="btn btn-outline-dark mx-1 my-1">Avg--</button>';
-    main_buttons += '<button type="button" id="avgUpBut" class="btn btn-outline-dark mx-1 my-1">Avg++</button>';
+    main_buttons += '<button type="button" id="pauseBut" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Hold</button>';
+    main_buttons += '<button type="button" id="maxHoldBut" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Peak</button>';
+    main_buttons += '<button type="button" id="avgDwnBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Avg-</button>';
+    main_buttons += '<button type="button" id="avgUpBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Avg+</button>';
+    main_buttons += '<button type="button" id="avgOffBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Avg0</button>';
     main_buttons += '</div>'
 
     main_buttons += '<div class="btn-group">';
-    main_buttons += '<button type="button" id="refUpBut" class="btn btn-outline-dark mx-1 my-1">Ref--</button>';
-    main_buttons += '<button type="button" id="refDwnBut" class="btn btn-outline-dark mx-1 my-1">Ref++</button>';
-    main_buttons += '<button type="button" id="rangeDwnBut" class="btn btn-outline-dark mx-1 my-1">Range--</button>';
-    main_buttons += '<button type="button" id="rangeUpBut" class="btn btn-outline-dark mx-1 my-1">Range++</button>';
+    main_buttons += '<button type="button" id="refUpBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Ref-</button>';
+    main_buttons += '<button type="button" id="refDwnBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Ref+</button>';
+    main_buttons += '<button type="button" id="rangeDwnBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Rng-</button>';
+    main_buttons += '<button type="button" id="rangeUpBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Rng+</button>';
+    main_buttons += '<button type="button" id="autoRangeBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Auto</button>';
     main_buttons += '</div>';
 
     main_buttons += '<div class="btn-group">';
-    main_buttons += '<button type="button" id="autoRangeBut" class="btn btn-outline-dark mx-1 my-1">AutoRange</button>';
-    main_buttons += '<button type="button" id="unZoomBut" class="btn btn-outline-dark mx-1 my-1">UnZoom</button>';
+    main_buttons += '<button type="button" id="unZoomBut" class="specbuttons btn btn-outline-dark mx-1 my-1">UnZoom</button>';
     main_buttons += '</div>';
 
     // btn-block
     $('#buttons').append(main_buttons);
 
-    // todo add auto peak detect button
-    let marker_buttons = '<button type="button" id="hideMarkersBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Hide</button>';
-    marker_buttons += '<button type="button" id="clearMarkersBut" class="btn btn-outline-dark mx-1 my-1">Clear</button>';
-    marker_buttons += '<button type="button" id="searchPeakBut" class="btn btn-outline-dark mx-1 my-1">Peak</button>';
-    marker_buttons += '<button type="button" id="peakTrackBut" data-toggle="button" class="btn btn-outline-dark mx-1 my-1">Track</button>';
+    let marker_buttons = '<button type="button" id="hideMarkersBut" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Hide</button>';
+    marker_buttons += '<button type="button" id="clearMarkersBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Clr</button>';
+    marker_buttons += '<button type="button" id="searchPeakBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Pk&nbsp</button>';
+    marker_buttons += '<button type="button" id="searchNextPeakBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Nxt</button>';
+    marker_buttons += '<button type="button" id="peakTrackBut" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Track</button>';
     $('#marker-buttons').append(marker_buttons);
 
     // events
@@ -413,20 +421,23 @@ function Main() {
     $('#maxHoldBut').click(function() {spectrum.toggleMaxHold();});
     $('#avgUpBut').click(function() {spectrum.incrementAveraging();});
     $('#avgDwnBut').click(function() {spectrum.decrementAveraging();});
-    $('#autoRangeBut').click(function() {spectrum.autoRange();});
-    $('#unZoomBut').click(function() {spectrum.resetZoom();});
+    $('#avgOffBut').click(function() {spectrum.setAveraging(0);});
 
     $('#refDwnBut').click(function() {spectrum.refDown();});
     $('#refUpBut').click(function() {spectrum.refUp();});
     $('#rangeDwnBut').click(function() {spectrum.rangeDecrease();});
     $('#rangeUpBut').click(function() {spectrum.rangeIncrease();});
+    $('#autoRangeBut').click(function() {spectrum.autoRange();});
+
+    $('#unZoomBut').click(function() {spectrum.resetZoom();});
 
     $('#markerRadio_off').click(function() {spectrum.liveMarkerOff();});
     $('#markerRadio_on').click(function() {spectrum.liveMarkerOn();});
     $('#clearMarkersBut').click(function() {spectrum.clearMarkers();});
     $('#hideMarkersBut').click(function() {spectrum.hideMarkers();});
-    $('#peakTrackBut').click(function() {spectrum.toggleTrackPeak();});
     $('#searchPeakBut').click(function() {spectrum.findPeak();});
+    $('#searchNextPeakBut').click(function() {spectrum.findNextPeak();});
+    $('#peakTrackBut').click(function() {spectrum.toggleTrackPeak();});
 
     // Connect to websocket
     connectWebSocket(spectrum);
