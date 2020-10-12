@@ -32,7 +32,7 @@ processing = True  # global to be set to False from ctrl-c
 # logging to our own logger, not the base one - we will not see log messages for imported modules
 logger = logging.getLogger('spectrum_logger')
 logging.basicConfig(format='%(levelname)s:%(name)s:%(module)s:%(message)s')
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.WARN)
 
 # mmm TODO remove this global, just lazy
 time_first_spectrum: float = 0

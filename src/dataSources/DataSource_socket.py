@@ -87,6 +87,18 @@ class Input(DataSource.DataSource):
         self._connected = self.connect()
         return self._connected
 
+    def close(self):
+        logger.debug("socket close")
+        if self._client:
+            sock = self._socket
+        else:
+            sock = self._served_connection
+        if sock:
+            sock.close()
+        self._socket = None
+        self._served_connection = None
+        self._connected = False
+
     def connect(self) -> bool:
         """Provide a socket connection
 
@@ -126,25 +138,26 @@ class Input(DataSource.DataSource):
         """
         sock = None
         rx_time = 0
+        raw_bytes = bytearray()
         try:
             if self._client:
                 sock = self._socket
             else:
                 sock = self._served_connection
 
-            num_bytes_to_get = self._bytes_per_snap
-            raw_bytes = bytearray()
-            while len(raw_bytes) != self._bytes_per_snap:
-                got: bytearray = sock.recv(num_bytes_to_get)  # will get a MAXIMUM of this number of bytes
-                if rx_time == 0:
-                    rx_time = self.get_time_ns()
-                if len(got) == 0:
-                    sock.close()
-                    self._connected = False
-                    logger.info('Socket connection closed')
-                    raise ValueError('Socket connection closed')
-                raw_bytes += got
-                num_bytes_to_get -= len(got)
+            if sock:
+                num_bytes_to_get = self._bytes_per_snap
+                while sock and (len(raw_bytes) != self._bytes_per_snap):
+                    got: bytearray = sock.recv(num_bytes_to_get)  # will get a MAXIMUM of this number of bytes
+                    if rx_time == 0:
+                        rx_time = self.get_time_ns()
+                    if len(got) == 0:
+                        sock.close()
+                        self._connected = False
+                        logger.info('Socket connection closed')
+                        raise ValueError('Socket connection closed')
+                    raw_bytes += got
+                    num_bytes_to_get -= len(got)
 
         except OSError as msg:
             if sock:
