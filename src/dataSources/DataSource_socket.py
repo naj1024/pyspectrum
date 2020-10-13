@@ -88,13 +88,16 @@ class Input(DataSource.DataSource):
         return self._connected
 
     def close(self):
-        logger.debug("socket close")
         if self._client:
             sock = self._socket
         else:
             sock = self._served_connection
         if sock:
-            sock.close()
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+                sock.close()
+            except OSError as msg:
+                logger.info(f"Problem on socket shutdown/close, {msg}")
         self._socket = None
         self._served_connection = None
         self._connected = False
@@ -152,19 +155,16 @@ class Input(DataSource.DataSource):
                     if rx_time == 0:
                         rx_time = self.get_time_ns()
                     if len(got) == 0:
-                        sock.close()
-                        self._connected = False
+                        self.close()
                         logger.info('Socket connection closed')
                         raise ValueError('Socket connection closed')
                     raw_bytes += got
                     num_bytes_to_get -= len(got)
 
         except OSError as msg:
-            if sock:
-                sock.close()
+            self.close()
             msgs = f'OSError, {msg}'
             logger.error(msgs)
-            self._connected = False
             raise ValueError(msgs)
 
         # Timing how long conversion takes

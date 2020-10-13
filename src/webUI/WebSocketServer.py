@@ -43,7 +43,10 @@ class WebSocketServer(multiprocessing.Process):
         logger.setLevel(log_level)
 
     def exit_loop(self) -> None:
-        self._exit_now.set()
+        logger.debug("WebSocketServer exit_loop set")
+        self._exit_now = True
+        # https://www.programcreek.com/python/example/94580/websockets.serve example 5
+        asyncio.get_event_loop().call_soon_threadsafe(asyncio.get_event_loop().stop)
 
     def run(self):
         """

@@ -58,13 +58,20 @@ class WebServer(multiprocessing.Process):
         logger.setLevel(log_level)
 
     def shutdown(self):
+        logger.debug("WebServer shutting down")
         if self._httpd:
             self._httpd.shutdown()
+
+        logger.debug("WebSocketServer shutting down")
         if self._web_socket_server:
             self._web_socket_server.exit_loop()
-            while self._web_socket_server.is_alive():
+            if multiprocessing.active_children():
+                # belt and braces
                 self._web_socket_server.kill()
-                time.sleep(1)
+                self._web_socket_server.shutdown()
+                self._web_socket_server.join()
+            logger.debug("WebSocketServer shut down ?")
+
 
     def signal_handler(self, sig, __):
         self.shutdown()

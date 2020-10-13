@@ -32,7 +32,7 @@ processing = True  # global to be set to False from ctrl-c
 # logging to our own logger, not the base one - we will not see log messages for imported modules
 logger = logging.getLogger('spectrum_logger')
 logging.basicConfig(format='%(levelname)s:%(name)s:%(module)s:%(message)s')
-logger.setLevel(logging.WARN)
+logger.setLevel(logging.ERROR)
 
 # mmm TODO remove this global, just lazy
 time_first_spectrum: float = 0
@@ -186,6 +186,7 @@ def main() -> None:
     #
     #############
     if data_source:
+        logger.debug("SpectrumAnalyser data_source close")
         data_source.close()
 
     if display:
@@ -199,8 +200,9 @@ def main() -> None:
         # display_queue.close()
         while not display_queue.empty():
             _ = display_queue.get()
+        logger.debug("SpectrumAnalyser display_queue empty")
 
-    print("exit")
+    logger.error("SpectrumAnalyser exit")
 
 
 # Problem defining what we return, DataSource can be many different things
@@ -556,7 +558,7 @@ def check_control_queue(configuration: Variables,
                     reconfigure = True
 
                 if reconfigure:
-                    data_source.close()
+                    data_source.close() # this is quite brutal
                     try:
                         data_source = create_source(configuration, source_factory)
                     except ValueError as msg:
