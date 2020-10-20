@@ -5,6 +5,11 @@ var data_active = false; // true when we are connected and receiving data
 var spectrum = null;     // don't like this global but can't get onclick in table of markers to work
 var sdrState = null;     // holds basics about the fron end sdr
 var websocket = null;
+var fps = {
+    type: "fps",
+    updated: false,
+    value: 20
+}
 
 async function handleBlob(spec, binary_blob_data) {
     // TODO: handle different types of data
@@ -93,6 +98,13 @@ function handleFftChange(newFft) {
     sdrState.setSdrStateUpdated();
 }
 
+function handleFpsChange(newFps) {
+    if (newFps != fps.value) {
+        fps.value = newFps;
+        fps.updated = true;
+    }
+}
+
 function updateConfigTable(spec) {
     // clear the config
     let num_rows = document.getElementById("configTable").rows.length - 1; // -1 for header
@@ -138,7 +150,27 @@ function updateConfigTable(spec) {
     new_row += '<option value="1024" '+((fftSize==1024)?"selected":"")+'>1024</option>';
     new_row += '<option value="512" '+((fftSize==512)?"selected":"")+'>512</option>';
     new_row += '<option value="256" '+((fftSize==256)?"selected":"")+'>256</option>';
+    new_row += '</select></form></td></tr>';
+    $('#configTable').append(new_row);
+
+    let fpsV = fps.value;
+    new_row="<tr><td><b>FPS</b></td>";
+    new_row += '<td><form action="javascript:handleFpsChange(fpsSizeInput.value)">';
+    new_row += '<select id="fpsSizeInput" name="fpsSizeInput" onchange="this.form.submit()">';
+    new_row += '<option value="5" '+((fpsV==5)?"selected":"")+'>5</option>';
+    new_row += '<option value="10" '+((fpsV==10)?"selected":"")+'>10</option>';
+    new_row += '<option value="20" '+((fpsV==20)?"selected":"")+'>20</option>';
+    new_row += '<option value="30" '+((fpsV==30)?"selected":"")+'>30</option>';
+    new_row += '<option value="50" '+((fpsV==50)?"selected":"")+'>50</option>';
+    new_row += '<option value="100" '+((fpsV==100)?"selected":"")+'>100</option>';
+    new_row += '<option value="150" '+((fpsV==150)?"selected":"")+'>150</option>';
+    new_row += '<option value="200" '+((fpsV==200)?"selected":"")+'>200</option>';
+    new_row += '<option value="400" '+((fpsV==400)?"selected":"")+'>400</option>';
+    new_row += '<option value="1000" '+((fpsV==1000)?"selected":"")+'>1000</option>';
     new_row += "</select></form></td></tr>";
+    $('#configTable').append(new_row);
+
+    new_row="<tr><td><b>max FPS</b></td><td>"+spec.getmaxFps()+"</td></tr>";
     $('#configTable').append(new_row);
 
     new_row="<tr><td><b>BW</b></td><td>"+spec.convertFrequencyForDisplay(sps,3)+"</td></tr>";
@@ -155,7 +187,7 @@ function updateConfigTable(spec) {
     new_row="<tr><td><b>Zoom</b></td><td>"+spec.zoom+"</td></tr>";
     $('#configTable').append(new_row);
     let zoomBw = sps/spec.zoom;
-    new_row="<tr><td><b>Zoom BW</b></td><td>"+spec.convertFrequencyForDisplay(zoomBw,3)+"</td></tr>";
+    new_row="<tr><td><b>Span</b></td><td>"+spec.convertFrequencyForDisplay(zoomBw,3)+"</td></tr>";
     $('#configTable').append(new_row);
 }
 
@@ -209,6 +241,12 @@ function connectWebSocket(spec) {
         if (sdrState.getResetSdrStateUpdated()) {
             let jsonString= JSON.stringify(sdrState);
             websocket.send(jsonString);
+        }
+
+        if (fps.updated) {
+            let jsonString= JSON.stringify(fps);
+            websocket.send(jsonString);
+            fps.updated = false;
         }
     }
 }
@@ -285,13 +323,8 @@ function Main() {
     // create sdrState object
     sdrState = new sdrState("unknown");
 
-    // all the things apart from the spectral display
-    let rhcol = '<div class="section">';
-
     // config
-    rhcol += '<button type="button" id="configButton" data-toggle="button" class="btnHeadings btn-block btn btn-outline-dark mx-auto my-1">Configuration</button>';
-    rhcol += '<div id="config">';
-    rhcol += '<table id="configTable" class="table table-hover table-striped table-bordered table-sm">';
+    let rhcol = '<table id="configTable" class="table table-hover table-striped table-bordered table-sm">';
     rhcol += '<thead class="thead-dark">';
     rhcol += '<tr>';
     rhcol += '<th scope="col">Param</th>';
@@ -301,26 +334,14 @@ function Main() {
     rhcol += '<tbody>';
     rhcol += '</tbody>';
     rhcol += '</table>';
-    rhcol += '</div>';
-    rhcol += '</div>';
-
-    rhcol += '<div>&nbsp</div>';
+    $('#configTab').append(rhcol);
 
     // controls
-    rhcol += '<div class="section">';
-    rhcol += '<button type="button" id="controlButton" data-toggle="button" class="btnHeadings btn-block btn btn-outline-dark mx-auto my-1">Display control</button>';
-    rhcol += '<div id="controls">';
-    rhcol += '<div id="buttons"></div>'; // standard buttons
-    rhcol += '</div>';
-    rhcol += '</div>';
-
-    rhcol += '<div>&nbsp</div>';
+    rhcol = '<div id="buttons"></div>'; // standard buttons
+    $('#displayTab').append(rhcol);
 
     // markers
-    rhcol += '<div class="section">';
-    rhcol += '<button type="button" id="markerButton" data-toggle="button" class="btnHeadings btn-block btn btn-outline-dark mx-auto my-1">Markers</button>';
-    rhcol += '<div id="markers">';
-    rhcol += '<b>Live </b>';
+    rhcol = '<b>Live </b>';
     rhcol += '<div class="custom-control custom-radio custom-control-inline">';
     rhcol += '<input type="radio" value="off" class="custom-control-input" id="markerRadio_off" name="markerRadio" checked="checked">';
     rhcol += '<label class="custom-control-label" for="markerRadio_off">Off</label>';
@@ -349,12 +370,8 @@ function Main() {
     rhcol += '</tbody>';
     rhcol += '</table>';
     rhcol += '</div>';
-    rhcol += '</div>';
 
-    rhcol += '</div>';
-    rhcol += '</div>';
-
-    $('#metaData').append(rhcol);
+    $('#markersTab').append(rhcol);
 
     let canvas = document.getElementById('spectrumanalyser');
 
@@ -399,17 +416,21 @@ function Main() {
     main_buttons += '</div>';
 
     main_buttons += '<div class="btn-group">';
-    main_buttons += '<button type="button" id="unZoomBut" class="specbuttons btn btn-outline-dark mx-1 my-1">UnZoom</button>';
+    main_buttons += '<button type="button" id="zoomIn" class="specbuttons btn btn-outline-dark mx-1 my-1">Spn-</button>';
+    main_buttons += '<button type="button" id="zoomOut" class="specbuttons btn btn-outline-dark mx-1 my-1">Spn+</button>';
+    main_buttons += '<button type="button" id="unZoomBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Full</button>';
     main_buttons += '</div>';
 
     // btn-block
     $('#buttons').append(main_buttons);
 
-    let marker_buttons = '<button type="button" id="hideMarkersBut" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Hide</button>';
-    marker_buttons += '<button type="button" id="clearMarkersBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Clr</button>';
-    marker_buttons += '<button type="button" id="searchPeakBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Pk&nbsp</button>';
-    marker_buttons += '<button type="button" id="searchNextPeakBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Nxt</button>';
-    marker_buttons += '<button type="button" id="peakTrackBut" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Track</button>';
+    let marker_buttons = '<div class="btn-group">';
+    marker_buttons = '<button type="button" id="hideMarkersBut" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Hide</button>';
+    marker_buttons += '<button type="button" id="clearMarkersBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Clr&nbsp</button>';
+    marker_buttons += '<button type="button" id="searchPeakBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Peak</button>';
+    marker_buttons += '<button type="button" id="searchNextPeakBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Next</button>';
+    marker_buttons += '<button type="button" id="peakTrackBut" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Trck</button>';
+    marker_buttons += '</div>';
     $('#marker-buttons').append(marker_buttons);
 
     // events
@@ -429,6 +450,8 @@ function Main() {
     $('#rangeUpBut').click(function() {spectrum.rangeIncrease();});
     $('#autoRangeBut').click(function() {spectrum.autoRange();});
 
+    $('#zoomIn').click(function() {spectrum.zoomIn();});
+    $('#zoomOut').click(function() {spectrum.zoomOut();});
     $('#unZoomBut').click(function() {spectrum.resetZoom();});
 
     $('#markerRadio_off').click(function() {spectrum.liveMarkerOff();});

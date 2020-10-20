@@ -4,7 +4,7 @@ import queue
 
 from matplotlib_ui import Display
 
-MAX_DISPLAY_QUEUE_DEPTH = 20
+MAX_DISPLAY_QUEUE_DEPTH = 100
 
 
 def nearest_multiple_of_10(num: float) -> float:

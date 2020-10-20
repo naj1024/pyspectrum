@@ -52,7 +52,8 @@ function sdrState(name) {
     this.sps = 0;
     this.bw = 0;
     this.fftSize = 0;
-    this.name = name; // TODO
+    this.type = "sdrUpdate",
+    this.name = ""; // TODO
     this.gainMode = ""; // TODO
     this.gain = 0; // TODO
 

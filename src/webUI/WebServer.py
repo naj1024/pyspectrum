@@ -14,7 +14,7 @@ from webUI import WebSocketServer
 web_root = f"{os.path.dirname(__file__)}/webroot/"
 
 logger = logging.getLogger('web_server_logger')
-logger.setLevel(logging.ERROR)
+logger.setLevel(logging.WARN)
 
 
 class _Handler(http.server.SimpleHTTPRequestHandler):
@@ -58,20 +58,23 @@ class WebServer(multiprocessing.Process):
         logger.setLevel(log_level)
 
     def shutdown(self):
-        logger.debug("WebServer shutting down")
+        logger.debug("Shutting down")
         if self._httpd:
             self._httpd.shutdown()
 
-        logger.debug("WebSocketServer shutting down")
         if self._web_socket_server:
+            logger.debug(
+                f"Shutting down WebSocketServer {self._web_socket_server}, "
+                f"children {multiprocessing.active_children()}")
             self._web_socket_server.exit_loop()
             if multiprocessing.active_children():
                 # belt and braces
-                self._web_socket_server.kill()
+                self._web_socket_server.terminate()
                 self._web_socket_server.shutdown()
                 self._web_socket_server.join()
             logger.debug("WebSocketServer shut down ?")
 
+        logger.debug("WebServer shutdown")
 
     def signal_handler(self, sig, __):
         self.shutdown()
@@ -85,13 +88,15 @@ class WebServer(multiprocessing.Process):
         # but it can send us a signal, then we can shutdown our self
         signal.signal(signal.SIGINT, self.signal_handler)
 
-        logger.info(f"We server serving on port {self._port}")
+        logger.info(f"Web server serving on port {self._port}")
 
         # start a web socket server for the remote client to connect to
         #  must be done here not in __init__ as otherwise fork/etc would stop it working as expected
         self._web_socket_server = WebSocketServer.WebSocketServer(self._data_queue, self._control_queue,
                                                                   logger.level, self._port+1)
         self._web_socket_server.start()
+
+        logger.debug(f"Started WebSocketServer, {self._web_socket_server}")
 
         global web_root
         logger.info(f"web server serving {web_root} on port {self._port}")

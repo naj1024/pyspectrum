@@ -31,8 +31,8 @@ processing = True  # global to be set to False from ctrl-c
 
 # logging to our own logger, not the base one - we will not see log messages for imported modules
 logger = logging.getLogger('spectrum_logger')
-logging.basicConfig(format='%(levelname)s:%(name)s:%(module)s:%(message)s')
-logger.setLevel(logging.ERROR)
+logging.basicConfig(format='%(levelname)s:%(name)s:%(module)s:%(message)s') #, filename="spec.log")
+logger.setLevel(logging.WARN)
 
 # mmm TODO remove this global, just lazy
 time_first_spectrum: float = 0
@@ -153,8 +153,8 @@ def main() -> None:
                                max_peak_count,
                                time_rx)
 
-            peak_average.average(
-                max_peak_count)  # average of number of count of spectrums between matplotlib_ui updates
+            # average of number of count of spectrums between UI updates
+            peak_average.average(max_peak_count)
 
             complete_process_time_end = time.perf_counter()  # time for everything but data get
             process_time.average(complete_process_time_end - complete_process_time_start)
@@ -190,9 +190,10 @@ def main() -> None:
         data_source.close()
 
     if display:
+        logger.debug(f"Shutting down children, {multiprocessing.active_children()}")
         if multiprocessing.active_children():
             # belt and braces
-            display.kill()
+            display.terminate()
             display.shutdown()
             display.join()
 
@@ -246,6 +247,7 @@ def initialise(configuration: Variables):
         if configuration.web_display:
             display = WebServer.WebServer(data_queue, control_queue, logger.level, configuration.web_port)
             display.start()
+            logger.debug(f"Started WebServer, {display}")
         else:
             display = display_create(configuration, data_queue, control_queue, data_source.get_display_name())
 
@@ -538,40 +540,41 @@ def check_control_queue(configuration: Variables,
         config = control_queue.get(block=False)
         if config:
             # config message is a json string
-            # e.g. {"name":"unknown","centreFrequencyHz":433799987,"sps":600000,
+            # e.g. {"type":"sdrUpdate","name":"unknown","centreFrequencyHz":433799987,"sps":600000,
             #       "bw":600000,"fftSize":"8192","sdrStateUpdated":false}
             try:
                 new_config = json.loads(config)
-                reconfigure = False
-                old_cf = configuration.centre_frequency_hz;
-                old_sps = configuration.sample_rate;
-                old_fft = configuration.fft_size;
+                if new_config['type'] == "sdrUpdate":
+                    reconfigure = False
+                    old_cf = configuration.centre_frequency_hz;
+                    old_sps = configuration.sample_rate;
+                    old_fft = configuration.fft_size;
 
-                if new_config['centreFrequencyHz'] != old_cf:
-                    configuration.centre_frequency_hz = new_config['centreFrequencyHz']
-                    reconfigure = True
-                if new_config['sps'] != old_sps:
-                    configuration.sample_rate = new_config['sps']
-                    reconfigure = True
-                if new_config['fftSize'] != old_fft:
-                    configuration.fft_size = new_config['fftSize']
-                    reconfigure = True
+                    if new_config['centreFrequencyHz'] != old_cf:
+                        configuration.centre_frequency_hz = new_config['centreFrequencyHz']
+                        reconfigure = True
+                    if new_config['sps'] != old_sps:
+                        configuration.sample_rate = new_config['sps']
+                        reconfigure = True
+                    if new_config['fftSize'] != old_fft:
+                        configuration.fft_size = new_config['fftSize']
+                        reconfigure = True
 
-                if reconfigure:
-                    data_source.close() # this is quite brutal
-                    try:
-                        data_source = create_source(configuration, source_factory)
-                    except ValueError as msg:
-                        logger.error(f"Problem with new configuration, {msg} "
-                                     f"{configuration.centre_frequency_hz} "
-                                     f"{configuration.sample_rate} "
-                                     f"{configuration.fft_size}")
-                        # put things back
-                        configuration.centre_frequency_hz = old_cf
-                        configuration.sample_rate = old_sps
-                        # bodge just to get config table updated
-                        configuration.fft_size = old_fft // 2  # TODO handle errors back to UI
-                        data_source = create_source(configuration, source_factory)
+                    if reconfigure:
+                        data_source.close() # this is quite brutal
+                        try:
+                            data_source = create_source(configuration, source_factory)
+                        except ValueError as msg:
+                            logger.error(f"Problem with new configuration, {msg} "
+                                         f"{configuration.centre_frequency_hz} "
+                                         f"{configuration.sample_rate} "
+                                         f"{configuration.fft_size}")
+                            # put things back
+                            configuration.centre_frequency_hz = old_cf
+                            configuration.sample_rate = old_sps
+                            # bodge just to get config table updated
+                            configuration.fft_size = old_fft // 2  # TODO handle errors back to UI
+                            data_source = create_source(configuration, source_factory)
 
             except ValueError as msg:
                 logger.error(f"Problem with json control message {config}, {msg}")

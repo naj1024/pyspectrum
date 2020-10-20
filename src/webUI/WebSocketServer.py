@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import asyncio
+import json
 import multiprocessing
 import queue
 import struct
@@ -11,9 +12,9 @@ import websockets
 from websockets import WebSocketServerProtocol
 
 logger = logging.getLogger('web_socket_logger')
-logger.setLevel(logging.ERROR)
+logger.setLevel(logging.WARN)
 
-MAX_FPS = 20.0
+DEFAULT_FPS = 20.0
 
 
 class WebSocketServer(multiprocessing.Process):
@@ -39,14 +40,17 @@ class WebSocketServer(multiprocessing.Process):
         self._control_queue = control_queue
         self._port = websocket_port
         self._exit_now = False
+        self._fps = DEFAULT_FPS
 
         logger.setLevel(log_level)
 
     def exit_loop(self) -> None:
-        logger.debug("WebSocketServer exit_loop set")
+        # TODO: none of this is called, don't know why - yet
+        logger.debug("exit_loop")
         self._exit_now = True
         # https://www.programcreek.com/python/example/94580/websockets.serve example 5
         asyncio.get_event_loop().call_soon_threadsafe(asyncio.get_event_loop().stop)
+        logger.debug("exit exit_loop")
 
     def run(self):
         """
@@ -101,10 +105,16 @@ class WebSocketServer(multiprocessing.Process):
         logger.info(f"web socket Rx for client {client}")
         try:
             async for message in web_socket:
-                # message is json e.g.
-                # {"name":"unknown","centreFrequencyHz":433799987.79296875,
-                #    "sps":1500000,"bw":1500000,"fftSize":"8192","sdrStateUpdated":false}
-                self._control_queue.put(message, timeout=0.1)
+                # message are json e.g.
+                # {"name":"unknown","centreFrequencyHz":433799987.79296875,"sps":1500000,"bw":1500000,
+                #                   "fftSize":"8192","sdrStateUpdated":false}
+                # {"type":"fps","updated":true,"value":"10"}
+                mess = json.loads(message)
+                if mess['type'] == "fps":
+                    # its for us
+                    self._fps = int(mess['value'])
+                else:
+                    self._control_queue.put(message, timeout=0.1)
 
         except Exception as msg:
             logger.error(f"web socket Rx exception for {client}, {msg}")
@@ -154,11 +164,11 @@ class WebSocketServer(multiprocessing.Process):
                     # send it off to the client
                     await web_socket.send(message)
 
-                    # wait 1/fps before proceeding - this limits us to this fps
+                    # wait 1/fps before proceeding
                     # using asyncio.sleep() allows web_socket to service connections etc
-                    end_time = time.time() + (1 / MAX_FPS)
+                    end_time = time.time() + (1 / self._fps)
                     while (end_time - time.time()) > 0:
-                        await asyncio.sleep(1 / MAX_FPS)  # we will not sleep this long
+                        await asyncio.sleep(1 / self._fps)  # we will not sleep this long
 
                 except queue.Empty:
                     # unlikely to every keep up so shouldn't end up here

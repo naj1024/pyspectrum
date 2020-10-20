@@ -59,7 +59,23 @@
                 <!-- 9 colums of spectrum analyser -->
                 <div id="specCanvas" class="col-9"></div>
                 <!-- 2 colums of tables and buttons -->
-                <div id="metaData" class="col-3" style="overflow-y:auto;"/>
+                <div id="metaData" class="col-3" style="overflow-y:auto;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li role="presentation" class="active"><a role="tab" data-toggle="tab" href="#configTab">Config&nbsp&nbsp</a></li>
+                        <li role="presentation"><a role="tab" data-toggle="tab" href="#displayTab">Display&nbsp&nbsp</a></li>
+                        <li role="presentation"><a role="tab" data-toggle="tab" href="#markersTab">Markers&nbsp&nbsp</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                      <div role="tabpanel"  id="configTab" class="tab-pane fade in active"/>
+                      </div>
+                      <div role="tabpanel"  id="displayTab" class="tab-pane fade"/>
+                      </div>
+                      <div role="tabpanel" id="markersTab" class="tab-pane fade"/>
+                      </div>
+                    </div>
+
+                </div>
             </div>
         </main>
 
