@@ -115,7 +115,7 @@ function updateConfigTable(spec) {
     let cf =  sdrState.getCentreFrequencyHz();
     let sps = sdrState.getSps();
 
-    let cf_step = 0.000001; // 1Hz - if we set it to sps/4 say then you cant go finer than that
+    let cf_step = 0.000001; // 1Hz - annoyingly if we set it to sps/4 say then you can't go finer than that
     let new_row="<tr><td><b>Centre</b></td>";
     new_row += '<td>';
     new_row += '<form action="javascript:handleCfChange(centreFrequencyInput.value)">';
@@ -399,7 +399,8 @@ function Main() {
     // $('body').on('contextmenu', '#spectrumanalyser', function(e){ return false; });
 
      // main buttons
-    let main_buttons = '<div class="btn-group">';
+    let main_buttons = '<h4>Trace</h4>';
+    main_buttons += '<div">';
     main_buttons += '<button type="button" id="pauseBut" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Hold</button>';
     main_buttons += '<button type="button" id="maxHoldBut" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Peak</button>';
     main_buttons += '<button type="button" id="avgDwnBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Avg-</button>';
@@ -407,7 +408,8 @@ function Main() {
     main_buttons += '<button type="button" id="avgOffBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Avg0</button>';
     main_buttons += '</div>'
 
-    main_buttons += '<div class="btn-group">';
+    main_buttons += '<h4>Magnitude</h4>';
+    main_buttons += '<div">';
     main_buttons += '<button type="button" id="refUpBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Ref-</button>';
     main_buttons += '<button type="button" id="refDwnBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Ref+</button>';
     main_buttons += '<button type="button" id="rangeDwnBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Rng-</button>';
@@ -415,7 +417,8 @@ function Main() {
     main_buttons += '<button type="button" id="autoRangeBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Auto</button>';
     main_buttons += '</div>';
 
-    main_buttons += '<div class="btn-group">';
+    main_buttons += '<h4>Span</h4>';
+    main_buttons += '<div">';
     main_buttons += '<button type="button" id="zoomIn" class="specbuttons btn btn-outline-dark mx-1 my-1">Spn-</button>';
     main_buttons += '<button type="button" id="zoomOut" class="specbuttons btn btn-outline-dark mx-1 my-1">Spn+</button>';
     main_buttons += '<button type="button" id="unZoomBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Full</button>';
@@ -424,7 +427,7 @@ function Main() {
     // btn-block
     $('#buttons').append(main_buttons);
 
-    let marker_buttons = '<div class="btn-group">';
+    let marker_buttons = '<div">';
     marker_buttons = '<button type="button" id="hideMarkersBut" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Hide</button>';
     marker_buttons += '<button type="button" id="clearMarkersBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Clr&nbsp</button>';
     marker_buttons += '<button type="button" id="searchPeakBut" class="specbuttons btn btn-outline-dark mx-1 my-1">Peak</button>';

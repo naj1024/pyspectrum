@@ -5,9 +5,9 @@ html, body {
     background-color: whitesmoke;
 }
 
-/* padding from bootstrap navbar to spectrum canvas */
+/* remove padding from bootstrap navbar to spectrum canvas */
 body {
-    padding-top: 5rem;
+    padding-top: 0rem;
 }
 
 /* force canvas to be 100% wide, auto scale height */
@@ -62,13 +62,13 @@ input[type=number] {
 
 /* Tabs */
 .tab-pane {
-
     border-left: 1px solid #cccccc;
     border-right: 1px solid #cccccc;
     border-bottom: 1px solid #cccccc;
     border-radius: 0px 0px 5px 5px;
     padding: 10px;
 }
-.nav-tabs {
-    margin-bottom: 0;
+/* colour of font on the tab */
+.nav-tabs > li > a {
+  color: black;
 }

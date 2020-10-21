@@ -27,27 +27,15 @@
     </head>
 
     <body>
-        <nav class="navbar navbar-expand-sm navbar-dark bg-dark fixed-top">
+        <nav class="navbar navbar-expand-sm navbar-dark bg-dark">
             <div class="container-fluid">
-
                 <a class="navbar-brand" href="/" aria-label="Sa"><img src="./icons/favicon-32x32.png" alt="Sa"></a>
                 <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault"
                         aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
                  <p class="navbar-text">Spectrum analyser</p>
-                <!--
-                <div class="dropdown">
-                    <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    Menu
-                    </button>
-                    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                        <a class="dropdown-item" href="#">Config</a>
-                        <a class="dropdown-item" href="#">Help</a>
-                        <a class="dropdown-item" href="#">About</a>
-                    </div>
-                </div>
-                -->
+
                 <ul class="navbar-nav ml-auto">
                     <li id="connection_state" class="nav-item mx-1"> <img src="./icons/led-red.png" title="No connection" alt="no connection"> </li>
                 </ul>
@@ -60,18 +48,18 @@
                 <div id="specCanvas" class="col-9"></div>
                 <!-- 2 colums of tables and buttons -->
                 <div id="metaData" class="col-3" style="overflow-y:auto;">
-                    <ul class="nav nav-tabs" role="tablist">
-                        <li role="presentation" class="active"><a role="tab" data-toggle="tab" href="#configTab">Config&nbsp&nbsp</a></li>
-                        <li role="presentation"><a role="tab" data-toggle="tab" href="#displayTab">Display&nbsp&nbsp</a></li>
-                        <li role="presentation"><a role="tab" data-toggle="tab" href="#markersTab">Markers&nbsp&nbsp</a></li>
+                    <ul class="nav nav-tabs">
+                        <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#configTab">Config</a></li>
+                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#displayTab">Display</a></li>
+                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#markersTab">Markers</a></li>
                     </ul>
 
                     <div class="tab-content">
-                      <div role="tabpanel"  id="configTab" class="tab-pane fade in active"/>
+                      <div id="configTab" class="tab-pane active"/>
                       </div>
-                      <div role="tabpanel"  id="displayTab" class="tab-pane fade"/>
+                      <div id="displayTab" class="tab-pane"/>
                       </div>
-                      <div role="tabpanel" id="markersTab" class="tab-pane fade"/>
+                      <div id="markersTab" class="tab-pane"/>
                       </div>
                     </div>
 
