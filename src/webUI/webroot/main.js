@@ -5,11 +5,18 @@ var data_active = false; // true when we are connected and receiving data
 var spectrum = null;     // don't like this global but can't get onclick in table of markers to work
 var sdrState = null;     // holds basics about the fron end sdr
 var websocket = null;
+var updateTimer = null;  // for when we are not streaming we still need to update the display
+
+// messages for the controls being sent back on the websocket
 var fps = {
     type: "fps",
-    updated: false,
     value: 20
 }
+var stop = {
+    type: "stop",
+    value: false
+}
+
 
 async function handleBlob(spec, binary_blob_data) {
     // TODO: handle different types of data
@@ -77,6 +84,7 @@ async function handleBlob(spec, binary_blob_data) {
             update=true;
         }
         spec.addData(peaks, start_time_sec, start_time_nsec, end_time_sec, end_time_nsec);
+        console.log("add")
         if (update) {
             updateConfigTable(spec);
         }
@@ -99,10 +107,36 @@ function handleFftChange(newFft) {
 }
 
 function handleFpsChange(newFps) {
-    if (newFps != fps.value) {
+    if ((websocket.readyState == 1) && newFps != fps.value) {
         fps.value = newFps;
-        fps.updated = true;
+        let jsonString= JSON.stringify(fps);
+        websocket.send(jsonString);
     }
+}
+
+function handleStopToggle() {
+    stop.value = !stop.value;
+    let jsonString= JSON.stringify(stop);
+    if (websocket.readyState == 1) {
+        websocket.send(jsonString);
+    }
+    if (stop.value) {
+        // keep updating while stopped, and turn on the live marker
+        updateTimer = setInterval(function() { spectrum.liveMarkersAndUnHideMarkers(); spectrum.updateWhenPaused(); }, 100);
+    } else {
+        if (updateTimer) {
+            clearInterval(updateTimer)
+        }
+    }
+}
+
+function handlePauseToggle() {
+    // when we pause we will also set stop if it is not already set
+    if (!stop.value) {
+        handleStopToggle();
+        $("#stopBut").button('toggle'); // update the UI button state
+    }
+    spectrum.togglePaused();
 }
 
 function updateConfigTable(spec) {
@@ -166,7 +200,6 @@ function updateConfigTable(spec) {
     new_row += '<option value="150" '+((fpsV==150)?"selected":"")+'>150</option>';
     new_row += '<option value="200" '+((fpsV==200)?"selected":"")+'>200</option>';
     new_row += '<option value="400" '+((fpsV==400)?"selected":"")+'>400</option>';
-    new_row += '<option value="1000" '+((fpsV==1000)?"selected":"")+'>1000</option>';
     new_row += "</select></form></td></tr>";
     $('#configTable').append(new_row);
 
@@ -203,6 +236,10 @@ function connectWebSocket(spec) {
         $("#connection_state").empty();
         let new_element = '<img src="./icons/led-yellow.png" alt="connected" title="Connected" >';
         $('#connection_state').append(new_element);
+
+        stop.value = false;
+        let jsonString= JSON.stringify(stop);
+        websocket.send(jsonString);
     }
 
     websocket.onclose = function(event) {
@@ -235,18 +272,14 @@ function connectWebSocket(spec) {
             let new_element = '<img src="./icons/led-green.png" alt="data active" title="Data active">';
             $('#connection_state').append(new_element);
         }
-        handleBlob(spec, event.data);
-
+        // if we are stopped then ignore this blob
+        if (!stop.value) {
+            handleBlob(spec, event.data);
+        }
         // have we something to send back to the server
         if (sdrState.getResetSdrStateUpdated()) {
             let jsonString= JSON.stringify(sdrState);
             websocket.send(jsonString);
-        }
-
-        if (fps.updated) {
-            let jsonString= JSON.stringify(fps);
-            websocket.send(jsonString);
-            fps.updated = false;
         }
     }
 }
@@ -398,8 +431,14 @@ function Main() {
     // then you can add an event listener for contextmenu as the right mouse click
     // $('body').on('contextmenu', '#spectrumanalyser', function(e){ return false; });
 
+    // stream button
+    let main_buttons = '<h4>Stream</h4>';
+    main_buttons += '<div">';
+    main_buttons += '<button type="button" id="stopBut" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Stop</button>';
+    main_buttons += '</div>'
+
      // main buttons
-    let main_buttons = '<h4>Trace</h4>';
+    main_buttons += '<h4>Trace</h4>';
     main_buttons += '<div">';
     main_buttons += '<button type="button" id="pauseBut" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Hold</button>';
     main_buttons += '<button type="button" id="maxHoldBut" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Peak</button>';
@@ -441,7 +480,9 @@ function Main() {
     $('#controlButton').click(function() {showControls();});
     $('#markerButton').click(function() {showMarkers();});
 
-    $('#pauseBut').click(function() {spectrum.togglePaused();});
+    $('#stopBut').click(function() {handleStopToggle();});
+
+    $('#pauseBut').click(function() {handlePauseToggle();});
     $('#maxHoldBut').click(function() {spectrum.toggleMaxHold();});
     $('#avgUpBut').click(function() {spectrum.incrementAveraging();});
     $('#avgDwnBut').click(function() {spectrum.decrementAveraging();});

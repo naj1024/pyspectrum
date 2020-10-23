@@ -14,18 +14,19 @@ class Variables:
         self.sample_types = ["8t", "16tle", "16tbe"]  # supported sample formats for conversion to complex 32f
         self.sample_type = '16tbe'  # default Format of sample data
 
-        # the spectral matplotlib_ui
-        self.spectrogram_flag = False  # default, no spectrogram
-
-        # web matplotlib_ui
-        self.web_display = False
-        self.web_port = -1
+        # display
+        self.fps = 20
+        self.oneInN = int(self.sample_rate / (self.fps * self.fft_size))
+        self.update_count = 0
+        self.stop = True
+        self.web_port = 8080
 
         # where the data comes from
         self.input_type = "?"  # the source type e.g. file, socket, pluto, soapy, rtlsdr, audio ....
         self.input_name = ""  # the parameters for the source, e.g. filename or ip address ...
         self.source_loop = False  # only meaningful for things that we can loop round on, e.g. file
         self.source_sleep = 0.0  # only used in file input for now, slows things down
+        self.time_first_spectrum: float = 0
 
         # Misc
         self.alpha_for_ewma = 0.01  # Averaging weight for fft power bins

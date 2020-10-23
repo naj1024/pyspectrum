@@ -111,10 +111,9 @@ class WebSocketServer(multiprocessing.Process):
                 # {"type":"fps","updated":true,"value":"10"}
                 mess = json.loads(message)
                 if mess['type'] == "fps":
-                    # its for us
-                    self._fps = int(mess['value'])
-                else:
-                    self._control_queue.put(message, timeout=0.1)
+                    self._fps = int(mess['value'] * 2)  # read twice as fast as data being put in, stops stuttering
+
+                self._control_queue.put(message, timeout=0.1)
 
         except Exception as msg:
             logger.error(f"web socket Rx exception for {client}, {msg}")
@@ -135,9 +134,9 @@ class WebSocketServer(multiprocessing.Process):
                 try:
                     # timeout on queue read so we can, if we wanted to, exit our forever loop
                     # only sending the peak spectrum so ignore the current magnitudes
-                    display_on, sps, centre, _, peaks, time_start, time_end = self._data_queue.get(timeout=0.1)
+                    display_on, sps, centre, peaks, time_start, time_end = self._data_queue.get(timeout=0.1)
 
-                    centre_MHz = float(centre) / 1e6  # in MHz
+                    centre_mhz = float(centre) / 1e6  # in MHz
 
                     # times are in nsec and javascript won't handle 8byte int so break it up
                     start_sec: int = int(time_start / 1e9)
@@ -153,7 +152,7 @@ class WebSocketServer(multiprocessing.Process):
                     message = struct.pack(f"!2if5i{num_floats}f",  # format
                                           int(data_type),  # 4bytes
                                           int(sps),  # 4bytes
-                                          float(centre_MHz),  # 4byte float (32bit)
+                                          float(centre_mhz),  # 4byte float (32bit)
                                           int(start_sec),  # 4bytes
                                           int(start_nsec),  # 4bytes
                                           int(end_sec),  # 4bytes

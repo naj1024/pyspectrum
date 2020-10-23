@@ -7,25 +7,8 @@ Getting the different SDR platforms to work is through libraries, some were test
 were tested on Ubuntu Linux. Getting a driver to work can be challenging, gnu-radio even has support 
 that makes use outside gnu-radio almost impossible (iio). Overall it gave me an idea of what the various 
 sdr platforms have to do.
-
-### There are two options for display
-    - Most work is now concentrated on the web interface
-
-* matplotlib - The first display written
-        
-        This display is fairly rudimentary, but should work everywhere. There 
-        are mouse controlled options. The display runs as a separate process
-        (not thread) so that we don't have problems with the display taking 
-        processing time from the input data.
-        
-![Screenshot](screenShot.png)
-   
-* web - The second display written
-        
-        A websocket is used to pass data from the python to the javascript 
-        in the browser. The web server and the websocket servers run as 
-        separate processes and we use the same queue as we did for the 
-        matplotlib display.
+                   
+A websocket is used to pass data from the python to the javascript in the browser. The web server and the websocket servers run as separate processes.
         
 ![Screenshot](screenShot_web.png)
 
@@ -96,7 +79,6 @@ The following python modules should be installed. Optional ones provide specific
 
     Required:
         numpy
-        matplotlib
         websockets
         
     Testing:
@@ -140,7 +122,7 @@ The following was done on a not very clean V4.2 image from https://github.com/lu
     tar -zxvf SpectrumAnalyser.tgz
     cd SpectrumAnalyser
     pipenv shell
-    pipenv install matplotlib scipy pyrtlsdr sounddevice paho-mqtt
+    pipenv install scipy pyrtlsdr sounddevice paho-mqtt
 
     # Assuming libiio is installed find a copy of iio.py and copy to your environment 
     cp ./libiio/build/bindings/python/iio.py ~/.local/share/virtualenvs/SpectrumAnalyser-cRKFuvKh/lib/python3.7/    

@@ -20,7 +20,6 @@ import numpy as np
 
 from dataSources import DataSourceFactory
 from dataSources import DataSource
-from matplotlib_ui import DisplayProcessor
 from dataProcessing import ProcessSamples
 from misc import Ewma
 from misc import PluginManager
@@ -31,11 +30,10 @@ processing = True  # global to be set to False from ctrl-c
 
 # logging to our own logger, not the base one - we will not see log messages for imported modules
 logger = logging.getLogger('spectrum_logger')
-logging.basicConfig(format='%(levelname)s:%(name)s:%(module)s:%(message)s') #, filename="spec.log")
+logging.basicConfig(format='%(levelname)s:%(name)s:%(module)s:%(message)s')  # add filename="spec.log"
 logger.setLevel(logging.WARN)
 
-# mmm TODO remove this global, just lazy
-time_first_spectrum: float = 0
+MAX_DISPLAY_QUEUE_DEPTH = 4
 
 
 def signal_handler(sig, __):
@@ -240,16 +238,13 @@ def initialise(configuration: Variables):
         # The main processor for producing ffts etc
         processor = ProcessSamples.ProcessSamples(configuration)
 
-        # Queues for matplotlib_ui
+        # Queues for UI
         data_queue = multiprocessing.Queue()
         control_queue = multiprocessing.Queue()
 
-        if configuration.web_display:
-            display = WebServer.WebServer(data_queue, control_queue, logger.level, configuration.web_port)
-            display.start()
-            logger.debug(f"Started WebServer, {display}")
-        else:
-            display = display_create(configuration, data_queue, control_queue, data_source.get_display_name())
+        display = WebServer.WebServer(data_queue, control_queue, logger.level, configuration.web_port)
+        display.start()
+        logger.debug(f"Started WebServer, {display}")
 
         # plugins, pass in all the variables as we don't know what the plugin may require
         plugin_manager = PluginManager.PluginManager(plugin_init_arguments=vars(configuration))
@@ -296,28 +291,12 @@ def parse_command_line(configuration: Variables) -> None:
     parser = argparse.ArgumentParser(epilog='',
                                      formatter_class=argparse.RawDescriptionHelpFormatter,
                                      description=textwrap.dedent('''\
-        Provide a spectral matplotlib_ui of a stream of digitised complex samples.
-        
-        A variety of different input sources are supported
-        
-        We expect to process all samples at the digitisation rate. The digitised samples 
-        can be from a file, socket, Pluto or rtl device.
-        
+        Provide a spectral web UI of a stream of digitised complex samples.
+        A variety of different input sources are supported.
+        The web interface uses two ports, the web server and a websocket.
         The sample rate must be set for the programme to work correctly. When
         file input is used this sample rate may be recovered from the filename or
         from the meta data in a wav file.
-        
-          The matplotlib_ui has mouse actions::
-           Spectrum:    left   - Print frequency and power to stdout.
-                               - Toggle trace visibility if mouse is near a legend line.
-                        middle - Toggle visibilty of the frequency annotations.
-                        right  - Turn on/off/reset the peak hold trace.
-                        scroll - dB range, top of spectrum for max limit, bottom for min limit
-           Spectrogram: left   - Print frequency and power to stdout.
-                        middle - Reset dB shift
-                        right  - Pause spectrogram.
-                        scroll - shift dB range up or down 
-           Elsewhere:   Any    - Toggle visibilty of legend in Spectrum matplotlib_ui. 
         '''),
                                      )
 
@@ -355,19 +334,13 @@ def parse_command_line(configuration: Variables) -> None:
     misc_opts = parser.add_argument_group('Misc')
     misc_opts.add_argument('-F', '--fftSize', type=int, help=f'Size of FFT (default: {configuration.fft_size})',
                            default=configuration.fft_size, required=False)
-    misc_opts.add_argument('-E', '--spectrogram',
-                           help=f'Add a spectrogram on matplotlib_ui',
-                           default=False, required=False, action='store_true')
-    misc_opts.add_argument('-w', '--web', type=int, help=f'Web interface port plus websocket one up from this', required=False)
+    misc_opts.add_argument('-w', '--web', type=int, help=f'Web port, (default: default={configuration.web_port}), '
+                                                         f'websocket one up from this)',
+                           default=configuration.web_port, required=False)
     misc_opts.add_argument('-v', '--verbose', help='Verbose, -vvv debug, -vv info, -v warn', required=False,
                            action='count', default=0)
-    misc_opts.add_argument('-H', '--HELP', help='Full help (even within gooey)', required=False, action='store_true')
+    misc_opts.add_argument('-H', '--HELP', help='This help', required=False, action='store_true')
     misc_opts.add_argument('-T', '--TIME', help='Time the spectral algorithm)', required=False, action='store_true')
-
-    # The following option is here for when gooey is not installed in the python environment and we still
-    # pass in the gooey option to not use the commandlineUI, which means we get the option and have to ignore it
-    misc_opts.add_argument('--ignore-gooey', help='Ignore Gooey commandlineUI if it is present',
-                           required=False, action='store_true')
 
     ######################
     # plugin options
@@ -417,11 +390,7 @@ def parse_command_line(configuration: Variables) -> None:
     if args['fftSize'] is not None:
         configuration.fft_size = abs(int(args['fftSize']))
 
-    if args['spectrogram']:
-        configuration.spectrogram_flag = args['spectrogram']
-
     if args['web']:
-        configuration.web_display = True;
         configuration.web_port = abs(int(args['web']))
 
     if args['verbose']:
@@ -523,6 +492,7 @@ def time_spectral(configuration: Variables):
         print(f"{fft_size} \t{processing_time * 1e6:0.1f} \t{max_sps / 1e6:0.3f}")
     print("")
 
+
 def check_control_queue(configuration: Variables,
                         control_queue: multiprocessing.Queue,
                         data_source,
@@ -544,11 +514,19 @@ def check_control_queue(configuration: Variables,
             #       "bw":600000,"fftSize":"8192","sdrStateUpdated":false}
             try:
                 new_config = json.loads(config)
-                if new_config['type'] == "sdrUpdate":
+                if new_config['type'] == "fps":
+                    configuration.fps = int(new_config['value'])
+                    configuration.oneInN = int(configuration.sample_rate /
+                                               (configuration.fps * configuration.fft_size))
+
+                if new_config['type'] == "stop":
+                    configuration.stop = int(new_config['value'])
+
+                elif new_config['type'] == "sdrUpdate":
                     reconfigure = False
-                    old_cf = configuration.centre_frequency_hz;
-                    old_sps = configuration.sample_rate;
-                    old_fft = configuration.fft_size;
+                    old_cf = configuration.centre_frequency_hz
+                    old_sps = configuration.sample_rate
+                    old_fft = configuration.fft_size
 
                     if new_config['centreFrequencyHz'] != old_cf:
                         configuration.centre_frequency_hz = new_config['centreFrequencyHz']
@@ -561,7 +539,9 @@ def check_control_queue(configuration: Variables,
                         reconfigure = True
 
                     if reconfigure:
-                        data_source.close() # this is quite brutal
+                        configuration.oneInN = int(configuration.sample_rate /
+                                                   (configuration.fps * configuration.fft_size))
+                        data_source.close()  # this is quite brutal
                         try:
                             data_source = create_source(configuration, source_factory)
                         except ValueError as msg:
@@ -585,6 +565,7 @@ def check_control_queue(configuration: Variables,
 
     return data_source
 
+
 def update_display(configuration: Variables,
                    display_queue: multiprocessing.Queue,
                    powers: np.ndarray,
@@ -596,37 +577,46 @@ def update_display(configuration: Variables,
     Send data to the queue used for talking to the ui processes
 
     :param configuration: Our programme state variables
-    :param display_queue: The queue used for talking to the matplotlib_ui process
+    :param display_queue: The queue used for talking to the UI process
     :param powers: The powers of the spectrum bins
-    :param peak_powers_since_last_display: The powers since we last updated the matplotlib_ui
+    :param peak_powers_since_last_display: The powers since we last updated the UI
     :param current_peak_count: count of spectrums we have peak held on
     :param max_peak_count: maximum since last time it was reset
     :param time_spectrum: Time of this spectrum in nano seconds
     :return: array of updated peak powers
     """
-    # guess this should be a class as i'm using a global for a static
-    global time_first_spectrum
 
-    if display_queue.qsize() < DisplayProcessor.MAX_DISPLAY_QUEUE_DEPTH:
-        # if we are keeping up then timings need to be altered
-        if current_peak_count == 1:
-            time_first_spectrum = time_spectrum
-        # Send the things to be displayed off to the matplotlib_ui process
-        display_powers = np.fft.fftshift(powers)
-        display_peaks = np.fft.fftshift(peak_powers_since_last_display)
-        display_queue.put((True, configuration.sample_rate, configuration.centre_frequency_hz,
-                           display_powers, display_peaks, time_first_spectrum, time_spectrum))
+    peak_detect = False
+    # drop things on the floor if we are told to stop
+    if not configuration.stop:
+        configuration.update_count += 1
 
-        # peak since last time is the current powers
-        max_peak_count = current_peak_count
-        current_peak_count = 0
-        peak_powers_since_last_display = powers
-        time_first_spectrum = time_spectrum
-    else:
-        # Record the maximum for each bin, so that ui can show things between matplotlib_ui updates
+        if configuration.update_count >= configuration.oneInN:
+            if display_queue.qsize() < MAX_DISPLAY_QUEUE_DEPTH:
+                configuration.update_count = 0
+                # timings need to be altered
+                if current_peak_count == 1:
+                    configuration.time_first_spectrum = time_spectrum
+                # into the UI queue
+                display_peaks = np.fft.fftshift(peak_powers_since_last_display)
+                display_queue.put((True, configuration.sample_rate, configuration.centre_frequency_hz,
+                                   display_peaks, configuration.time_first_spectrum, time_spectrum))
+
+                # peak since last time is the current powers
+                max_peak_count = current_peak_count
+                current_peak_count = 0
+                peak_powers_since_last_display = powers
+                configuration.time_first_spectrum = time_spectrum
+            else:
+                peak_detect = True  # UI can't keep up
+        else:
+            peak_detect = True
+
+        current_peak_count += 1  # count even when we throw them away
+
+    if peak_detect:
+        # Record the maximum for each bin, so that ui can show things between display updates
         peak_powers_since_last_display = np.maximum.reduce([powers, peak_powers_since_last_display])
-
-    current_peak_count += 1  # count even when we throw them away
 
     if not multiprocessing.active_children():
         configuration.display_on = False
@@ -635,31 +625,6 @@ def update_display(configuration: Variables,
         processing = False  # we will exit mow
 
     return peak_powers_since_last_display, current_peak_count, max_peak_count
-
-
-def display_create(configuration: Variables,
-                   display_queue: multiprocessing.Queue,
-                   control_queue: multiprocessing.Queue,
-                   input_name: str) -> DisplayProcessor:
-    """
-    Create the matplotlib_ui process (NOT a thread)
-
-    :param configuration: Our state
-    :param display_queue: The queue we will use for talking to the created matplotlib_ui process
-    :param control_queue: The queue we will use for the matplotlib_ui to send back control
-    :param input_name: What the input is called
-    :return: The handle to the matplotlib_ui process
-    """
-    window_title = f"{configuration.input_type} {input_name}"
-    display = DisplayProcessor.DisplayProcessor(window_title,
-                                                display_queue,
-                                                control_queue,
-                                                configuration.fft_size,
-                                                configuration.sample_rate,
-                                                configuration.centre_frequency_hz,
-                                                configuration.spectrogram_flag)
-    display.start()
-    return display
 
 
 def debug_print(expect_samples_receive_time: float,
@@ -676,7 +641,7 @@ def debug_print(expect_samples_receive_time: float,
     :param process_time: How long we have spent processing the samples
     :param sample_get_time: How long it took as to receive the digitised samples
     :param reconnect_count: How many times we have reconnected to our data source
-    :param peak_count: Count of how many spectrums we are peak detecting on for the matplotlib_ui
+    :param peak_count: Count of how many spectrums we are peak detecting on for the UI
     :return: New last debug update time
     """
     # approx fps

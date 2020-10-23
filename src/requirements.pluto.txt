@@ -11,7 +11,6 @@ certifi==2020.6.20
 cffi==1.14.2
 cycler==0.10.0
 kiwisolver==1.2.0
-matplotlib==3.3.1
 numpy==1.19.1
 paho-mqtt==1.5.0
 Pillow==7.2.0
