@@ -32,7 +32,7 @@ class ProcessSamples:
 
         self._long_average = np.zeros(configuration.fft_size)
         self._powers = np.zeros(configuration.fft_size)
-        self._alpha_for_ewma = configuration.alpha_for_ewma
+        self._alpha_for_ewma = 0.01
 
         # easier to ignore divide by zeros than test for them
         np.seterr(divide='ignore')

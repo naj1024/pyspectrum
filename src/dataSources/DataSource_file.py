@@ -16,7 +16,7 @@ logger = logging.getLogger('spectrum_logger')
 module_type = "file"
 help_string = f"{module_type}:Filename \t- Filename, binary or wave, e.g. " \
               f"{module_type}:./xyz.cf123.4.cplx.200000.16tbe"
-
+web_help_string = "Filename - Filename, binary or wave, e.g. ./xyz.cf123.4.cplx.200000.16tbe"
 
 # return an error string if we are not available
 def is_available() -> Tuple[str, str]:
@@ -103,7 +103,8 @@ class Input(DataSource.DataSource):
                  number_complex_samples: int,
                  data_type: str,
                  sample_rate: float,
-                 centre_frequency: float):
+                 centre_frequency: float,
+                 sleep_time: float):
         """
         File input class
 
@@ -112,31 +113,43 @@ class Input(DataSource.DataSource):
         :param data_type: The type of data we have in the file
         :param sample_rate: The sample rate this source is supposed to be working at, in Hz
         :param centre_frequency: The centre frequency this input is supposed to be at, in Hz
+        :param sleep_time: Time in seconds between reads, i.e. pause by this amount after each read
         """
-        super().__init__(file_name, number_complex_samples, data_type, sample_rate, centre_frequency)
+        self._is_wav_file = False  # until we work it out
+
+        super().__init__(file_name, number_complex_samples, data_type, sample_rate, centre_frequency, sleep_time)
 
         self._wav_file = None
         self._file = None
+        self._rewound = False  # set to true when we rewind - which will force generation of one wrong sample buffer
+        self._connected = False
 
-        # first off, is this a wav file ?
+    def open(self):
         try:
+            # first off, is this a wav file ?
             self._wav_file = wave.open(self._source, "rb")
+            self._is_wav_file = True
             logger.debug(f"Opened wav {self._source} for reading")
 
             if self._wav_file.getnchannels() != 2:
                 msgs = f"{module_type} is wav but not 2 channels"
+                self._error = msgs
                 logger.error(msgs)
                 raise ValueError(msgs)
 
             if self._wav_file.getsampwidth() > 2:
                 msgs = f"{module_type} is wav but more than 2 bytes per sample"
+                self._error = msgs
                 logger.error(msgs)
                 raise ValueError(msgs)
+
+            self.set_sample_type(self._data_type) # make data type correct
 
             self._sample_rate = self._wav_file.getframerate()
             # we are assuming that someone is going to tell us what the data type in the wav file is
             # i.e. 16tbe or 16tle or even 8t
-            logger.debug(f"Parameters for wav: cplx, {data_type}, {self._sample_rate}sps,")
+            logger.info(f"Parameters for wav: cplx, {self._data_type}, {self._sample_rate}sps,")
+
         except wave.Error:
             # try again as a binary file
             try:
@@ -152,42 +165,64 @@ class Input(DataSource.DataSource):
                         if centre_frequency_fn != 0:
                             self._centre_frequency = centre_frequency_fn
 
-                        logger.debug(f"Parameters from filename: cplx, {data_type}, "
+                        logger.info(f"Parameters from filename: cplx, {data_type}, "
                                      f"{sample_rate_hz:.0f}sps, "
                                      f"{self._centre_frequency:.0f}Hz")
                     else:
-                        msgs = f"Error: Unsupported input of 'real' from {self._source}"
+                        msgs = f"Error: Unsupported input of type real from {self._source}"
+                        self._error = msgs
                         logger.error(msgs)
                         raise ValueError(msgs)
                 else:
-                    logger.debug(f"Failed to recover data type and sps from filename {self._source}")
+                    logger.error(f"Failed to recover data type and sps from filename {self._source}")
 
-                logger.debug(f"Using {self._data_type} and sps {self._sample_rate}Hz")
             except OSError as e:
                 msgs = f"Failed to open input file, {e}"
+                self._error = str(msgs)
                 logger.error(msgs)
                 raise ValueError(msgs)
 
+        except OSError as e:
+            # catches things like file not found
+            logger.error(e)
+            self._error = str(e)
+            raise ValueError(e)
+
+        logger.debug(f"Using {self._data_type}, sps {self._sample_rate}Hz, format {self._centre_frequency}")
+
         self._connected = True
-        self._sleep_time = 0
 
-    def set_sleep_time(self, sleep_time: float) -> None:
-        """
-        Set the delay we wait when we read samples from the file
+    def get_help(self):
+        return help_string
 
-        :param sleep_time: Time in seconds
-        :return: None
-        """
-        self._sleep_time = sleep_time
+    def get_web_help(self):
+        return web_help_string
+
+    def set_sample_type(self, data_type: str):
+        # we are only supporting 4byte complex variants, i.e. 2bytes I and 2bytes Q
+        if self._is_wav_file:
+            if data_type == '8o' or data_type == '8t':
+                super().set_sample_type('16tbe')
+            else:
+                super().set_sample_type(data_type)
+        else:
+            super().set_sample_type(data_type)
 
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """
-        Get complex float samples from the device
+        Get complex float samples from the device.
+        If we have just rewound the file then generate one array of obviously wrong data
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
         complex_data = None
         rx_time = 0
-        if self._wav_file or self._file:
+        raw_bytes = None
+        if self._rewound:
+            self._rewound = False
+            # generate one buffer of maximal signed bytes
+            raw_bytes = bytearray(self._bytes_per_snap)
+            rx_time = self.get_time_ns()
+        elif self._wav_file or self._file:
             try:
                 if self._wav_file:
                     raw_bytes = self._wav_file.readframes(self._number_complex_samples)
@@ -203,10 +238,13 @@ class Input(DataSource.DataSource):
                 time.sleep(self._sleep_time)
             except OSError as msg:
                 msgs = f'OSError, {msg}'
+                self._error = str(msgs)
                 logger.error(msgs)
                 raise ValueError(msgs)
 
+        if raw_bytes:
             complex_data = self.unpack_data(raw_bytes)
+
         return complex_data, rx_time
 
     def close(self) -> None:
@@ -224,13 +262,18 @@ class Input(DataSource.DataSource):
         """
         # Rewind the file
         self._connected = False
-        if self._wav_file:
-            self._wav_file.rewind()
-            self._connected = True
-        elif self._file:
-            self._file.seek(0, 0)
-            self._connected = True
+        try:
+            if self._wav_file:
+                self._wav_file.rewind()
+            elif self._file:
+                self._file.seek(0, 0)
+        except OSError as msg:
+            msgs = f'Failed to rewind {self._source}, {msg}'
+            self._error = str(msgs)
+            logger.error(msgs)
+            raise ValueError(msgs)
 
-        if self._connected:
-            logger.debug(f"Rewound {self._source}")
+        self._connected = True
+        self._rewound = True
+
         return self._connected

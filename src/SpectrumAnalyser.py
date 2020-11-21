@@ -28,12 +28,11 @@ from webUI import WebServer
 
 processing = True  # global to be set to False from ctrl-c
 
-# logging to our own logger, not the base one - we will not see log messages for imported modules
-logger = logging.getLogger('spectrum_logger')
-logging.basicConfig(format='%(levelname)s:%(name)s:%(module)s:%(message)s')  # add filename="spec.log"
-logger.setLevel(logging.WARN)
+# we will use separate log files for each process, main/webserver/websocket
+# TODO: Perceived wisdom is to use a logging server in multiprocessing environments
+logger = None
 
-MAX_DISPLAY_QUEUE_DEPTH = 4
+MAX_UI_QUEUE_DEPTH = 4  # low for low latency, a high value will give a burst of contiguous spectrums at the start
 
 
 def signal_handler(sig, __):
@@ -43,8 +42,21 @@ def signal_handler(sig, __):
 
 
 def main() -> None:
+    # logging to our own logger, not the base one - we will not see log messages for imported modules
+    global logger
+    logger = logging.getLogger('spectrum_logger')
+    # don't use %Z for timezone as some say 'GMT' or 'GMT standard time'
+    logging.basicConfig(format='%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
+                        datefmt="%Y-%m-%d %H:%M:%S UTC",
+                        filemode='w',
+                        filename="spec.log")
+    logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
+    logger.setLevel(logging.INFO)
+
     if sys.version_info < (3, 7):
         logger.warning(f"Python version means sample timings will be course, python V{sys.version}")
+
+    logger.info("SpectrumAnalyser starting")
 
     global processing
     signal.signal(signal.SIGINT, signal_handler)
@@ -53,13 +65,19 @@ def main() -> None:
     parse_command_line(configuration)
 
     # check we have a valid input sample type
-    if configuration.sample_type not in configuration.sample_types:
+    if configuration.sample_type not in DataSource.supported_data_types:
         logger.critical(f'Illegal sample type of {configuration.sample_type} selected')
         quit()
 
+    configuration.input_sources = DataSourceFactory.DataSourceFactory().sources()
+    configuration.input_sources_web_helps = DataSourceFactory.DataSourceFactory().web_help_strings()
+
     # configure us
-    data_source, display, display_queue, control_queue, processor, plugin_manager, source_factory = initialise(
+    data_source, display, ui_queue, control_queue, processor, plugin_manager, source_factory = initialise(
         configuration)
+
+    # allowed sample types
+    configuration.sample_types = data_source.get_sample_types()
 
     # expected time to get samples
     expected_samples_receive_time = configuration.fft_size / configuration.sample_rate
@@ -77,6 +95,8 @@ def main() -> None:
     sample_get_time = Ewma.Ewma(0.01)
     process_time = Ewma.Ewma(0.01)
     debug_time = 0
+    config_time = 0  # when we will send our config to the UI
+    fps_update_time = 0
     reconnect_count = 0
 
     # keep processing until told to stop or an error occurs
@@ -85,6 +105,9 @@ def main() -> None:
     current_peak_count = 0
     max_peak_count = 0
     while processing:
+
+        if not multiprocessing.active_children():
+            processing = False  # we will exit mow
 
         # TODO: Testing changing parameters on the fly
         # loop_count += 1
@@ -98,8 +121,8 @@ def main() -> None:
         #     data_source = create_source(configuration, source_factory)
         #     peak_powers_since_last_display = np.full(configuration.fft_size, -200)
 
-        # if there is a control message then it may change what the fron end is doing
-        data_source = check_control_queue(configuration, control_queue, data_source, source_factory)
+        # if there is a control message then it may change what the front end is doing
+        data_source = handle_control_queue(configuration, ui_queue, control_queue, data_source, source_factory)
 
         ###########################################
         # Get the complex samples we will work on
@@ -109,74 +132,90 @@ def main() -> None:
             samples, time_rx = data_source.read_cplx_samples()
             data_samples_perf_time_end = time.perf_counter()
             _ = sample_get_time.average(data_samples_perf_time_end - data_samples_perf_time_start)
+            if samples is None:
+                logger.error("No samples")
+                time.sleep(1)
+            else:
+                # record start time so we can average how long processing is taking
+                complete_process_time_start = time.perf_counter()
 
-            # record start time so we can average how long processing is taking
-            complete_process_time_start = time.perf_counter()
+                ##########################
+                # Calculate the spectrum
+                #################
+                processor.process(samples)
 
-            ##########################
-            # Calculate the spectrum
-            #################
-            processor.process(samples)
+                ###########################
+                # analysis of the spectrum
+                #################
+                results = plugin_manager.call_plugin_method(method="analysis",
+                                                            args={"powers": processor.get_powers(False),
+                                                                  "noise_floors": processor.get_long_average(False),
+                                                                  "reordered": False})
 
-            ###########################
-            # analysis of the spectrum
-            #################
-            results = plugin_manager.call_plugin_method(method="analysis",
-                                                        args={"powers": processor.get_powers(False),
-                                                              "noise_floors": processor.get_long_average(False),
-                                                              "reordered": False})
+                #####################
+                # reporting results
+                #############
+                if "peaks" in results and len(results["peaks"]) > 0:
+                    freqs = ProcessSamples.convert_to_frequencies(results["peaks"],
+                                                                  configuration.sample_rate,
+                                                                  configuration.fft_size)
+                    _ = plugin_manager.call_plugin_method(method="report",
+                                                          args={"data_samples_time": time_rx,
+                                                                "frequencies": freqs,
+                                                                "centre_frequency_hz": configuration.centre_frequency_hz})
 
-            #####################
-            # reporting results
-            #############
-            if "peaks" in results and len(results["peaks"]) > 0:
-                freqs = ProcessSamples.convert_to_frequencies(results["peaks"],
-                                                              configuration.sample_rate,
-                                                              configuration.fft_size)
-                _ = plugin_manager.call_plugin_method(method="report",
-                                                      args={"data_samples_time": time_rx,
-                                                            "frequencies": freqs,
-                                                            "centre_frequency_hz": configuration.centre_frequency_hz})
+                ##########################
+                # Update the UI
+                #################
+                peak_powers_since_last_display, current_peak_count, max_peak_count = \
+                    update_ui(configuration,
+                              ui_queue,
+                              processor.get_powers(False),
+                              peak_powers_since_last_display,
+                              current_peak_count,
+                              max_peak_count,
+                              time_rx)
 
-            ##########################
-            # Update the UI
-            #################
-            peak_powers_since_last_display, current_peak_count, max_peak_count = \
-                update_display(configuration,
-                               display_queue,
-                               processor.get_powers(
-                                   False),
-                               peak_powers_since_last_display,
-                               current_peak_count,
-                               max_peak_count,
-                               time_rx)
+                # average of number of count of spectrums between UI updates
+                peak_average.average(max_peak_count)
 
-            # average of number of count of spectrums between UI updates
-            peak_average.average(max_peak_count)
+                complete_process_time_end = time.perf_counter()  # time for everything but data get
+                process_time.average(complete_process_time_end - complete_process_time_start)
 
-            complete_process_time_end = time.perf_counter()  # time for everything but data get
-            process_time.average(complete_process_time_end - complete_process_time_start)
+            now = time.time()
+            if now > fps_update_time:
+                configuration.measured_fps = measure_fps(expected_samples_receive_time,
+                                                         process_time,
+                                                         sample_get_time,
+                                                         peak_average.get_ewma())
+                fps_update_time = now + 2
 
             # Debug print on how long things are taking
-            if time.time() > debug_time:
-                debug_time = debug_print(expected_samples_receive_time,
-                                         configuration.fft_size, process_time,
-                                         sample_get_time,
-                                         reconnect_count,
-                                         peak_average.get_ewma())
+            if now > debug_time:
+                debug_print(expected_samples_receive_time,
+                            configuration.fft_size, process_time,
+                            sample_get_time,
+                            reconnect_count,
+                            peak_average.get_ewma(),
+                            configuration.fps,
+                            configuration.measured_fps,
+                            configuration.oneInN)
+                debug_time = now + 6
+
+            if now > config_time:
+                # Send the current configuration to the UI
+                ui_queue.put((configuration.make_json(), None, None, None, None, None))
+                configuration.error = ""  # reset any error we are reporting
+                config_time = now + 10
 
         except ValueError:
             # incorrect number of samples, probably because something closed
-            if configuration.input_type == "file" and not configuration.source_loop:
-                logger.info("End of input file")
-                processing = False
-            else:
-                while not data_source.connected() and processing:
-                    try:
-                        data_source.reconnect()
-                        reconnect_count += 1
-                    except Exception as msg:
-                        logger.debug(msg)
+            while not data_source.connected() and processing:
+                try:
+                    data_source.reconnect()
+                    reconnect_count += 1
+                except Exception as msg:
+                    logger.debug(msg)
 
     ####################
     #
@@ -195,11 +234,11 @@ def main() -> None:
             display.shutdown()
             display.join()
 
-    if display_queue:
-        # display_queue.close()
-        while not display_queue.empty():
-            _ = display_queue.get()
-        logger.debug("SpectrumAnalyser display_queue empty")
+    if ui_queue:
+        # ui_queue.close()
+        while not ui_queue.empty():
+            _ = ui_queue.get()
+        logger.debug("SpectrumAnalyser ui_queue empty")
 
     logger.error("SpectrumAnalyser exit")
 
@@ -212,31 +251,9 @@ def initialise(configuration: Variables):
         # where we get our input samples from
         factory = DataSourceFactory.DataSourceFactory()
         # check that it is supported
-        if configuration.input_type not in factory.sources():
+        if configuration.input_source not in factory.sources():
             print("Available sources: ", factory.sources())
-            raise ValueError(f"Error: Input source type of '{configuration.input_type}' is not supported")
-        data_source = create_source(configuration, factory)
-
-        # file input may need slowing down, but not all input types support sleep time
-        try:
-            data_source.set_sleep_time(configuration.source_sleep)
-        except AttributeError:
-            pass
-
-        # attempt to connect, but allow exit if we receive a CTRL-C signal
-        while not data_source.connected() and processing:
-            try:
-                logger.debug(f"Input type {configuration.input_type} {configuration.input_name}")
-                data_source.connect()
-            except Exception as err_msg:
-                logger.error(f"Connection problem {err_msg}")
-                time.sleep(1)
-
-        # source may have modified sps or cf after connect
-        read_source_config(configuration, data_source)
-
-        # The main processor for producing ffts etc
-        processor = ProcessSamples.ProcessSamples(configuration)
+            raise ValueError(f"Error: Input source type of '{configuration.input_source}' is not supported")
 
         # Queues for UI
         data_queue = multiprocessing.Queue()
@@ -249,6 +266,25 @@ def initialise(configuration: Variables):
         # plugins, pass in all the variables as we don't know what the plugin may require
         plugin_manager = PluginManager.PluginManager(plugin_init_arguments=vars(configuration))
 
+        data_source = create_source(configuration, factory)
+        try:
+            open_source(configuration, data_source)
+
+            # attempt to connect, but allow exit if we receive a CTRL-C signal
+            while not data_source.connected() and processing:
+                try:
+                    logger.debug(f"Input type {configuration.input_source} {configuration.input_params}")
+                    data_source.connect()
+                except Exception as err_msg:
+                    logger.error(f"Connection problem {err_msg}")
+                    time.sleep(1)
+
+        except ValueError as msg:
+            configuration.error = str(msg)
+
+        # The main processor for producing ffts etc
+        processor = ProcessSamples.ProcessSamples(configuration)
+
         return data_source, display, data_queue, control_queue, processor, plugin_manager, factory
 
     except Exception as msg:
@@ -256,7 +292,7 @@ def initialise(configuration: Variables):
         raise msg
 
 
-def create_source(configuration: Variables, factory):
+def create_source(configuration: Variables, factory) -> DataSource:
     """
     Create the source of samples
 
@@ -264,27 +300,55 @@ def create_source(configuration: Variables, factory):
     :param factory: Where we get the source from
     :return: The source
     """
-    data_source = factory.create(configuration.input_type,
-                                 configuration.input_name,
+    # TODO: Handle case when open fails and we have no source
+    data_source = factory.create(configuration.input_source,
+                                 configuration.input_params,
                                  configuration.fft_size,
                                  configuration.sample_type,
                                  configuration.sample_rate,
-                                 configuration.centre_frequency_hz)
+                                 configuration.centre_frequency_hz,
+                                 configuration.source_sleep)
     return data_source
 
+def open_source(configuration: Variables, data_source: DataSource) -> None:
+    data_source.open()
 
-def read_source_config(configuration: Variables, data_source):
-    """
-    Read back the values used by the source as they may have changed
-    :param configuration: All the config we need
-    :param data_source: The source we are using for samples
-    :return: None
-    """
-    # read back these values as they may have changed from what we requested
-    configuration.sample_rate = data_source.get_sample_rate()
+    # may have updated various things
     configuration.sample_type = data_source.get_sample_type()
+    configuration.sample_rate = data_source.get_sample_rate()
     configuration.centre_frequency_hz = data_source.get_centre_frequency()
 
+    # patch up fps things
+    configuration.oneInN = int(configuration.sample_rate /
+                               (configuration.fps * configuration.fft_size))
+
+    # any errors or warning
+    configuration.error += data_source.get_and_reset_error()
+
+
+def update_source(configuration: Variables, source_factory, old_source, old_source_params,
+                  old_source_format, old_cf, old_sps, old_fft) -> DataSource:
+    data_source = create_source(configuration, source_factory)
+    try:
+        open_source(configuration, data_source)
+    except ValueError as msg:
+        logger.error(f"Problem with new configuration, {msg} "
+                     f"{configuration.centre_frequency_hz} "
+                     f"{configuration.sample_rate} "
+                     f"{configuration.fft_size}")
+        configuration.error += str(msg)
+
+        # put things back
+        configuration.input_source = old_source
+        configuration.input_params = old_source_params
+        configuration.sample_type = old_source_format
+        configuration.centre_frequency_hz = old_cf
+        configuration.sample_rate = old_sps
+        # bodge just to get config table updated
+        configuration.fft_size = old_fft # // 2  # TODO handle errors back to UI
+        data_source = create_source(configuration, source_factory)
+        open_source(configuration, data_source)
+    return data_source
 
 def parse_command_line(configuration: Variables) -> None:
     # noinspection PyTypeChecker
@@ -304,7 +368,6 @@ def parse_command_line(configuration: Variables) -> None:
     # Input options
     ##########
     input_opts = parser.add_argument_group('Input')
-    input_opts.add_argument('-L', '--loop', help="Loop file input", required=False, action='store_true', default=False)
     input_opts.add_argument('-W', '--wait', type=float, help="millisecond wait between reads for file "
                                                              f"input (default: {configuration.source_sleep})",
                             default=configuration.source_sleep, required=False)
@@ -325,7 +388,7 @@ def parse_command_line(configuration: Variables) -> None:
     data_opts.add_argument('-t', '--type',
                            help=f'Sample type (default: {configuration.sample_type})',
                            default=configuration.sample_type,
-                           choices=configuration.sample_types,
+                           choices=DataSource.supported_data_types,
                            required=False)
 
     ######################
@@ -369,8 +432,6 @@ def parse_command_line(configuration: Variables) -> None:
     if args['type'] is not None:
         configuration.sample_type = args['type']
 
-    if args['loop']:
-        configuration.source_loop = args['loop']
     if args['wait']:
         configuration.source_sleep = float(args['wait']) / 1000.0
     if args['input'] is not None:
@@ -380,9 +441,15 @@ def parse_command_line(configuration: Variables) -> None:
             quit()  # EXIT now
         else:
             parts = full_source_name.split(":")
-            if len(parts) == 2:
-                configuration.input_type = parts[0]
-                configuration.input_name = parts[1]
+            if len(parts) >= 2:
+                configuration.input_source = parts[0]
+                # handle multiple ':' parts - make input_name up of them
+                configuration.input_params = ""
+                for part in parts[1:]:
+                    # add ':' between values
+                    if len(configuration.input_params) > 0:
+                        configuration.input_params += ":"
+                    configuration.input_params += f"{part}"
             else:
                 logger.critical(f"input parameter incorrect, {full_source_name}")
                 quit()
@@ -413,6 +480,8 @@ def parse_command_line(configuration: Variables) -> None:
         time_spectral(configuration)
         quit()
 
+    configuration.oneInN = int(configuration.sample_rate / (configuration.fps * configuration.fft_size))
+
 
 def list_plugin_help() -> None:
     """
@@ -434,7 +503,6 @@ def list_sources() -> None:
 
     :return: None
     """
-    print("")
     factory = DataSourceFactory.DataSourceFactory()
     print(f"Available sources: {factory.sources()}")
     helps = factory.help_strings()
@@ -493,14 +561,16 @@ def time_spectral(configuration: Variables):
     print("")
 
 
-def check_control_queue(configuration: Variables,
-                        control_queue: multiprocessing.Queue,
-                        data_source,
-                        source_factory):
+def handle_control_queue(configuration: Variables,
+                         ui_queue: multiprocessing.Queue,
+                         control_queue: multiprocessing.Queue,
+                         data_source,
+                         source_factory):
     """
     Check the control queue for messages and handle them
 
     :param configuration: the current configuration
+    :param ui_queue: The queue used for talking to the UI process
     :param control_queue: The queue to check on
     :param data_source:
     :param source_factory:
@@ -514,51 +584,66 @@ def check_control_queue(configuration: Variables,
             #       "bw":600000,"fftSize":"8192","sdrStateUpdated":false}
             try:
                 new_config = json.loads(config)
-                if new_config['type'] == "fps":
+            except ValueError as msg:
+                logger.error(f"Problem with json control message {config}, {msg}")
+
+            if new_config:
+                if new_config['type'] == "null":
+                    pass
+                elif new_config['type'] == "fps":
                     configuration.fps = int(new_config['value'])
                     configuration.oneInN = int(configuration.sample_rate /
                                                (configuration.fps * configuration.fft_size))
-
-                if new_config['type'] == "stop":
+                elif new_config['type'] == "stop":
                     configuration.stop = int(new_config['value'])
-
                 elif new_config['type'] == "sdrUpdate":
-                    reconfigure = False
+                    # TODO: copy the whole config instead
                     old_cf = configuration.centre_frequency_hz
                     old_sps = configuration.sample_rate
                     old_fft = configuration.fft_size
+                    old_source = configuration.input_source
+                    old_source_params = configuration.input_params
+                    old_source_format = configuration.sample_type
 
                     if new_config['centreFrequencyHz'] != old_cf:
-                        configuration.centre_frequency_hz = new_config['centreFrequencyHz']
-                        reconfigure = True
-                    if new_config['sps'] != old_sps:
-                        configuration.sample_rate = new_config['sps']
-                        reconfigure = True
-                    if new_config['fftSize'] != old_fft:
-                        configuration.fft_size = new_config['fftSize']
-                        reconfigure = True
+                        new_cf = new_config['centreFrequencyHz']
+                        data_source.set_centre_frequency(new_cf)
+                        configuration.centre_frequency_hz = data_source.get_centre_frequency()
 
-                    if reconfigure:
+                    if new_config['sps'] != old_sps:
+                        new_sps = new_config['sps']
+                        data_source.set_sample_rate(new_sps)
+                        configuration.sample_rate = data_source.get_sample_rate()
                         configuration.oneInN = int(configuration.sample_rate /
                                                    (configuration.fps * configuration.fft_size))
-                        data_source.close()  # this is quite brutal
-                        try:
-                            data_source = create_source(configuration, source_factory)
-                        except ValueError as msg:
-                            logger.error(f"Problem with new configuration, {msg} "
-                                         f"{configuration.centre_frequency_hz} "
-                                         f"{configuration.sample_rate} "
-                                         f"{configuration.fft_size}")
-                            # put things back
-                            configuration.centre_frequency_hz = old_cf
-                            configuration.sample_rate = old_sps
-                            # bodge just to get config table updated
-                            configuration.fft_size = old_fft // 2  # TODO handle errors back to UI
-                            data_source = create_source(configuration, source_factory)
 
-            except ValueError as msg:
-                logger.error(f"Problem with json control message {config}, {msg}")
-                pass
+                    if new_config['fftSize'] != old_fft:
+                        configuration.fft_size = new_config['fftSize']
+                        configuration.oneInN = int(configuration.sample_rate /
+                                                   (configuration.fps * configuration.fft_size))
+                        data_source.close()
+                        data_source = update_source(configuration, source_factory, old_source, old_source_params,
+                                                    old_source_format, old_cf, old_sps, old_fft)
+
+                    if (new_config['source'] != old_source) \
+                            or (new_config['sourceParams'] != old_source_params) \
+                            or (new_config['dataFormat'] != old_source_format):
+                        configuration.input_source = new_config['source']
+                        configuration.input_params = new_config['sourceParams']
+                        configuration.sample_type = new_config['dataFormat']
+                        configuration.centre_frequency_hz = new_config['centreFrequencyHz']
+                        logger.info(f"changing source to '{configuration.input_source}' "
+                                    f"'{configuration.input_params}' '{configuration.sample_type}'")
+                        data_source.close()
+                        data_source = update_source(configuration, source_factory, old_source, old_source_params,
+                                                    old_source_format, old_cf, old_sps, old_fft)
+
+                # changes above may have produced errors in the data_source
+                configuration.error += data_source.get_and_reset_error()
+
+                # reply with the current configuration whenever we receive something on the control queue
+                ui_queue.put((configuration.make_json(), None, None, None, None, None))
+                configuration.error = ""  # reset any error we are reporting
 
     except queue.Empty:
         pass
@@ -566,18 +651,18 @@ def check_control_queue(configuration: Variables,
     return data_source
 
 
-def update_display(configuration: Variables,
-                   display_queue: multiprocessing.Queue,
-                   powers: np.ndarray,
-                   peak_powers_since_last_display: np.ndarray,
-                   current_peak_count: int,
-                   max_peak_count: int,
-                   time_spectrum: float) -> Tuple[np.ndarray, int, int]:
+def update_ui(configuration: Variables,
+              ui_queue: multiprocessing.Queue,
+              powers: np.ndarray,
+              peak_powers_since_last_display: np.ndarray,
+              current_peak_count: int,
+              max_peak_count: int,
+              time_spectrum: float) -> Tuple[np.ndarray, int, int]:
     """
     Send data to the queue used for talking to the ui processes
 
     :param configuration: Our programme state variables
-    :param display_queue: The queue used for talking to the UI process
+    :param ui_queue: The queue used for talking to the UI process
     :param powers: The powers of the spectrum bins
     :param peak_powers_since_last_display: The powers since we last updated the UI
     :param current_peak_count: count of spectrums we have peak held on
@@ -588,19 +673,25 @@ def update_display(configuration: Variables,
 
     peak_detect = False
     # drop things on the floor if we are told to stop
-    if not configuration.stop:
+    if configuration.stop:
+        configuration.measured_fps = 0  # not doing anything yet
+    else:
         configuration.update_count += 1
 
         if configuration.update_count >= configuration.oneInN:
-            if display_queue.qsize() < MAX_DISPLAY_QUEUE_DEPTH:
+            if ui_queue.qsize() < MAX_UI_QUEUE_DEPTH:
                 configuration.update_count = 0
                 # timings need to be altered
                 if current_peak_count == 1:
                     configuration.time_first_spectrum = time_spectrum
-                # into the UI queue
+
+                # order the spectral magnitudes, zero in the middle
                 display_peaks = np.fft.fftshift(peak_powers_since_last_display)
-                display_queue.put((True, configuration.sample_rate, configuration.centre_frequency_hz,
-                                   display_peaks, configuration.time_first_spectrum, time_spectrum))
+
+                # data into the UI queue, we don't send state here
+                state = None
+                ui_queue.put((state, configuration.sample_rate, configuration.centre_frequency_hz,
+                              display_peaks, configuration.time_first_spectrum, time_spectrum))
 
                 # peak since last time is the current powers
                 max_peak_count = current_peak_count
@@ -618,13 +709,31 @@ def update_display(configuration: Variables,
         # Record the maximum for each bin, so that ui can show things between display updates
         peak_powers_since_last_display = np.maximum.reduce([powers, peak_powers_since_last_display])
 
-    if not multiprocessing.active_children():
-        configuration.display_on = False
-        print("Spectrum window closed")
-        global processing
-        processing = False  # we will exit mow
-
     return peak_powers_since_last_display, current_peak_count, max_peak_count
+
+
+def measure_fps(expect_samples_receive_time: float,
+                process_time: Ewma,
+                sample_get_time: Ewma,
+                peak_count: float) -> int:
+    """
+    Approx measured fps
+
+    :param expect_samples_receive_time: How long the samples would of taken to digitise
+    :param process_time: How long we have spent processing the samples
+    :param sample_get_time: How long it took as to receive the digitised samples
+    :param peak_count: Count of how many spectrums we are peak detecting on for the UI
+    :return: approx fps
+    """
+    fps = -1
+    total_time = sample_get_time.get_ewma() + process_time.get_ewma()
+    if peak_count > 0:
+        if total_time > 0:
+            fps = 1 / (total_time * peak_count)
+    else:
+        # running real time
+        fps = 1 / expect_samples_receive_time
+    return int(fps)
 
 
 def debug_print(expect_samples_receive_time: float,
@@ -632,7 +741,10 @@ def debug_print(expect_samples_receive_time: float,
                 process_time: Ewma,
                 sample_get_time: Ewma,
                 reconnect_count: int,
-                peak_count: float) -> float:
+                peak_count: float,
+                fps: int,
+                mfps: int,
+                one_in_n: int):
     """
     Various useful profiling prints
 
@@ -642,29 +754,23 @@ def debug_print(expect_samples_receive_time: float,
     :param sample_get_time: How long it took as to receive the digitised samples
     :param reconnect_count: How many times we have reconnected to our data source
     :param peak_count: Count of how many spectrums we are peak detecting on for the UI
-    :return: New last debug update time
-    """
-    # approx fps
-    fps = -1
-    total_time = sample_get_time.get_ewma() + process_time.get_ewma()
-    if peak_count > 0:
-        if total_time > 0:
-            fps = 1 / (total_time * peak_count)
-    else:
-        # running real time
-        fps = 1 / expect_samples_receive_time
+    :param fps: requested fps
+    :param mfps: measured fps
+    :param one_in_n: One in N sent to UI
 
+    :return: None
+    """
+    total_time = sample_get_time.get_ewma() + process_time.get_ewma()
     logger.debug(f'FFT:{fft_size} '
                  f'{1e6 * expect_samples_receive_time:.0f}usec, '
                  f'read:{1e6 * sample_get_time.get_ewma():.0f}usec, '
                  f'process:{1e6 * process_time.get_ewma():.0f}usec, '
                  f'total:{1e6 * total_time:.0f}usec, '
-                 f'connects:{reconnect_count}, '
+                 f'reconnects:{reconnect_count}, '
                  f'pc:{peak_count:0.1f}, '
-                 f'fps:{fps:0.0f}')
-
-    debug_time = time.time() + 5
-    return debug_time
+                 f'fps:{fps}, '
+                 f'mfps:{mfps}, '
+                 f'1inN:{one_in_n} ')
 
 
 if __name__ == '__main__':

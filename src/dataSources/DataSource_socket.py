@@ -8,8 +8,9 @@ import numpy as np
 from dataSources import DataSource
 
 module_type = "socket"
-help_string = f"{module_type}:IP@port \t- The Ip or resolvable name and port of a server, " \
-              f"e.g. {module_type}:192.168.2.1@12345"
+help_string = f"{module_type}:IP:port \t- The Ip or resolvable name and port of a server, " \
+              f"e.g. {module_type}:192.168.2.1:12345"
+web_help_string = "IP:port - The Ip or resolvable name and port of a server, e.g. 192.168.2.1:12345"
 
 logger = logging.getLogger('spectrum_logger')
 
@@ -30,7 +31,8 @@ class Input(DataSource.DataSource):
                  number_complex_samples: int,
                  data_type: str,
                  sample_rate: float,
-                 centre_frequency: float):
+                 centre_frequency: float,
+                 sleep_time: float):
         """Initialise the object
         Args:
         :param ip_address_port: The address and port we connect to, address empty then we are the server
@@ -38,32 +40,39 @@ class Input(DataSource.DataSource):
         :param data_type: The type of data we are going to be receiving on the socket
         :param sample_rate: The sample rate this source is supposed to be working at, in Hz
         :param centre_frequency: The centre frequency this input is supposed to be at, in Hz
+        :param sleep_time: Time in seconds between reads, not used on most sources
         """
 
-        super().__init__(ip_address_port, number_complex_samples, data_type, sample_rate, centre_frequency)
+        super().__init__(ip_address_port, number_complex_samples, data_type, sample_rate, centre_frequency, sleep_time)
+        self._connected = False
+        self._ip_address = ""
+        self._ip_port = 0
+        self._socket = None
+        self._served_connection = None
+        self._client = True
 
+    def open(self):
         # specifics to this class
-        # break apart the ip address and port, will be something like 192.168.0.1@1234
+        # break apart the ip address and port, will be something like 192.168.0.1:1234
 
-        parts = ip_address_port.split('@')
-        if len(parts) != 2:
+        parts = self._source.split(':')
+        if len(parts) < 2:
             raise ValueError(f"{module_type} input specification does not contain two colon separated items, "
-                             f"{ip_address_port}")
+                             f"{self._source}")
         self._ip_address = parts[0]
         try:
             self._ip_port = int(parts[1])
         except ValueError as msg:
             msgs = f"{module_type} port number from {parts[1]}, {msg}"
+            self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)
 
         if self._ip_port < 0:
             msgs = f"{module_type} port number from {parts[1]} is negative"
+            self._error = msgs
             logger.error(msgs)
             raise ValueError(msgs)
-
-        self._socket = None
-        self._served_connection = None
 
         self._client = True
         if self._ip_address == "":
@@ -132,15 +141,21 @@ class Input(DataSource.DataSource):
 
         return self._connected
 
+    def get_help(self):
+        return help_string
+
+    def get_web_help(self):
+        return web_help_string
+
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """Read data from the socket and convert them to complex floats using the data type specified
 
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
-        sock = None
         rx_time = 0
         raw_bytes = bytearray()
         try:
+            sock = None
             if self._client:
                 sock = self._socket
             else:
@@ -162,6 +177,7 @@ class Input(DataSource.DataSource):
         except OSError as msg:
             self.close()
             msgs = f'OSError, {msg}'
+            self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)
 

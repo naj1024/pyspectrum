@@ -14,6 +14,7 @@ logger = logging.getLogger('spectrum_logger')
 
 module_type = "soapy"
 help_string = f"{module_type}:Name \t- Name is soapy driver, e.g. {module_type}:?, {module_type}:sdrplay"
+web_help_string = "Name - Name is soapy driver, e.g. sdrplay"
 
 try:
     import_error_msg = ""
@@ -36,7 +37,8 @@ class Input(DataSource.DataSource):
                  number_complex_samples: int,
                  data_type: str,
                  sample_rate: float,
-                 centre_frequency: float):
+                 centre_frequency: float,
+                 sleep_time: float):
         """
         The soapy input source
 
@@ -45,12 +47,23 @@ class Input(DataSource.DataSource):
         :param data_type: Not required, we set complex 32f
         :param sample_rate: The sample rate we will set the source to
         :param centre_frequency: The centre frequency the source will be set to
+        :param sleep_time: Time in seconds between reads, not used on most sources
         """
-        super().__init__(source, number_complex_samples, data_type, sample_rate, centre_frequency)
+        super().__init__(source, number_complex_samples, data_type, sample_rate, centre_frequency, sleep_time)
+        self._connected = False
+        self._sdr = None
+        self._channel = 0  # we will use channel zero for now
+        self._tmp = None
+        self._tmp_size = 0
+        self._complex_data = None
+        self._output_size = 0
+        self._rx_stream = None
 
+    def open(self):
         global import_error_msg
         if import_error_msg != "":
             msgs = f"{module_type} Error: No {module_type} support available, {import_error_msg}"
+            self._error = msgs
             logger.error(msgs)
             raise ValueError(msgs)
 
@@ -65,6 +78,7 @@ class Input(DataSource.DataSource):
             self._sdr = SoapySDR.Device(f'driver={self._source}')
         except Exception as msg_err:
             msgs = f"{module_type} {msg_err}"
+            self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)
 
@@ -119,9 +133,17 @@ class Input(DataSource.DataSource):
             self._sdr.closeStream(self._rx_stream)
             self._sdr = None
 
+    def get_help(self):
+        return help_string
+
+    def get_web_help(self):
+        return web_help_string
+
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """
         Get complex float samples from the device
+
+        Note that we don't use unpack() for this device
 
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
@@ -156,6 +178,7 @@ class Input(DataSource.DataSource):
                 index += read.ret
             elif read.ret < 0:
                 zeros = np.array([0] * self._number_complex_samples, np.complex64)
+                self._error = f"SoapySDR {read.ret} {SoapySDR.SoapySDR_errToStr(read.ret)}"
                 logger.error(f"SoapySDR {read.ret} {SoapySDR.SoapySDR_errToStr(read.ret)}")
                 return zeros, rx_time
 

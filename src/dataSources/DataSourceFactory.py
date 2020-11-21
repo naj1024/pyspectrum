@@ -25,6 +25,7 @@ class DataSourceFactory:
 
         self._data_sources = {}  # dictionary of names to actual things we support
         self._data_helps = {}  # the help strings for each name
+        self._data_web_helps = {}  # the web help strings for each name
 
         # add the current directory to the search path
         self._input_source_dir = os.path.dirname(__file__)
@@ -45,6 +46,7 @@ class DataSourceFactory:
                 # add it to the types we support
                 self._data_sources[name] = getattr(module, "Input")
                 self._data_helps[name] = getattr(module, "help_string")
+                self._data_web_helps[name] = getattr(module, "web_help_string")
 
     def sources(self) -> [str]:
         """
@@ -56,9 +58,16 @@ class DataSourceFactory:
     def help_strings(self) -> {str: str}:
         """
         Return a list of help strings from the the supported input sources
-        :return: A dictionary of help strings fro the input sources
+        :return: A dictionary of help strings for the input sources
         """
         return self._data_helps
+
+    def web_help_strings(self) -> {str: str}:
+        """
+        Return a list of web help strings from the the supported input sources
+        :return: A dictionary of help strings for the input sources
+        """
+        return self._data_web_helps
 
     def create(self,
                input_type: str,
@@ -66,7 +75,8 @@ class DataSourceFactory:
                number_complex_samples: int,
                data_type: str,
                sample_rate: float,
-               centre_frequency: float
+               centre_frequency: float,
+               sleep_time: float
                ) -> DataSource:
         """
         Create a new data source
@@ -77,6 +87,7 @@ class DataSourceFactory:
         :param data_type: The data type the source understands, the data will be converted by the source
         :param sample_rate: The sample rate this source is producing at, can be overridden
         :param centre_frequency: The frequency the source is tuned to
+        :param sleep_time: sleep by this amount afer each read - not used by most sources
         :return: The object
         """
         creator = self._data_sources.get(input_type)
@@ -85,8 +96,11 @@ class DataSourceFactory:
             logger.error(msg)
             raise ValueError(msg)
 
-        return creator(name,
+        source = creator(name,
                        number_complex_samples,
                        data_type,
                        sample_rate,
-                       centre_frequency)
+                       centre_frequency,
+                       sleep_time)
+
+        return source

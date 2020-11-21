@@ -58,9 +58,9 @@ from dataSources import DataSource
 logger = logging.getLogger('spectrum_logger')
 
 module_type = "rtltcp"
-help_string = f"{module_type}::IP@port - The Ip or resolvable name and port of an rtltcp server, " \
-              f"e.g. {module_type}:192.168.2.1@12345"
-
+help_string = f"{module_type}:IP:port - The Ip or resolvable name and port of an rtltcp server, " \
+              f"e.g. {module_type}:192.168.2.1:12345"
+web_help_string = "IP@port - The Ip or resolvable name and port of an rtltcp server, e.g. 192.168.2.1:12345"
 
 # return an error string if we are not available
 def is_available() -> Tuple[str, str]:
@@ -78,35 +78,47 @@ class Input(DataSource.DataSource):
                  number_complex_samples: int,
                  data_type: str,
                  sample_rate: float,
-                 centre_frequency: float):
+                 centre_frequency: float,
+                 sleep_time: float):
         """
         The rtltcp input source
 
-        :param source: Ip and port as a string, e.g. 127.0.0.1@3456
+        :param source: Ip and port as a string, e.g. 127.0.0.1:3456
         :param number_complex_samples: The number of complex samples we require each request
         :param data_type: ignored, we will be getting 8bit offset binary, '8o'
         :param sample_rate: The sample rate we will set the source to, note true sps is set from the device
         :param centre_frequency: The centre frequency the source will be set to
+        :param sleep_time: Time in seconds between reads, not used on most sources
         """
-        super().__init__(source, number_complex_samples, '8o', sample_rate, centre_frequency)
+        self._constant_data_type = "8o"
+        super().__init__(source, number_complex_samples, self._constant_data_type, sample_rate, centre_frequency, sleep_time)
 
+        self._socket = None
+        self._connected = False
+        self._tuner_type_str = "Unknown_Tuner"
+        self._ip_address = ""
+        self._ip_port = 0
+
+    def open(self):
         # specifics to this class
-        # break apart the ip address and port, will be something like 192.168.0.1@1234
+        # break apart the ip address and port, will be something like 192.168.0.1:1234
 
-        parts = source.split('@')
-        if len(parts) != 2:
+        parts = self._source.split(':')
+        if len(parts) <= 2:
             raise ValueError(f"{module_type} input specification does not contain two colon separated items, "
-                             f"{source}")
+                             f"{self._source}")
         self._ip_address = parts[0]
         try:
             self._ip_port = int(parts[1])
         except ValueError as msg1:
             msgs = f"{module_type} port number from {parts[1]}, {msg1}"
+            self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)
 
         if self._ip_port < 0:
             msgs = f"{module_type} port number from {parts[1]} is negative"
+            self._error = msgs
             logger.error(msgs)
             raise ValueError(msgs)
 
@@ -197,6 +209,7 @@ class Input(DataSource.DataSource):
             if magic == b"RTL0" and tuner_type < len(allowed_tuner_types):
                 tuner_type_str = allowed_tuner_types[tuner_type]
             else:
+                self._error = f"Unknown RTL tuner {magic} or type {tuner_type}"
                 logger.error(f"Unknown RTL tuner {magic} or type {tuner_type}")
         except Exception as fff:
             raise ValueError(fff)
@@ -230,11 +243,22 @@ class Input(DataSource.DataSource):
             if self._socket:
                 self._socket.close()
             msgs = f'OSError, {msg1}'
+            self._error = str(msgs)
             logger.error(msgs)
             self._connected = False
             raise ValueError(msgs)
 
         return raw_bytes, rx_time
+
+    def set_sample_type(self, data_type: str):
+        # we can't set a different sample type on this source
+        super().set_sample_type(self._constant_data_type)
+
+    def get_help(self):
+        return help_string
+
+    def get_web_help(self):
+        return web_help_string
 
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """
@@ -312,6 +336,7 @@ class Input(DataSource.DataSource):
 
         if not freq_ok:
             err = f"{module_type} {self._tuner_type_str} invalid centre frequency, {frequency}Hz"
+            self._error = err
             logger.error(err)
             frequency = int(433.92e6)
 
@@ -331,6 +356,7 @@ class Input(DataSource.DataSource):
         # We have no way of knowing if a command completes on the remote platform
         if (sample_rate <= 225000) or (sample_rate > 3200000) or ((sample_rate > 300000) and (sample_rate <= 900000)):
             err = f"{module_type} invalid sample rate, {sample_rate}sps"
+            self._error = err
             logger.error(err)
             sample_rate = int(1e6)
         self._sample_rate = sample_rate

@@ -11,7 +11,6 @@ NOTE that the pluto device will accept 70Mhz to 6GHz frequency and 60MHz samplin
 import numpy as np
 from typing import Tuple
 import logging
-import time
 
 from dataSources import DataSource
 
@@ -20,6 +19,7 @@ logger = logging.getLogger('spectrum_logger')
 module_type = "pluto"
 help_string = f"{module_type}:IP\t- The Ip or resolvable name of the Pluto device, " \
               f"e.g. {module_type}:192.168.2.1"
+web_help_string = "IP address - The Ip or resolvable name of the Pluto device, e.g. 192.168.2.1"
 
 try:
     import_error_msg = ""
@@ -42,7 +42,8 @@ class Input(DataSource.DataSource):
                  number_complex_samples: int,
                  data_type: str,
                  sample_rate: float,
-                 centre_frequency: float):
+                 centre_frequency: float,
+                 sleep_time: float):
         """
         The pluto device on a socket, not the USB connection
 
@@ -56,12 +57,19 @@ class Input(DataSource.DataSource):
         :param data_type: Not used
         :param sample_rate: The sample rate the pluto device will be set to, AND it's BW
         :param centre_frequency: The Centre frequency we will tune to
+        :param sleep_time: Time in seconds between reads, not used on most sources
         """
-        super().__init__(ip_address, number_complex_samples, data_type, sample_rate, centre_frequency)
+        # Driver converts to floating point for us, underlying data from ad936x was 16bit i/q
+        self._constant_data_type = "16tle"
+        super().__init__(ip_address, number_complex_samples, self._constant_data_type, sample_rate, centre_frequency, sleep_time)
+        self._sdr = None
+        self._connected = False
 
+    def open(self):
         global import_error_msg
         if import_error_msg != "":
             msgs = f"{module_type} No {module_type} device available, {import_error_msg}"
+            self._error = msgs
             logger.error(msgs)
             raise ValueError(msgs)
 
@@ -69,7 +77,8 @@ class Input(DataSource.DataSource):
         try:
             self._sdr = adi.Pluto(uri="ip:" + self._source)  # use adi.Pluto() for USB
         except Exception:
-            msgs = f"{module_type} Failed to connect"
+            msgs = f"{module_type} Failed to connect to {self._source}"
+            self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)
 
@@ -78,14 +87,19 @@ class Input(DataSource.DataSource):
         # pluto is not consistent in its errors so check ranges here
         if self._centre_frequency < 70e6 or self._centre_frequency > 6e9:
             msgs = f"{module_type} centre frequency must be between 70MHz and 6GHz, "
-            msgs += f"attempted {self._centre_frequency / 1e6:0.6}MHz)"
+            msgs += f"attempted {self._centre_frequency / 1e6:0.6}MHz, "
+            self._centre_frequency = 100.0e6
+            msgs += f"set {self._centre_frequency / 1e6:0.6}MHz. \n"
+            self._error = msgs
             logger.error(msgs)
-            raise ValueError(msgs)
 
-        # pluto does raise errors for sample rate though, so commented this bit out
-        # if self._sample_rate < 521e3 or self._sample_rate > 61e6:
-        #     raise ValueError("Error: Pluto sample rate must be between 521ksps and 61Msps, "
-        #                      f", attempted {self._sample_rate / 1e6:0.6}sps)")
+        # pluto does raise errors for sample rate though, but we check so we don't raise errors
+        if self._sample_rate < 521e3 or self._sample_rate > 61e6:
+            msgs = f"{module_type} sample rate must be between 521kH and 61MHz, "
+            msgs += f"attempted {self._sample_rate / 1e6:0.6}MHz, "
+            self._sample_rate = 1.0e6
+            msgs += f"set {self._sample_rate / 1e6:0.6}MHz. "
+            self._error += msgs
 
         try:
             self._sdr.rx_buffer_size = self._number_complex_samples  # sets how many complex samples we get each rx()
@@ -97,6 +111,7 @@ class Input(DataSource.DataSource):
             self._sdr.rx_hardwaregain_chan0 = 40
         except Exception as err:
             msgs = f"{module_type} {err}"
+            self._error += f"str(msgs),\n"
             logger.error(msgs)
             raise ValueError(msgs)
 
@@ -107,13 +122,52 @@ class Input(DataSource.DataSource):
         logger.debug(f"{module_type}: {self._centre_frequency / 1e6:.6}MHz @ {self._sample_rate / 1e6:.3f}Msps")
         self._connected = True
 
+    def get_sample_rate(self):
+        if self._sdr:
+            self._sample_rate = self._sdr.sample_rate
+            return self._sample_rate
+
+    def get_centre_frequency(self):
+        if self._sdr:
+            self._centre_frequency = float(self._sdr.rx_lo)
+            return self._centre_frequency
+
+    def set_sample_rate(self, sr: float):
+        if self._sdr:
+            self._sdr.sample_rate = sr
+            self._sample_rate = self._sdr.sample_rate
+            self._sdr.rx_rf_bandwidth = int(sr) # TODO: make this separate
+
+    def set_centre_frequency(self, cf: float):
+        if self._sdr:
+            if (cf >= 70.0e6) and (cf <= 6.0e9):
+                self._sdr.rx_lo = int(cf)
+                self._centre_frequency = float(self._sdr.rx_lo)
+                # logger.error(f"cf set to {self._centre_frequency} from {cf} {int(cf)}")
+
+    def set_sample_type(self, data_type: str):
+        # we can't set a different sample type on this source
+        super().set_sample_type(self._constant_data_type)
+
+    def get_help(self):
+        return help_string
+
+    def get_web_help(self):
+        return web_help_string
+
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """
         Get complex float samples from the device
+
+        Note that we don't use unpack() for this device
+
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
-        complex_data = self._sdr.rx()  # the samples here are complex128 i.e. full doubles
-        rx_time = self.get_time_ns()
-        complex_data = complex_data / 4096.0  # 12bit
-        complex_data = np.array(complex_data, dtype=np.complex64)  # if we need all values to be 32bit floats
-        return complex_data, rx_time
+        if self._connected and self._sdr:
+            complex_data = self._sdr.rx()  # the samples here are complex128 i.e. full doubles
+            rx_time = self.get_time_ns()
+            complex_data = complex_data / 4096.0  # 12bit
+            complex_data = np.array(complex_data, dtype=np.complex64)  # if we need all values to be 32bit floats
+            return complex_data, rx_time
+        else:
+            return None,0

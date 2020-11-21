@@ -103,7 +103,8 @@ Spectrum.prototype.drawFFT = function(bins, colour) {
             if (point == bins.length - 1)
                 this.ctx.lineTo(this.wf_size + 1, y);
         }
-        //this.ctx.lineTo(this.wf_size + 1, this.spectrumHeight + 1);
+        // closing line for gradient fill
+        this.ctx.lineTo(this.wf_size + 1, this.spectrumHeight + 1);
         this.ctx.strokeStyle = colour;
         this.ctx.lineWidth = 1;
         this.ctx.stroke();
@@ -376,12 +377,16 @@ Spectrum.prototype.decrementSpectrumPercent = function() {
     }
 }
 
-Spectrum.prototype.togglecolour = function() {
+Spectrum.prototype.toggleColour = function() {
     this.colourindex++;
     if (this.colourindex >= colourmaps.length)
         this.colourindex = 0;
     this.colourmap = colourmaps[this.colourindex];
     this.updateSpectrumRatio();
+}
+
+Spectrum.prototype.toggleGradient = function() {
+    this.spectrumGradient = !this.spectrumGradient;
 }
 
 Spectrum.prototype.setRange = function(min_db, max_db) {
@@ -582,7 +587,7 @@ Spectrum.prototype.onKeypress = function(e) {
         if (e.key == "f") {
             this.toggleFullscreen();
         } else if (e.key == "c") {
-            this.togglecolour();
+            this.toggleColour();
         } else if (e.key == "+") {
             this.incrementAveraging();
         } else if (e.key == "-") {

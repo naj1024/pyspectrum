@@ -13,8 +13,8 @@ from webUI import WebSocketServer
 # root is directory relative to our source file
 web_root = f"{os.path.dirname(__file__)}/webroot/"
 
-logger = logging.getLogger('web_server_logger')
-logger.setLevel(logging.WARN)
+# for logging in the webserver
+logger = None
 
 
 class _Handler(http.server.SimpleHTTPRequestHandler):
@@ -55,16 +55,16 @@ class WebServer(multiprocessing.Process):
         self._port = web_port
         self._httpd = None
         self._web_socket_server = None
-        logger.setLevel(log_level)
+        self._log_level = log_level
 
     def shutdown(self):
-        logger.debug("Shutting down")
+        logger.debug("WebServer Shutting down")
         if self._httpd:
             self._httpd.shutdown()
 
         if self._web_socket_server:
             logger.debug(
-                f"Shutting down WebSocketServer {self._web_socket_server}, "
+                f"Webserver is shutting down WebSocketServer {self._web_socket_server}, "
                 f"children {multiprocessing.active_children()}")
             self._web_socket_server.exit_loop()
             if multiprocessing.active_children():
@@ -72,7 +72,7 @@ class WebServer(multiprocessing.Process):
                 self._web_socket_server.terminate()
                 self._web_socket_server.shutdown()
                 self._web_socket_server.join()
-            logger.debug("WebSocketServer shut down ?")
+            logger.debug("WebServer thinks WebSocketServer shut down ?")
 
         logger.debug("WebServer shutdown")
 
@@ -84,6 +84,16 @@ class WebServer(multiprocessing.Process):
         Run the web server process
         :return: None
         """
+        global logger
+        logger = logging.getLogger('web_server_logger')
+        # don't use %Z for timezone as some say 'GMT' or 'GMT standard time'
+        logging.basicConfig(format='%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
+                            datefmt="%Y-%m-%d %H:%M:%S UTC",
+                            filemode='w',
+                            filename="webserver.log")
+        logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
+        logger.setLevel(self._log_level)
+
         # as we are in a separate process the thing that spawned us can't call shutdown correctly
         # but it can send us a signal, then we can shutdown our self
         signal.signal(signal.SIGINT, self.signal_handler)
@@ -96,12 +106,12 @@ class WebServer(multiprocessing.Process):
                                                                   logger.level, self._port+1)
         self._web_socket_server.start()
 
-        logger.debug(f"Started WebSocketServer, {self._web_socket_server}")
+        logger.info(f"WebServer started WebSocketServer, {self._web_socket_server}")
 
         global web_root
         logger.info(f"web server serving {web_root} on port {self._port}")
         with socketserver.ThreadingTCPServer(("", self._port), _Handler) as self._httpd:
             self._httpd.serve_forever()
 
-        logger.error("Web server process exited")
+        logger.error("WebServer process exited")
         return

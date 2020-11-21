@@ -11,8 +11,8 @@ import time
 import websockets
 from websockets import WebSocketServerProtocol
 
-logger = logging.getLogger('web_socket_logger')
-logger.setLevel(logging.WARN)
+# for logging in the webSocket
+logger = None
 
 DEFAULT_FPS = 20.0
 
@@ -41,29 +41,36 @@ class WebSocketServer(multiprocessing.Process):
         self._port = websocket_port
         self._exit_now = False
         self._fps = DEFAULT_FPS
-
-        logger.setLevel(log_level)
+        self._log_level = log_level
 
     def exit_loop(self) -> None:
-        # TODO: none of this is called, don't know why - yet
-        logger.debug("exit_loop")
         self._exit_now = True
         # https://www.programcreek.com/python/example/94580/websockets.serve example 5
         asyncio.get_event_loop().call_soon_threadsafe(asyncio.get_event_loop().stop)
-        logger.debug("exit exit_loop")
 
     def run(self):
         """
         The process start method
         :return: None
         """
-        logger.info(f"Web Socket starting on port {self._port}")
+        # logging to our own logger, not the base one - we will not see log messages for imported modules
+        global logger
+        logger = logging.getLogger('web_socket_logger')
+        # don't use %Z for timezone as some say 'GMT' or 'GMT standard time'
+        logging.basicConfig(format='%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
+                            datefmt="%Y-%m-%d %H:%M:%S UTC",
+                            filemode='w',
+                            filename="websocket.log")
+        logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
+        logger.setLevel(self._log_level)
+
+        logger.info(f"WebSocket starting on port {self._port}")
         start_server = websockets.serve(self.handler, "0.0.0.0", self._port)
 
         asyncio.get_event_loop().run_until_complete(start_server)
         asyncio.get_event_loop().run_forever()
 
-        logger.error("Web Socket server process exited")
+        logger.error("WebSocket server process exited")
         return
 
     async def handler(self, web_socket: WebSocketServerProtocol, path: str):
@@ -79,7 +86,7 @@ class WebSocketServer(multiprocessing.Process):
         """
 
         client = web_socket.remote_address[0]
-        logger.info(f"web socket serving client {client} {path}")
+        logger.info(f"WebSocket serving client {client} {path}")
 
         tx_task = asyncio.ensure_future(
             self.tx_handler(web_socket))
@@ -91,7 +98,7 @@ class WebSocketServer(multiprocessing.Process):
         )
         for task in pending:
             task.cancel()
-        logger.info(f"Exited web socket serving client {client} {path}")
+        logger.info(f"WebSocket exited serving client {client} {path}")
 
     async def rx_handler(self, web_socket: WebSocketServerProtocol):
         """
@@ -116,7 +123,7 @@ class WebSocketServer(multiprocessing.Process):
                 self._control_queue.put(message, timeout=0.1)
 
         except Exception as msg:
-            logger.error(f"web socket Rx exception for {client}, {msg}")
+            logger.error(f"WebSocket socket Rx exception for {client}, {msg}")
 
     async def tx_handler(self, web_socket: WebSocketServerProtocol):
         """
@@ -133,45 +140,51 @@ class WebSocketServer(multiprocessing.Process):
             while not self._exit_now:
                 try:
                     # timeout on queue read so we can, if we wanted to, exit our forever loop
-                    # only sending the peak spectrum so ignore the current magnitudes
-                    display_on, sps, centre, peaks, time_start, time_end = self._data_queue.get(timeout=0.1)
+                    state, sps, centre, magnitudes, time_start, time_end = self._data_queue.get(timeout=0.1)
 
-                    centre_mhz = float(centre) / 1e6  # in MHz
+                    # if we have the state then just send this, ignore the rest
+                    if state:
+                        await web_socket.send(state)  # it is json
+                    else:
+                        centre_mhz = float(centre) / 1e6  # in MHz
 
-                    # times are in nsec and javascript won't handle 8byte int so break it up
-                    start_sec: int = int(time_start / 1e9)
-                    start_nsec: int = int(time_start - start_sec * 1e9)
-                    end_sec: int = int(time_end / 1e9)
-                    end_nsec: int = int(time_end - end_sec * 1e9)
+                        # times are in nsec and javascript won't handle 8byte int so break it up
+                        start_sec: int = int(time_start / 1e9)
+                        start_nsec: int = int(time_start - start_sec * 1e9)
+                        end_sec: int = int(time_end / 1e9)
+                        end_nsec: int = int(time_end - end_sec * 1e9)
 
-                    num_floats = int(peaks.size)
-                    # pack the data up in binary, watch out for sizes
-                    # ignoring times for now as still to handle 8byte ints in javascript
-                    # !2if5i{num_floats}f{num_floats}f is in network order 2 int, 1 float, 5 int, N float
-                    data_type: int = 1  # magnitude data
-                    message = struct.pack(f"!2if5i{num_floats}f",  # format
-                                          int(data_type),  # 4bytes
-                                          int(sps),  # 4bytes
-                                          float(centre_mhz),  # 4byte float (32bit)
-                                          int(start_sec),  # 4bytes
-                                          int(start_nsec),  # 4bytes
-                                          int(end_sec),  # 4bytes
-                                          int(end_nsec),  # 4bytes
-                                          num_floats,  # 4bytes (N)
-                                          *peaks)  # N * 4byte floats (32bit)
+                        num_floats = int(magnitudes.size)
+                        # pack the data up in binary, watch out for sizes
+                        # ignoring times for now as still to handle 8byte ints in javascript
+                        # !2id5i{num_floats}f{num_floats}f is in network order 2 int, 1 double, 5 int, N float
+                        data_type: int = 1  # magnitude data
+                        message = struct.pack(f"!2id5i{num_floats}f",  # format
+                                              int(data_type),  # 4bytes
+                                              int(sps),  # 4bytes
+                                              centre_mhz,  # 8byte double float (64bit)
+                                              int(start_sec),  # 4bytes
+                                              int(start_nsec),  # 4bytes
+                                              int(end_sec),  # 4bytes
+                                              int(end_nsec),  # 4bytes
+                                              num_floats,  # 4bytes (N)
+                                              *magnitudes)  # N * 4byte floats (32bit)
 
-                    # send it off to the client
-                    await web_socket.send(message)
+                        await web_socket.send(message)
 
-                    # wait 1/fps before proceeding
-                    # using asyncio.sleep() allows web_socket to service connections etc
-                    end_time = time.time() + (1 / self._fps)
-                    while (end_time - time.time()) > 0:
-                        await asyncio.sleep(1 / self._fps)  # we will not sleep this long
+                        # TODO: Not happy with this algorithm
+                        # wait 1/fps before proceeding
+                        # The problem is that the network/OS will buffer things for us if we go really fast
+                        # we then take lots of memory and can't break out of the processing
+                        # using asyncio.sleep() allows web_socket to service connections etc
+                        # We can end up with NO sleep, locks browser up and takes loads of memory
+                        end_time = time.time() + (1 / self._fps)
+                        while (end_time - time.time()) > 0:
+                             await asyncio.sleep(1 / self._fps)  # we will not sleep this long
 
                 except queue.Empty:
                     # unlikely to every keep up so shouldn't end up here
                     await asyncio.sleep(0.1)
 
         except Exception as msg:
-            logger.error(f"web socket Tx exception for {client}, {msg}")
+            logger.error(f"WebSocket socket Tx exception for {client}, {msg}")

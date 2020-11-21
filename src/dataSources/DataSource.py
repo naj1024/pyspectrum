@@ -31,7 +31,9 @@ class DataSource:
                  number_complex_samples: int,
                  data_type: str,
                  sample_rate: float,
-                 centre_frequency: float):
+                 centre_frequency: float,
+                 sleep_time: float
+                 ):
         """
         A wrapper around different types of data source that we may wish to have
 
@@ -42,16 +44,20 @@ class DataSource:
         :param data_type: The type of data that this source will be converting to complex floats/doubles
         :param sample_rate: The sample rate this source is supposed to be working at, in Hz
         :param centre_frequency: The centre frequency this input is supposed to be at, in Hz
+        :param sleep_time: Time in seconds between reads, not used on most sources
 
         """
         self._source = source
         self._display_name = source
         self._number_complex_samples = number_complex_samples
-        self._data_type = data_type
         self._sample_rate = sample_rate
         self._centre_frequency = centre_frequency
+        self._sleep_time = sleep_time
+
+        self._error = ""
 
         self._bytes_per_snap = 0  # used for input sources that need to know bytes per sample
+        self._data_type = ""
         self.set_sample_type(data_type)
 
         self._connected = False
@@ -67,6 +73,10 @@ class DataSource:
         """
         return self._connected
 
+    def open(self) -> bool:
+        # Override in derived class
+        return self._connected
+
     def connect(self) -> bool:
         # Override in derived class if required
         return self._connected
@@ -75,11 +85,34 @@ class DataSource:
         # Override in derived class if required
         return self._connected
 
-    def get_display_name(self):
-        return self._display_name
+    def get_and_reset_error(self) -> str:
+        err = self._error
+        self._error = ""
+        return err
 
     def get_sample_rate(self):
         return self._sample_rate
+
+    def get_centre_frequency(self):
+        return self._centre_frequency
+
+    def set_sample_rate(self, sr: float):
+        self._sample_rate = sr
+
+    def set_centre_frequency(self, cf: float):
+        self._centre_frequency = cf
+
+    def get_display_name(self):
+        return self._display_name
+
+    def get_sample_types(self):
+        return supported_data_types
+
+    def get_help(selfself):
+        return ""
+
+    def get_web_help(self):
+        return ""
 
     def get_sample_type(self):
         return self._data_type
@@ -116,9 +149,6 @@ class DataSource:
 
     def get_bytes_per_sample(self):
         return self._bytes_per_snap // self._number_complex_samples
-
-    def get_centre_frequency(self):
-        return self._centre_frequency
 
     def unpack_data(self, data: bytes) -> np.ndarray:
         """ Method convert bytes into floats using the specified data type

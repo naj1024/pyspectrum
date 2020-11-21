@@ -8,9 +8,14 @@ __pycache__/
 # local python environment
 venv/
 
+# logs
+*.log
+
 # digitised sample files
 *.8t
 *.8o
 *.16tle
 *.16tbe
 *.wav
+*.bin
+
