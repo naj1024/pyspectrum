@@ -62,6 +62,7 @@ help_string = f"{module_type}:IP:port - The Ip or resolvable name and port of an
               f"e.g. {module_type}:192.168.2.1:12345"
 web_help_string = "IP@port - The Ip or resolvable name and port of an rtltcp server, e.g. 192.168.2.1:12345"
 
+
 # return an error string if we are not available
 def is_available() -> Tuple[str, str]:
     return module_type, ""
@@ -91,7 +92,8 @@ class Input(DataSource.DataSource):
         :param sleep_time: Time in seconds between reads, not used on most sources
         """
         self._constant_data_type = "8o"
-        super().__init__(source, number_complex_samples, self._constant_data_type, sample_rate, centre_frequency, sleep_time)
+        super().__init__(source, number_complex_samples, self._constant_data_type, sample_rate,
+                         centre_frequency, sleep_time)
 
         self._socket = None
         self._connected = False
@@ -266,17 +268,16 @@ class Input(DataSource.DataSource):
 
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
-        if not self._connected:
-            raise ValueError
+        complex_data = None
+        rx_time = 0
 
-        num_bytes_to_get = self._bytes_per_snap
-        raw_bytes, rx_time = self.get_bytes(num_bytes_to_get)
-
-        if len(raw_bytes) == self._bytes_per_snap:
-            complex_data = self.unpack_data(raw_bytes)
-        else:
-            complex_data = np.empty(0)
-            logger.error(f'rtltcp gave incorrect # of bytes, got {len(raw_bytes)} expected {self._bytes_per_snap}')
+        if self._connected:
+            raw_bytes, rx_time = self.get_bytes(self._bytes_per_snap)
+            if len(raw_bytes) == self._bytes_per_snap:
+                complex_data = self.unpack_data(raw_bytes)
+            else:
+                complex_data = np.empty(0)
+                logger.error(f'rtltcp gave incorrect # of bytes, got {len(raw_bytes)} expected {self._bytes_per_snap}')
 
         return complex_data, rx_time
 

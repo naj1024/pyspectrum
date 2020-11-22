@@ -104,30 +104,32 @@ async function handleJsonControl(controlData) {
     JSON control data, see python Variables.py for expected entries, e.g:
     {
     "fft_size": 2048,
-    "sample_rate": 1000000,
-    "centre_frequency_hz": 139800000.0,
-    "sample_types": ["8t", "16tle", "16tbe"],
-    "sample_type": "16tbe",
+    "sample_rate": 2000000,
+    "centre_frequency_hz": 153200000.0,
+    "sample_types": ["8t", "8o", "16tbe", "16tle"],
+    "sample_type": "16tle",
     "fps": 20,
     "measured_fps": 21,
-    "oneInN": 24,
-    "update_count": 2,
+    "oneInN": 48,
+    "update_count": 18,
     "stop": 0,
     "web_port": 8080,
     "input_source": "pluto",
     "input_params": "192.168.2.1",
-    "source_loop": false,
-    "source_sleep": 0.0,
-    "time_first_spectrum": 1605778903923733600,
+    "source_sleep": 1e-05,
+    "time_first_spectrum": 1606042747878953200,
+    "source_connected": false,
     "input_sources": ["audio", "file", "pluto", "rtltcp", "socket"],
-    "input_sources_web_helps": {
+    "input_sources_web_helps":
+        {
         "audio": "Number - number of the input device e.g. 1",
-        "file": "Filename - Filename, binary or wave, e.g. ./xyz.cf123.4.cplx.200000.16tbe",
-        "pluto": "IP address - The Ip or resolvable name of the Pluto device, e.g. 192.168.2.1",
-        "rtltcp": "IP:port - The Ip or resolvable name and port of an rtltcp server, e.g. 192.168.2.1:12345",
+        "file": "Filename - Filename, binary or wave, e.g. ./xyz.cf123.4.cplx.200000.16tbe", "pluto":
+        "IP address - The Ip or resolvable name of the Pluto device, e.g. 192.168.2.1",
+        "rtltcp": "IP@port - The Ip or resolvable name and port of an rtltcp server, e.g. 192.168.2.1:12345",
         "socket": "IP:port - The Ip or resolvable name and port of a server, e.g. 192.168.2.1:12345"
         },
-    "plugin_options": []}
+    "plugin_options": [],
+    "error": ""}
     */
     // console.table(JSON.parse(controlData));
     // console.log(controlData);
@@ -139,21 +141,21 @@ async function handleJsonControl(controlData) {
 
     try {
         let control = JSON.parse(controlData);
-        //console.log(control);
+        // console.log(control);
 
         let updateCfgTable = false;
 
-        if (control.error && (control.error.length > 0)) {
+        if (control.error.length > 0) {
             alert(control.error);
         }
 
-        if (control.centre_frequency_hz && (control.centre_frequency_hz != sdrState.getCentreFrequencyHz())) {
-            sdrState.getCentreFrequencyHz(control.centre_frequency_hz);
+        if (control.centre_frequency_hz != sdrState.getCentreFrequencyHz()) {
+            sdrState.setCentreFrequencyHz(control.centre_frequency_hz);
             spectrum.setCentreFreq(control.centre_frequency_hz);
             updateCfgTable = true;
         }
 
-        if (control.sample_rate && (control.sample_rate != sdrState.getSps())) {
+        if (control.sample_rate != sdrState.getSps()) {
             sdrState.setSps(control.sample_rate);
             sdrState.setBw(control.sample_rate);
             spectrum.setSps(control.sample_rate);
@@ -161,43 +163,48 @@ async function handleJsonControl(controlData) {
             updateCfgTable = true;
         }
 
-        if (control.fft_size && (control.fft_size != sdrState.getFftSize())) {
+        if (control.fft_size != sdrState.getFftSize()) {
             sdrState.setFftSize(control.fft_size);
             updateCfgTable = true;
         }
 
-        if (control.input_source && (control.input_source != sdrState.getInputSource())) {
+        if (control.input_source != sdrState.getInputSource()) {
             sdrState.setInputSource(control.input_source);
             updateCfgTable = true;
         }
 
-        if (control.input_params && (control.input_params != sdrState.getInputSourceParams())) {
+        if (control.input_params != sdrState.getInputSourceParams()) {
             sdrState.setInputSourceParams(control.input_params);
             updateCfgTable = true;
         }
 
-        if (control.input_sources && (control.input_sources != sdrState.getInputSources())) {
+        if (control.input_sources != sdrState.getInputSources()) {
             sdrState.setInputSources(control.input_sources);
             updateCfgTable = true;
         }
 
-        if (control.input_sources_web_helps && (control.input_sources_web_helps != sdrState.getInputSourceHelps())) {
+        if (control.input_sources_web_helps != sdrState.getInputSourceHelps()) {
             sdrState.setInputSourceHelps(control.input_sources_web_helps);
             updateCfgTable = true;
         }
 
-        if (control.sample_types && (control.sample_types != sdrState.getDataFormats())) {
+        if (control.sample_types != sdrState.getDataFormats()) {
             sdrState.setDataFormats(control.sample_types);
             updateCfgTable = true;
         }
 
-        if (control.sample_type && (control.sample_type != sdrState.getDataFormat())) {
+        if (control.sample_type != sdrState.getDataFormat()) {
             sdrState.setDataFormat(control.sample_type);
             updateCfgTable = true;
         }
 
-        if (control.measured_fps && (control.measured_fps != sdrState.getMeasuredFps())) {
+        if (control.measured_fps != sdrState.getMeasuredFps()) {
             sdrState.setMeasuredFps(control.measured_fps);
+            updateCfgTable = true;
+        }
+
+        if (control.source_connected != sdrState.getSourceConnected()) {
+            sdrState.setSourceConnected(control.source_connected);
             updateCfgTable = true;
         }
 
@@ -325,6 +332,8 @@ function updateConfigTable(spec) {
         new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
         new_row += ' value="'+ sourceParams + '" id="inputSourceParams" name="inputSourceParams">';
         new_row += '<input type="submit" value="Change">';
+
+        new_row += '&nbsp '+(sdrState.getSourceConnected()?'Connected':'Not Connected');
         new_row += '</td>';
     }
     else {
@@ -338,7 +347,6 @@ function updateConfigTable(spec) {
     ///////
     new_row = '<tr><td><b>Format</b></td>';
     if (dataFormats.length > 0) {
-
         new_row += '<td><form ';
         new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
         new_row += ' action="javascript:handleDataFormatChange(dataFormatInput.value)">';
@@ -362,7 +370,7 @@ function updateConfigTable(spec) {
     new_row += '<form ';
     new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
     new_row += ' action="javascript:handleCfChange(centreFrequencyInput.value)">';
-    new_row += '<input type="number" size="20" min="0" ';
+    new_row += '<input type="number" size="10" min="0" ';
     new_row += ' step="';
     new_row += cf_step;
     new_row += '" value="';
@@ -380,7 +388,7 @@ function updateConfigTable(spec) {
     new_row += '<form ';
     new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
     new_row += 'action="javascript:handleSpsChange(spsInput.value)">';
-    new_row += '<input type="number" size="20" min="0" step="';
+    new_row += '<input type="number" size="10" min="0" step="';
     new_row += sps_step;
     new_row += '" value="';
     new_row += (sps/1e6).toFixed(6);
@@ -586,7 +594,7 @@ function Main() {
     }
 
     // add the spectrum to the page
-    let sp='<canvas id="spectrumanalyser" height="500px" width="1024px" style="cursor: crosshair;"></canvas>';
+    let sp='<canvas id="spectrumanalyser" height="600px" width="1024px" style="cursor: crosshair;"></canvas>';
     $('#specCanvas').append(sp);
 
     // Create spectrum object on canvas with ID "spectrumanalyser"
@@ -637,7 +645,7 @@ function Main() {
     rhcol += '<th scope="col">MHz</th>';
     rhcol += '<th scope="col">dB</th>';
     rhcol += '<th scope="col">time</th>';
-    rhcol += '<th scope="col" colspan="3">Deltas: Hz, dB, sec</th>';
+    rhcol += '<th scope="col">Deltas: Hz, dB, sec</th>';
     rhcol += '<th scope="col">X</th>';
     rhcol += '</tr>';
     rhcol += '</thead>';
@@ -669,7 +677,7 @@ function Main() {
         spectrum.handleMouseWheel(evt);
     }, false);
 
-    // remove default canvas context menu if need to handle right mluse click
+    // remove default canvas context menu if need to handle right mouse click
     // then you can add an event listener for contextmenu as the right mouse click
     // $('body').on('contextmenu', '#spectrumanalyser', function(e){ return false; });
 

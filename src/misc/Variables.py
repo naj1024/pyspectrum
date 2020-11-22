@@ -7,7 +7,7 @@ Used because we seem to need a lot of these in different places during initialis
 import json
 
 
-class Variables():
+class Variables:
     def __init__(self):
         # input data related
         self.fft_size = 2048  # default, but any integer allowed
@@ -29,6 +29,7 @@ class Variables():
         self.input_params = ""  # the parameters for the source, e.g. filename or ip address ...
         self.source_sleep = 0.01  # only used in file input for now, slows things down
         self.time_first_spectrum: float = 0
+        self.source_connected = False
 
         # List of data source
         self.input_sources = []

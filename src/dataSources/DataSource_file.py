@@ -18,6 +18,7 @@ help_string = f"{module_type}:Filename \t- Filename, binary or wave, e.g. " \
               f"{module_type}:./xyz.cf123.4.cplx.200000.16tbe"
 web_help_string = "Filename - Filename, binary or wave, e.g. ./xyz.cf123.4.cplx.200000.16tbe"
 
+
 # return an error string if we are not available
 def is_available() -> Tuple[str, str]:
     return module_type, ""
@@ -143,7 +144,7 @@ class Input(DataSource.DataSource):
                 logger.error(msgs)
                 raise ValueError(msgs)
 
-            self.set_sample_type(self._data_type) # make data type correct
+            self.set_sample_type(self._data_type)  # make data type correct
 
             self._sample_rate = self._wav_file.getframerate()
             # we are assuming that someone is going to tell us what the data type in the wav file is
@@ -166,8 +167,8 @@ class Input(DataSource.DataSource):
                             self._centre_frequency = centre_frequency_fn
 
                         logger.info(f"Parameters from filename: cplx, {data_type}, "
-                                     f"{sample_rate_hz:.0f}sps, "
-                                     f"{self._centre_frequency:.0f}Hz")
+                                    f"{sample_rate_hz:.0f}sps, "
+                                    f"{self._centre_frequency:.0f}Hz")
                     else:
                         msgs = f"Error: Unsupported input of type real from {self._source}"
                         self._error = msgs
@@ -216,34 +217,36 @@ class Input(DataSource.DataSource):
         """
         complex_data = None
         rx_time = 0
-        raw_bytes = None
-        if self._rewound:
-            self._rewound = False
-            # generate one buffer of maximal signed bytes
-            raw_bytes = bytearray(self._bytes_per_snap)
-            rx_time = self.get_time_ns()
-        elif self._wav_file or self._file:
-            try:
-                if self._wav_file:
-                    raw_bytes = self._wav_file.readframes(self._number_complex_samples)
-                else:
-                    # get just the number of bytes we needs
-                    raw_bytes = self._file.read(self._bytes_per_snap)
+
+        if self._connected:
+            raw_bytes = None
+            if self._rewound:
+                self._rewound = False
+                # generate one buffer of maximal signed bytes
+                raw_bytes = bytearray(self._bytes_per_snap)
                 rx_time = self.get_time_ns()
+            elif self._wav_file or self._file:
+                try:
+                    if self._wav_file:
+                        raw_bytes = self._wav_file.readframes(self._number_complex_samples)
+                    else:
+                        # get just the number of bytes we needs
+                        raw_bytes = self._file.read(self._bytes_per_snap)
+                    rx_time = self.get_time_ns()
 
-                if len(raw_bytes) != self._bytes_per_snap:
-                    self._connected = False
-                    raise ValueError('End of file')
+                    if len(raw_bytes) != self._bytes_per_snap:
+                        self._connected = False
+                        raise ValueError('End of file')
 
-                time.sleep(self._sleep_time)
-            except OSError as msg:
-                msgs = f'OSError, {msg}'
-                self._error = str(msgs)
-                logger.error(msgs)
-                raise ValueError(msgs)
+                    time.sleep(self._sleep_time)
+                except OSError as msg:
+                    msgs = f'OSError, {msg}'
+                    self._error = str(msgs)
+                    logger.error(msgs)
+                    raise ValueError(msgs)
 
-        if raw_bytes:
-            complex_data = self.unpack_data(raw_bytes)
+            if raw_bytes:
+                complex_data = self.unpack_data(raw_bytes)
 
         return complex_data, rx_time
 

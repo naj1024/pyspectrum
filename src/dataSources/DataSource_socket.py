@@ -152,52 +152,55 @@ class Input(DataSource.DataSource):
 
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
+        complex_data = None
         rx_time = 0
-        raw_bytes = bytearray()
-        try:
-            sock = None
-            if self._client:
-                sock = self._socket
+
+        if self._connected:
+            raw_bytes = bytearray()
+            try:
+                sock = None
+                if self._client:
+                    sock = self._socket
+                else:
+                    sock = self._served_connection
+
+                if sock:
+                    num_bytes_to_get = self._bytes_per_snap
+                    while sock and (len(raw_bytes) != self._bytes_per_snap):
+                        got: bytearray = sock.recv(num_bytes_to_get)  # will get a MAXIMUM of this number of bytes
+                        if rx_time == 0:
+                            rx_time = self.get_time_ns()
+                        if len(got) == 0:
+                            self.close()
+                            logger.info('Socket connection closed')
+                            raise ValueError('Socket connection closed')
+                        raw_bytes += got
+                        num_bytes_to_get -= len(got)
+
+            except OSError as msg:
+                self.close()
+                msgs = f'OSError, {msg}'
+                self._error = str(msgs)
+                logger.error(msgs)
+                raise ValueError(msgs)
+
+            # Timing how long conversion takes
+            # t1 = time.perf_counter()
+            # for w in range(10000):
+            #     if len(raw_bytes) == self._number_bytes:
+            #         complex_data = self.unpack_data(raw_bytes)
+            #     else:
+            #         complex_data = np.empty(0)
+            #         print(
+            #             f'Error: Socket gave incorrect # of bytes, got {len(raw_bytes)} '
+            #             f'expected {self._number_bytes}')
+            # t2 = time.perf_counter()
+            # print(f"{1000000.0 * (t2 - t1) / 10000.0}usec")
+
+            if len(raw_bytes) == self._bytes_per_snap:
+                complex_data = self.unpack_data(raw_bytes)
             else:
-                sock = self._served_connection
-
-            if sock:
-                num_bytes_to_get = self._bytes_per_snap
-                while sock and (len(raw_bytes) != self._bytes_per_snap):
-                    got: bytearray = sock.recv(num_bytes_to_get)  # will get a MAXIMUM of this number of bytes
-                    if rx_time == 0:
-                        rx_time = self.get_time_ns()
-                    if len(got) == 0:
-                        self.close()
-                        logger.info('Socket connection closed')
-                        raise ValueError('Socket connection closed')
-                    raw_bytes += got
-                    num_bytes_to_get -= len(got)
-
-        except OSError as msg:
-            self.close()
-            msgs = f'OSError, {msg}'
-            self._error = str(msgs)
-            logger.error(msgs)
-            raise ValueError(msgs)
-
-        # Timing how long conversion takes
-        # t1 = time.perf_counter()
-        # for w in range(10000):
-        #     if len(raw_bytes) == self._number_bytes:
-        #         complex_data = self.unpack_data(raw_bytes)
-        #     else:
-        #         complex_data = np.empty(0)
-        #         print(
-        #             f'Error: Socket gave incorrect # of bytes, got {len(raw_bytes)} '
-        #             f'expected {self._number_bytes}')
-        # t2 = time.perf_counter()
-        # print(f"{1000000.0 * (t2 - t1) / 10000.0}usec")
-
-        if len(raw_bytes) == self._bytes_per_snap:
-            complex_data = self.unpack_data(raw_bytes)
-        else:
-            complex_data = np.empty(0)
-            logger.error(f'Socket gave incorrect # of bytes, got {len(raw_bytes)} expected {self._bytes_per_snap}')
+                complex_data = np.empty(0)
+                logger.error(f'Socket gave incorrect # of bytes, got {len(raw_bytes)} expected {self._bytes_per_snap}')
 
         return complex_data, rx_time

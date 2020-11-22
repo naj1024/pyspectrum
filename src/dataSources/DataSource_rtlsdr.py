@@ -125,10 +125,11 @@ class Input(DataSource.DataSource):
 
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
+        complex_data = None
+        rx_time = 0
+
         if self._sdr and self._connected:
             complex_data = self._sdr.read_samples(self._number_complex_samples)  # will return np.complex128
             rx_time = self.get_time_ns()
             complex_data = np.array(complex_data, dtype=np.complex64)  # (?) we need all values to be 32bit floats
-            return complex_data, rx_time
-        else:
-            return None,0
+        return complex_data, rx_time

@@ -69,7 +69,8 @@ class Input(DataSource.DataSource):
         :param sleep_time: Time in seconds between reads, not used on most sources
         """
         self._constant_data_type = "16tle"
-        super().__init__(source, number_complex_samples, self._constant_data_type, sample_rate, centre_frequency, sleep_time)
+        super().__init__(source, number_complex_samples, self._constant_data_type, sample_rate,
+                         centre_frequency, sleep_time)
         self.bound_sample_rate()
 
         self._connected = False
@@ -107,12 +108,12 @@ class Input(DataSource.DataSource):
             msgs = f"{module_type} error: {err_msg}"
             self._error = str(msgs)
             logger.error(msgs)
-            raise ValueError(msgs) # from None
+            raise ValueError(msgs)  # from None
         except ValueError as err_msg:
             msgs = f"Error: {module_type} device number {self._source}, {err_msg}"
             self._error = str(msgs)
             logger.error(msgs)
-            raise ValueError(msgs) # from None
+            raise ValueError(msgs)  # from None
 
     def close(self):
         if self._audio_stream:
@@ -164,9 +165,11 @@ class Input(DataSource.DataSource):
         Get complex float samples from the device
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
+        complex_data = None
+        rx_time = 0
+
         if self._connected:
             global audio_qs
             complex_data = audio_q.get()
-            return complex_data, self.get_time_ns()
-        else:
-            return (None, 0.0)
+            rx_time = self.get_time_ns()
+        return complex_data, rx_time

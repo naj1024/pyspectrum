@@ -147,56 +147,60 @@ class Input(DataSource.DataSource):
 
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
-
-        # Receive all samples
-        index = 0
-        wait = 10
         rx_time = 0
-        while index < self._output_size:
-            # readStream() doesn't seem to be a blocking call
-            read = self._sdr.readStream(self._rx_stream, [self._tmp], self._tmp_size, timeoutUs=1000000)
+        # TODO: soapy uses self._complex_data why ?
 
-            # set time stamp as first set of samples provided
-            if index == 0:
-                rx_time = self.get_time_ns()
-                if read.timeNs != 0:
-                    rx_time = read.timeNs  # supported in some sdr drivers, but mostly not
+        if not self._connected:
+            return None, 0
+        else:
+            # Receive all samples
+            index = 0
+            wait = 10
+            while index < self._output_size:
+                # readStream() doesn't seem to be a blocking call
+                read = self._sdr.readStream(self._rx_stream, [self._tmp], self._tmp_size, timeoutUs=1000000)
 
-            # return code +ve is number of samples
-            # return code -ve is error
-            # return code zero is try again
-            if read.ret == 0:
-                # if we are timing out then return if this happens too often - allows a programme to terminate
-                wait -= 1
-                if not wait:
+                # set time stamp as first set of samples provided
+                if index == 0:
+                    rx_time = self.get_time_ns()
+                    if read.timeNs != 0:
+                        rx_time = read.timeNs  # supported in some sdr drivers, but mostly not
+
+                # return code +ve is number of samples
+                # return code -ve is error
+                # return code zero is try again
+                if read.ret == 0:
+                    # if we are timing out then return if this happens too often - allows a programme to terminate
+                    wait -= 1
+                    if not wait:
+                        zeros = np.array([0] * self._number_complex_samples, np.complex64)
+                        return zeros, rx_time
+                if read.ret > 0:
+                    wait = 10
+                    # copy into output buffer
+                    self._complex_data[index:index + read.ret] = self._tmp[:min(read.ret, self._output_size - index)]
+                    index += read.ret
+                elif read.ret < 0:
                     zeros = np.array([0] * self._number_complex_samples, np.complex64)
+                    self._error = f"SoapySDR {read.ret} {SoapySDR.SoapySDR_errToStr(read.ret)}"
+                    logger.error(f"SoapySDR {read.ret} {SoapySDR.SoapySDR_errToStr(read.ret)}")
                     return zeros, rx_time
-            if read.ret > 0:
-                wait = 10
-                # copy into output buffer
-                self._complex_data[index:index + read.ret] = self._tmp[:min(read.ret, self._output_size - index)]
-                index += read.ret
-            elif read.ret < 0:
-                zeros = np.array([0] * self._number_complex_samples, np.complex64)
-                self._error = f"SoapySDR {read.ret} {SoapySDR.SoapySDR_errToStr(read.ret)}"
-                logger.error(f"SoapySDR {read.ret} {SoapySDR.SoapySDR_errToStr(read.ret)}")
-                return zeros, rx_time
 
-            # read.ret error codes
-            # SOAPY_SDR_TIMEOUT -1
-            # SOAPY_SDR_STREAM_ERROR -2
-            # SOAPY_SDR_CORRUPTION -3
-            # SOAPY_SDR_OVERFLOW -4   <- i.e. buffers are over flowing because cant read fast enough
-            # SOAPY_SDR_NOT_SUPPORTED -5
-            # SOAPY_SDR_TIME_ERROR -6
-            # SOAPY_SDR_UNDERFLOW -7
+                # read.ret error codes
+                # SOAPY_SDR_TIMEOUT -1
+                # SOAPY_SDR_STREAM_ERROR -2
+                # SOAPY_SDR_CORRUPTION -3
+                # SOAPY_SDR_OVERFLOW -4   <- i.e. buffers are over flowing because cant read fast enough
+                # SOAPY_SDR_NOT_SUPPORTED -5
+                # SOAPY_SDR_TIME_ERROR -6
+                # SOAPY_SDR_UNDERFLOW -7
 
-            # read.flags bits
-            # SOAPY_SDR_END_BURST 2
-            # SOAPY_SDR_HAS_TIME 4
-            # SOAPY_SDR_END_ABRUPT 8
-            # SOAPY_SDR_ONE_PACKET 16
-            # SOAPY_SDR_MORE_FRAGMENTS 32
-            # SOAPY_SDR_WAIT_TRIGGER 64
+                # read.flags bits
+                # SOAPY_SDR_END_BURST 2
+                # SOAPY_SDR_HAS_TIME 4
+                # SOAPY_SDR_END_ABRUPT 8
+                # SOAPY_SDR_ONE_PACKET 16
+                # SOAPY_SDR_MORE_FRAGMENTS 32
+                # SOAPY_SDR_WAIT_TRIGGER 64
 
         return self._complex_data, rx_time

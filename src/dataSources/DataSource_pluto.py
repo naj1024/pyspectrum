@@ -61,7 +61,8 @@ class Input(DataSource.DataSource):
         """
         # Driver converts to floating point for us, underlying data from ad936x was 16bit i/q
         self._constant_data_type = "16tle"
-        super().__init__(ip_address, number_complex_samples, self._constant_data_type, sample_rate, centre_frequency, sleep_time)
+        super().__init__(ip_address, number_complex_samples, self._constant_data_type, sample_rate,
+                         centre_frequency, sleep_time)
         self._sdr = None
         self._connected = False
 
@@ -136,7 +137,7 @@ class Input(DataSource.DataSource):
         if self._sdr:
             self._sdr.sample_rate = sr
             self._sample_rate = self._sdr.sample_rate
-            self._sdr.rx_rf_bandwidth = int(sr) # TODO: make this separate
+            self._sdr.rx_rf_bandwidth = int(sr)  # TODO: make this separate
 
     def set_centre_frequency(self, cf: float):
         if self._sdr:
@@ -163,11 +164,12 @@ class Input(DataSource.DataSource):
 
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
+        complex_data = None
+        rx_time = 0
+
         if self._connected and self._sdr:
             complex_data = self._sdr.rx()  # the samples here are complex128 i.e. full doubles
             rx_time = self.get_time_ns()
             complex_data = complex_data / 4096.0  # 12bit
             complex_data = np.array(complex_data, dtype=np.complex64)  # if we need all values to be 32bit floats
-            return complex_data, rx_time
-        else:
-            return None,0
+        return complex_data, rx_time

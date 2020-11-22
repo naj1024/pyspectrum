@@ -42,6 +42,11 @@ def signal_handler(sig, __):
 
 
 def main() -> None:
+    """
+    Main programme
+
+    :return: None
+    """
     # logging to our own logger, not the base one - we will not see log messages for imported modules
     global logger
     logger = logging.getLogger('spectrum_logger')
@@ -247,6 +252,12 @@ def main() -> None:
 # def initialise(configuration: Variables) -> Tuple[DataSource, DisplayProcessor, multiprocessing.Queue,
 #                                                  multiprocessing.Queue, ProcessSamples, PluginManager]:
 def initialise(configuration: Variables):
+    """
+    Initialise everything we need
+
+    :param configuration: How we will be configured
+    :return:
+    """
     try:
         # where we get our input samples from
         factory = DataSourceFactory.DataSourceFactory()
@@ -294,7 +305,7 @@ def initialise(configuration: Variables):
 
 def create_source(configuration: Variables, factory) -> DataSource:
     """
-    Create the source of samples
+    Create the source of samples, cannot exception or fail. Does not open the source.
 
     :param configuration: All the config we need
     :param factory: Where we get the source from
@@ -310,7 +321,15 @@ def create_source(configuration: Variables, factory) -> DataSource:
                                  configuration.source_sleep)
     return data_source
 
+
 def open_source(configuration: Variables, data_source: DataSource) -> None:
+    """
+    Open the source, creating a source will not open it as the creation cannot fail but the open can
+
+    :param configuration: Stores how the source is configured for our use
+    :param data_source: The source we will open
+    :return: None
+    """
     data_source.open()
 
     # may have updated various things
@@ -322,35 +341,40 @@ def open_source(configuration: Variables, data_source: DataSource) -> None:
     configuration.oneInN = int(configuration.sample_rate /
                                (configuration.fps * configuration.fft_size))
 
-    # any errors or warning
-    configuration.error += data_source.get_and_reset_error()
+    # state and any errors or warning
+    configuration.source_connected = data_source.connected()
 
 
-def update_source(configuration: Variables, source_factory, old_source, old_source_params,
-                  old_source_format, old_cf, old_sps, old_fft) -> DataSource:
+def update_source(configuration: Variables, source_factory) -> DataSource:
+    """
+    Changing the source
+
+    :param configuration: For returning how source is configured
+    :param source_factory: How we will generate a new source
+    :return: The DataSource
+    """
     data_source = create_source(configuration, source_factory)
     try:
         open_source(configuration, data_source)
+        configuration.error = data_source.get_and_reset_error()
     except ValueError as msg:
         logger.error(f"Problem with new configuration, {msg} "
                      f"{configuration.centre_frequency_hz} "
                      f"{configuration.sample_rate} "
                      f"{configuration.fft_size}")
-        configuration.error += str(msg)
+        configuration.error = str(msg)
 
-        # put things back
-        configuration.input_source = old_source
-        configuration.input_params = old_source_params
-        configuration.sample_type = old_source_format
-        configuration.centre_frequency_hz = old_cf
-        configuration.sample_rate = old_sps
-        # bodge just to get config table updated
-        configuration.fft_size = old_fft # // 2  # TODO handle errors back to UI
-        data_source = create_source(configuration, source_factory)
-        open_source(configuration, data_source)
+    configuration.source_connected = data_source.connected()
     return data_source
 
+
 def parse_command_line(configuration: Variables) -> None:
+    """
+    Parse all the command line options
+
+    :param configuration: Where we store the configuration
+    :return: None
+    """
     # noinspection PyTypeChecker
     parser = argparse.ArgumentParser(epilog='',
                                      formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -524,7 +548,7 @@ def time_spectral(configuration: Variables):
     print("data \tusec \tnsec/sample\ttype")
     print("===================================")
     for data_type in DataSource.supported_data_types:
-        converter = DataSource.DataSource("null", data_size, data_type, 1e6, 1e6)
+        converter = DataSource.DataSource("null", data_size, data_type, 1e6, 1e6, 0)
 
         iterations = 1000
         time_start = time.perf_counter()
@@ -582,6 +606,7 @@ def handle_control_queue(configuration: Variables,
             # config message is a json string
             # e.g. {"type":"sdrUpdate","name":"unknown","centreFrequencyHz":433799987,"sps":600000,
             #       "bw":600000,"fftSize":"8192","sdrStateUpdated":false}
+            new_config = None
             try:
                 new_config = json.loads(config)
             except ValueError as msg:
@@ -622,8 +647,7 @@ def handle_control_queue(configuration: Variables,
                         configuration.oneInN = int(configuration.sample_rate /
                                                    (configuration.fps * configuration.fft_size))
                         data_source.close()
-                        data_source = update_source(configuration, source_factory, old_source, old_source_params,
-                                                    old_source_format, old_cf, old_sps, old_fft)
+                        data_source = update_source(configuration, source_factory)
 
                     if (new_config['source'] != old_source) \
                             or (new_config['sourceParams'] != old_source_params) \
@@ -635,11 +659,10 @@ def handle_control_queue(configuration: Variables,
                         logger.info(f"changing source to '{configuration.input_source}' "
                                     f"'{configuration.input_params}' '{configuration.sample_type}'")
                         data_source.close()
-                        data_source = update_source(configuration, source_factory, old_source, old_source_params,
-                                                    old_source_format, old_cf, old_sps, old_fft)
+                        data_source = update_source(configuration, source_factory)
 
                 # changes above may have produced errors in the data_source
-                configuration.error += data_source.get_and_reset_error()
+                # configuration.error = data_source.get_and_reset_error()
 
                 # reply with the current configuration whenever we receive something on the control queue
                 ui_queue.put((configuration.make_json(), None, None, None, None, None))

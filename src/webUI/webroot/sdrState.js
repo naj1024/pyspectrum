@@ -41,6 +41,9 @@ sdrState.prototype.setDataFormat = function(format) {
 sdrState.prototype.setMeasuredFps = function(measured) {
     this.measuredFps = measured;
 }
+sdrState.prototype.setSourceConnected = function(connected) {
+    this.sourceConnected = connected;
+}
 
 ////////////////////
 // getters
@@ -84,6 +87,9 @@ sdrState.prototype.getDataFormat = function() {
 sdrState.prototype.getMeasuredFps = function() {
     return this.measuredFps;
 }
+sdrState.prototype.getSourceConnected = function() {
+    return this.sourceConnected;
+}
 
 sdrState.prototype.setSdrStateUpdated = function() {
     this.sdrStateUpdated = true;
@@ -110,6 +116,7 @@ function sdrState(name) {
     this.sourceParams = "";
     this.sources = [];
     this.sourceHelps = [];
+    this.sourceConnected = false;
     this.gainMode = ""; // TODO
     this.gain = 0; // TODO
     this.dataFormat = "";

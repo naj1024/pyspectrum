@@ -638,7 +638,7 @@ Spectrum.prototype.addMarker = function(frequencyHz, magdB, time_start, inputCou
         deltadB = (magdB - previous_marker.power);
         deltaTime = (time_start - previous_marker.diffTime);
     }
-    // we will allow duplicate markers, otheriwise we have to decide what is a duplicate - freq or time
+    // we will allow duplicate markers, otherwise we have to decide what is a duplicate - freq or time
     this.markersSet.add(marker);
     let number = this.markersSet.size-1;
     let marker_id = "marker_" + number;
@@ -654,13 +654,14 @@ Spectrum.prototype.addMarker = function(frequencyHz, magdB, time_start, inputCou
     new_row += '<label for="'+marker_id+'" /label>';
     new_row += '</td>';
 
-    // data
+    // Measurements
     new_row += "<td>"+(frequencyHz/1e6).toFixed(6)+"</td>";
     new_row += "<td>"+magdB.toFixed(1)+"</td>";
     new_row += "<td>"+time_start.toFixed(6)+"</td>";
-    new_row += "<td>"+this.convertFrequencyForDisplay(deltaHz,3)+"</td>";
-    new_row += "<td>"+deltadB.toFixed(1)+"</td>";
-    new_row += "<td>"+deltaTime.toFixed(6)+"</td>";
+    new_row += "<td>";
+    new_row += this.convertFrequencyForDisplay(deltaHz,3)+", ";
+    new_row += deltadB.toFixed(1) +"dB, ";
+    new_row += deltaTime.toFixed(6)+"sec</td>";
 
     // bin
     new_row += '<td>';
@@ -1489,7 +1490,7 @@ function Spectrum(id, options) {
     this.live_marker_on = false;
     this.live_peak_search = false;
 
-    this.maxNumMarkers = 16;
+    this.maxNumMarkers = 8;
     this.hideAllMarkers = false; // true would require updating the button
     this.firstTime = 0;          // set to time of first spectrum so we can do relative to the start of the run
     this.currentTime = 0;        // the most recent time we have, not updated when paused
