@@ -1,5 +1,6 @@
 import logging
 import time
+from typing import List
 
 import numpy as np
 
@@ -54,16 +55,24 @@ class DataSource:
         self._centre_frequency = centre_frequency
         self._sleep_time = sleep_time
 
+        self._gain = 0
+        self._gain_modes = ["auto"]
+        self._gain_mode = "auto"
+        self._bandwidth = 0
+
         self._error = ""
 
         self._bytes_per_snap = 0  # used for input sources that need to know bytes per sample
         self._data_type = ""
         self.set_sample_type(data_type)
 
+        self._help = ""
+        self._web_help = ""
+
         self._connected = False
 
     def close(self) -> None:
-        pass
+        self._connected = False
 
     def connected(self) -> bool:
         """
@@ -90,39 +99,38 @@ class DataSource:
         self._error = ""
         return err
 
-    def get_sample_rate(self):
-        return self._sample_rate
-
-    def get_centre_frequency(self):
-        return self._centre_frequency
-
-    def set_sample_rate(self, sr: float):
+    def set_sample_rate(self, sr: float) -> None:
         self._sample_rate = sr
 
-    def set_centre_frequency(self, cf: float):
+    def get_sample_rate(self) -> float:
+        return self._sample_rate
+
+    def set_centre_frequency(self, cf: float) -> None:
         self._centre_frequency = cf
 
-    def get_display_name(self):
+    def get_centre_frequency(self) -> float:
+        return self._centre_frequency
+
+    def get_display_name(self) -> str:
         return self._display_name
 
-    def get_sample_types(self):
+    def get_sample_types(self) -> List:
         return supported_data_types
 
-    def get_help(selfself):
+    def get_help(self) -> str:
         return ""
 
-    def get_web_help(self):
+    def get_web_help(self) -> str:
         return ""
 
-    def get_sample_type(self):
+    def set_help(self, help_str: str) -> None:
+        self._help = help_str
+
+    def set_web_help(self, help_str: str) -> None:
+        self._web_help = help_str
+
+    def get_sample_type(self) -> str:
         return self._data_type
-
-    def get_time_ns(self):
-        # python 3.7 and above has time.time_ns()
-        try:
-            return time.time_ns()
-        except Exception:
-            return time.time() * 1e9
 
     def set_sample_type(self, data_type: str):
         """
@@ -147,7 +155,36 @@ class DataSource:
             raise ValueError(msgs)
         self._data_type = data_type
 
-    def get_bytes_per_sample(self):
+    def get_bandwidth(self) -> float:
+        return self._bandwidth
+
+    def set_bandwidth(self, bw_hz: float):
+        self._bandwidth = bw_hz
+
+    def get_gain_mode(self) -> str:
+        return self._gain_mode
+
+    def get_gain_modes(self) -> List:
+        return self._gain_modes
+
+    def set_gain_mode(self, mode: str) -> None:
+        if mode in self._gain_modes:
+            self._gain_mode = mode
+
+    def set_gain(self, gain: float) -> None:
+        self._gain = gain
+
+    def get_gain(self) -> float:
+        return self._gain
+
+    def get_time_ns(self) -> float:
+        # python 3.7 and above has time.time_ns()
+        try:
+            return time.time_ns()
+        except Exception:
+            return time.time() * 1e9
+
+    def get_bytes_per_sample(self) -> float:
         return self._bytes_per_snap // self._number_complex_samples
 
     def unpack_data(self, data: bytes) -> np.ndarray:
@@ -207,5 +244,12 @@ class DataSource:
             err_msg = f'Unsupported data type {self._data_type}'
             logger.error(err_msg)
             raise ValueError(err_msg)
+
+        # TODO: would this be faster
+        #  rtlsdr.py uses the following, for 8bit offset binary?
+        #   data = np.ctypeslib.as_array(bytes)
+        #   iq = data.astype(np.float64).view(np.complex128)
+        #   iq /= 127.5
+        #   iq -= (1 + 1j)
 
         return complex_data

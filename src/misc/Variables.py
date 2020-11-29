@@ -2,6 +2,8 @@
 Class to hold all the programmes variables that we need to pass around
 
 Used because we seem to need a lot of these in different places during initialisation
+
+Passed to the UI as a jason string every few seconds
 """
 
 import json
@@ -15,6 +17,9 @@ class Variables:
         self.centre_frequency_hz = 433.92e6  # default
         self.sample_types = []
         self.sample_type = '16tbe'  # default Format of sample data
+        self.gain = 0
+        self.gain_modes = ["auto"]
+        self.gain_mode = "auto"
 
         # display
         self.fps = 20
@@ -23,6 +28,7 @@ class Variables:
         self.update_count = 0
         self.stop = True
         self.web_port = 8080
+        self.ack = 0  # time in seconds of the last data displayed by the UI, updated by UI
 
         # where the data comes from
         self.input_source = "?"  # the source type e.g. file, socket, pluto, soapy, rtlsdr, audio ....
@@ -38,7 +44,7 @@ class Variables:
         # List of plugin options, --plugin xyz:abc:def
         self.plugin_options = []
 
-        self.error = ""
+        self.error = ""  # any errors we want to have available in the UI
 
     def make_json(self):
         return json.dumps(self, default=lambda o: o.__dict__)

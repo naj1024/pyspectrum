@@ -60,7 +60,7 @@ logger = logging.getLogger('spectrum_logger')
 module_type = "rtltcp"
 help_string = f"{module_type}:IP:port - The Ip or resolvable name and port of an rtltcp server, " \
               f"e.g. {module_type}:192.168.2.1:12345"
-web_help_string = "IP@port - The Ip or resolvable name and port of an rtltcp server, e.g. 192.168.2.1:12345"
+web_help_string = "IP:port - The Ip or resolvable name and port of an rtltcp server, e.g. 192.168.2.1:12345"
 
 
 # return an error string if we are not available
@@ -100,26 +100,30 @@ class Input(DataSource.DataSource):
         self._tuner_type_str = "Unknown_Tuner"
         self._ip_address = ""
         self._ip_port = 0
+        self._gain_modes = ["auto", "manual"]  # would ask, but can't
+        super().set_gain_mode(self._gain_modes[0])
+        super().set_help(help_string)
+        super().set_web_help(web_help_string)
 
-    def open(self):
+    def open(self) -> bool:
         # specifics to this class
         # break apart the ip address and port, will be something like 192.168.0.1:1234
 
         parts = self._source.split(':')
         if len(parts) <= 2:
-            raise ValueError(f"{module_type} input specification does not contain two colon separated items, "
+            raise ValueError("input specification does not contain two colon separated items, "
                              f"{self._source}")
         self._ip_address = parts[0]
         try:
             self._ip_port = int(parts[1])
         except ValueError as msg1:
-            msgs = f"{module_type} port number from {parts[1]}, {msg1}"
+            msgs = f"port number from {parts[1]}, {msg1}"
             self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)
 
         if self._ip_port < 0:
-            msgs = f"{module_type} port number from {parts[1]} is negative"
+            msgs = f"port number from {parts[1]} is negative"
             self._error = msgs
             logger.error(msgs)
             raise ValueError(msgs)
@@ -127,6 +131,8 @@ class Input(DataSource.DataSource):
         self._socket = None
         self._connected = False
         self._tuner_type_str = "Unknown_Tuner"
+
+        return self._connected
 
     def reconnect(self) -> bool:
         """
@@ -139,7 +145,12 @@ class Input(DataSource.DataSource):
         logger.debug(f"Reconnecting to rtltcp {self._ip_address} port {self._ip_port}")
         time.sleep(1)  # we may get called a lot on not connected, so slow reconnects down a bit
         self._connected = False
-        self._connected = self.connect()
+        try:
+            self._connected = self.connect()
+        except ValueError as msg:
+            self._error = str(msg)
+            raise ValueError(msg)
+
         return self._connected
 
     def connect(self) -> bool:
@@ -171,8 +182,9 @@ class Input(DataSource.DataSource):
             # TODO: what's the difference between set_tuner_gain_by_index() and set_tuner_gain() ?
             self.set_tuner_gain_by_index(17)  # ignored unless set_tuner_gain_mode is 1
             self.set_agc_mode(0)
-        except Exception:
-            raise
+        except Exception as msg:
+            logger.error(msg)
+            raise ValueError(msg)
 
         return self._connected
 
@@ -252,15 +264,25 @@ class Input(DataSource.DataSource):
 
         return raw_bytes, rx_time
 
-    def set_sample_type(self, data_type: str):
+    def set_sample_type(self, data_type: str) -> None:
         # we can't set a different sample type on this source
         super().set_sample_type(self._constant_data_type)
 
-    def get_help(self):
-        return help_string
+    def set_gain(self, gain: float) -> None:
+        self._gain = gain
+        try:
+            self.set_tuner_gain_mode(int(gain))
+        except Exception as msg:
+            self._error = str(msg)
+            raise ValueError(msg)
 
-    def get_web_help(self):
-        return web_help_string
+    def set_gain_mode(self, mode: str) -> None:
+        if mode in self._gain_modes:
+            self._gain_mode = mode
+            if mode == "auto":
+                self.set_tuner_gain_mode(0)
+            else:
+                self.set_tuner_gain_mode(1)
 
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """
@@ -310,36 +332,44 @@ class Input(DataSource.DataSource):
 
         # what type of tuner do we have ?
         freq_ok = True
+        freq_range = ""
         if self._tuner_type_str == allowed_tuner_types[1]:
             # E4000
             if (frequency < 52e6) or (frequency > 2200e6):
                 freq_ok = False
+                freq_range = "52 – 1100 MHz and 1250 - 2200 MHz"
             elif (frequency > 1100e6) and (frequency < 1250e6):
                 freq_ok = False
+                freq_range = "52 – 1100 MHz and 1250 - 2200 MHz"
         elif self._tuner_type_str == allowed_tuner_types[2]:
             # FC0012
             if (frequency < 22e6) or (frequency > 948.6e6):
                 freq_ok = False
+                freq_range = "22 - 948.6 MHz"
         elif self._tuner_type_str == allowed_tuner_types[3]:
             # FC0013
             if (frequency < 22e6) or (frequency > 1100e6):
                 freq_ok = False
+                freq_range = "22 – 1100 MHz"
         elif self._tuner_type_str == allowed_tuner_types[4]:
             # FC2580
             if (frequency < 146e6) or (frequency > 924e6):
                 freq_ok = False
+                freq_range = "146 – 308 MHz and 438 – 924 MHz"
             elif (frequency > 308e6) and (frequency < 438e6):
                 freq_ok = False
+                freq_range = "146 – 308 MHz and 438 – 924 MHz"
         elif self._tuner_type_str == allowed_tuner_types[5] or self._tuner_type_str == allowed_tuner_types[6]:
             # R820T or R828D
             if (frequency < 24e6) or (frequency > 1.766e9):
                 freq_ok = False
+                freq_range = "24 – 1766 MHz"
 
         if not freq_ok:
-            err = f"{module_type} {self._tuner_type_str} invalid centre frequency, {frequency}Hz"
+            err = f"{self._tuner_type_str}, {frequency}Hz outside range {freq_range}"
             self._error = err
             logger.error(err)
-            frequency = int(433.92e6)
+            frequency = 600e6  # something safe
 
         logger.info(f"Set frequency {frequency / 1e6:0.6f}MHz")
         self._centre_frequency = frequency

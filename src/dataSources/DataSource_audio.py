@@ -6,7 +6,6 @@ import queue
 import pprint as pp
 from typing import Tuple
 import logging
-import time
 
 import numpy as np
 
@@ -16,7 +15,7 @@ logger = logging.getLogger('spectrum_logger')
 
 module_type = "audio"
 help_string = f"{module_type}:Number \t- number of the input device e.g. {module_type}:1, '?' for list"
-web_help_string = "Number - number of the input device e.g. 1"
+web_help_string = "Number - number of the input device e.g. 1. Use '?' for list"
 
 try:
     import_error_msg = ""
@@ -36,7 +35,7 @@ def is_available() -> Tuple[str, str]:
 audio_q = queue.Queue()
 
 
-def audio_callback(incoming_samples: np.ndarray, frames: int, time_1, status):
+def audio_callback(incoming_samples: np.ndarray, frames: int, time_1, status) -> None:
     if status:
         raise ValueError(f"Error: {module_type} had a problem, {status}")
 
@@ -76,11 +75,13 @@ class Input(DataSource.DataSource):
         self._connected = False
         self._device_number = 0
         self._audio_stream = None
+        super().set_help(help_string)
+        super().set_web_help(web_help_string)
 
-    def open(self):
+    def open(self) -> bool:
         global import_error_msg
         if import_error_msg != "":
-            msgs = f"{module_type} Error: No {module_type} support available, {import_error_msg}"
+            msgs = f"No {module_type} support available, {import_error_msg}"
             self._error = msgs
             logger.error(msgs)
             raise ValueError(msgs)
@@ -89,7 +90,8 @@ class Input(DataSource.DataSource):
             self._audio_stream = None
             print("Audio devices available:")
             pp.pprint(sd.query_devices())
-            return
+            self._error = str(sd.query_devices())
+            return False
 
         try:
             self._device_number = int(self._source)
@@ -100,7 +102,7 @@ class Input(DataSource.DataSource):
                                                 dtype="float32")
             self._audio_stream.start()  # required as we are not using 'with'
             self._sample_rate = self._audio_stream.samplerate  # actual sample rate
-            logger.info("Audio stream started")
+            logger.info(f"Audio stream started ")
             logger.debug(f"Connected to {module_type} {self._device_number}")
             self._connected = True
 
@@ -110,12 +112,19 @@ class Input(DataSource.DataSource):
             logger.error(msgs)
             raise ValueError(msgs)  # from None
         except ValueError as err_msg:
-            msgs = f"Error: {module_type} device number {self._source}, {err_msg}"
+            msgs = f"device number {self._source}, {err_msg}"
+            self._error = str(msgs)
+            logger.error(msgs)
+            raise ValueError(msgs)  # from None
+        except Exception as err_msg:
+            msgs = f"device number {self._source}, {err_msg}"
             self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)  # from None
 
-    def close(self):
+        return self._connected
+
+    def close(self) -> None:
         if self._audio_stream:
             self._audio_stream.stop()
             self._audio_stream.close(ignore_errors=True)
@@ -129,13 +138,7 @@ class Input(DataSource.DataSource):
                 logger.error(f"No such audio device as {self._source}")
         return self._connected
 
-    def get_help(self):
-        return help_string
-
-    def get_web_help(self):
-        return web_help_string
-
-    def set_sample_rate(self, sr: float):
+    def set_sample_rate(self, sr: float) -> None:
         self._sample_rate = sr
         self.bound_sample_rate()
         # changing sample rate means resetting the audio device
@@ -145,7 +148,7 @@ class Input(DataSource.DataSource):
         except ValueError as msgs:
             self._error = str(msgs)
 
-    def bound_sample_rate(self):
+    def bound_sample_rate(self) -> None:
         # TODO: find max sample rate and set that as the limit
         if self._sample_rate > 250.0e3:
             self._sample_rate = 250000.0
@@ -156,7 +159,7 @@ class Input(DataSource.DataSource):
             self._error = "Audio source sample rate too low, setting 1kHz"
             logger.error("Audio source sample rate too low, setting 1kHz")
 
-    def set_sample_type(self, data_type: str):
+    def set_sample_type(self, data_type: str) -> None:
         # we can't set a different sample type on this source
         super().set_sample_type(self._constant_data_type)
 

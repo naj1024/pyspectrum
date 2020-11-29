@@ -6,7 +6,6 @@ Soapy class wrapper
 import numpy as np
 from typing import Tuple
 import logging
-import time
 
 from dataSources import DataSource
 
@@ -14,7 +13,7 @@ logger = logging.getLogger('spectrum_logger')
 
 module_type = "soapy"
 help_string = f"{module_type}:Name \t- Name is soapy driver, e.g. {module_type}:?, {module_type}:sdrplay"
-web_help_string = "Name - Name is soapy driver, e.g. sdrplay"
+web_help_string = "Name - Name is soapy driver, e.g. sdrplay. Use '?' for list"
 
 try:
     import_error_msg = ""
@@ -58,11 +57,13 @@ class Input(DataSource.DataSource):
         self._complex_data = None
         self._output_size = 0
         self._rx_stream = None
+        super().set_help(help_string)
+        super().set_web_help(web_help_string)
 
-    def open(self):
+    def open(self) -> bool:
         global import_error_msg
         if import_error_msg != "":
-            msgs = f"{module_type} Error: No {module_type} support available, {import_error_msg}"
+            msgs = f"No {module_type} support available, {import_error_msg}"
             self._error = msgs
             logger.error(msgs)
             raise ValueError(msgs)
@@ -74,8 +75,10 @@ class Input(DataSource.DataSource):
                 print("Soapy drivers:")
                 for result in results:
                     print(result)
-                return
+                    self._error = str(results)
+                return False
             self._sdr = SoapySDR.Device(f'driver={self._source}')
+
         except Exception as msg_err:
             msgs = f"{module_type} {msg_err}"
             self._error = str(msgs)
@@ -119,6 +122,8 @@ class Input(DataSource.DataSource):
 
         self._connected = True
 
+        return self._connected
+
     def connect(self) -> bool:
         # as we can list available then we may have to die here if someone asks us to connect to "?"
         if not self._sdr:
@@ -132,12 +137,6 @@ class Input(DataSource.DataSource):
             self._sdr.deactivateStream(self._rx_stream)  # stop streaming
             self._sdr.closeStream(self._rx_stream)
             self._sdr = None
-
-    def get_help(self):
-        return help_string
-
-    def get_web_help(self):
-        return web_help_string
 
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """

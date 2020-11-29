@@ -453,8 +453,8 @@ Spectrum.prototype.autoRange = function() {
     }
 }
 
-Spectrum.prototype.setCentreFreq = function(MHz) {
-    this.centreHz = Math.trunc(MHz * 1e6);
+Spectrum.prototype.setCentreFreqHz = function(hz) {
+    this.centreHz = Math.trunc(hz);
 }
 
 Spectrum.prototype.getCentreFreqHz = function() {
@@ -616,6 +616,18 @@ Spectrum.prototype.onKeypress = function(e) {
     }
 }
 
+Spectrum.prototype.handleMarkerTableClick = function(row) {
+    console.log("row", row);
+    let marker_num = 0;
+    for (let item of this.markersSet) {
+        if (row == marker_num) {
+            setCfHz(item.freqHz);
+            break;
+        }
+        marker_num += 1;
+    }
+}
+
 Spectrum.prototype.addMarker = function(frequencyHz, magdB, time_start, inputCount, spectrum_flag) {
     // force showing of markers if we are adding markers
     this.liveMarkersAndUnHideMarkers();
@@ -643,15 +655,21 @@ Spectrum.prototype.addMarker = function(frequencyHz, magdB, time_start, inputCou
     let number = this.markersSet.size-1;
     let marker_id = "marker_" + number;
     let bin_id = "bin_marker_" + number;
+    let cf_id = "cf_marker_" + number;
 
     // add to table of markers
-    let new_row="<tr>";
+    let new_row='<tr>';
 
     // marker number and checkbox
     new_row += '<td>'+number+'</td>';
     new_row += '<td>';
     new_row += '<input type="checkbox" checked="true" id="'+marker_id+'"> ';
     new_row += '<label for="'+marker_id+'" /label>';
+    new_row += '</td>';
+
+    new_row += '<td>';
+    new_row += '<input type="checkbox" unchecked="true" id="'+cf_id+'"> ';
+    new_row += '<label for="'+cf_id+'" /label>';
     new_row += '</td>';
 
     // Measurements
@@ -671,9 +689,12 @@ Spectrum.prototype.addMarker = function(frequencyHz, magdB, time_start, inputCou
     new_row += "</tr>";
     $('#markerTable').append(new_row);
 
-    // todo: had to use a global, can't work out how to get hold of this'
+    // todo: had to make spectrum global, can't work out how to get hold of this'
     $('#'+marker_id).click(function() {spectrum.markerCheckBox(number);});
     $('#'+bin_id).click(function() {spectrum.deleteMarker(number);});
+
+    // TODO: marker->cf - would like this on a right mouse click of table row then marker -> cf but can't work it out
+    $('#'+cf_id).click(function() {spectrum.handleMarkerTableClick(number);});
 }
 
 Spectrum.prototype.markerCheckBox = function(id) {

@@ -45,31 +45,33 @@ class Input(DataSource.DataSource):
 
         super().__init__(ip_address_port, number_complex_samples, data_type, sample_rate, centre_frequency, sleep_time)
         self._connected = False
-        self._ip_address = ""
-        self._ip_port = 0
+        self._ip_address = ""  # filled in when we open()
+        self._ip_port = 0  # filled in when we open()
         self._socket = None
         self._served_connection = None
         self._client = True
+        super().set_help(help_string)
+        super().set_web_help(web_help_string)
 
-    def open(self):
+    def open(self) -> bool:
         # specifics to this class
         # break apart the ip address and port, will be something like 192.168.0.1:1234
 
         parts = self._source.split(':')
         if len(parts) < 2:
-            raise ValueError(f"{module_type} input specification does not contain two colon separated items, "
+            raise ValueError(f"input specification does not contain two colon separated items, "
                              f"{self._source}")
         self._ip_address = parts[0]
         try:
             self._ip_port = int(parts[1])
         except ValueError as msg:
-            msgs = f"{module_type} port number from {parts[1]}, {msg}"
+            msgs = f"port number from {parts[1]}, {msg}"
             self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)
 
         if self._ip_port < 0:
-            msgs = f"{module_type} port number from {parts[1]} is negative"
+            msgs = f"port number from {parts[1]} is negative"
             self._error = msgs
             logger.error(msgs)
             raise ValueError(msgs)
@@ -77,6 +79,8 @@ class Input(DataSource.DataSource):
         self._client = True
         if self._ip_address == "":
             self._client = False
+
+        return self._connected
 
     def is_server(self) -> bool:
         return not self._client
@@ -92,10 +96,15 @@ class Input(DataSource.DataSource):
         logger.debug(f"Reconnecting to socket {self._ip_address} port {self._ip_port}")
         time.sleep(1)  # we may get called a lot on not connected, so slow reconnects down a bit
         self._connected = False
-        self._connected = self.connect()
+        try:
+            self._connected = self.connect()
+        except ValueError as msg:
+            self._error = str(msg)
+            raise ValueError(msg)
+
         return self._connected
 
-    def close(self):
+    def close(self) -> None:
         if self._client:
             sock = self._socket
         else:
@@ -136,16 +145,11 @@ class Input(DataSource.DataSource):
                 self._served_connection.setblocking(True)
                 self._connected = True
                 logger.debug(f"Connection from {self._served_connection.getpeername()}")
-        except Exception:
-            raise
+        except Exception as msg:
+            logger.error(msg)
+            raise ValueError(msg)
 
         return self._connected
-
-    def get_help(self):
-        return help_string
-
-    def get_web_help(self):
-        return web_help_string
 
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """Read data from the socket and convert them to complex floats using the data type specified

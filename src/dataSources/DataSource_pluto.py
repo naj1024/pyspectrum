@@ -11,6 +11,7 @@ NOTE that the pluto device will accept 70Mhz to 6GHz frequency and 60MHz samplin
 import numpy as np
 from typing import Tuple
 import logging
+import time
 
 from dataSources import DataSource
 
@@ -65,11 +66,15 @@ class Input(DataSource.DataSource):
                          centre_frequency, sleep_time)
         self._sdr = None
         self._connected = False
+        self._gain_modes = ["manual", "fast_attack", "slow_attack", "hybrid"]  # would ask, but can't
+        super().set_gain_mode(self._gain_modes[0])
+        super().set_help(help_string)
+        super().set_web_help(web_help_string)
 
-    def open(self):
+    def open(self) -> bool:
         global import_error_msg
         if import_error_msg != "":
-            msgs = f"{module_type} No {module_type} device available, {import_error_msg}"
+            msgs = f"no {module_type} device available, {import_error_msg}"
             self._error = msgs
             logger.error(msgs)
             raise ValueError(msgs)
@@ -78,7 +83,7 @@ class Input(DataSource.DataSource):
         try:
             self._sdr = adi.Pluto(uri="ip:" + self._source)  # use adi.Pluto() for USB
         except Exception:
-            msgs = f"{module_type} Failed to connect to {self._source}"
+            msgs = f"failed to connect to {self._source}"
             self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)
@@ -87,7 +92,7 @@ class Input(DataSource.DataSource):
 
         # pluto is not consistent in its errors so check ranges here
         if self._centre_frequency < 70e6 or self._centre_frequency > 6e9:
-            msgs = f"{module_type} centre frequency must be between 70MHz and 6GHz, "
+            msgs = "centre frequency must be between 70MHz and 6GHz, "
             msgs += f"attempted {self._centre_frequency / 1e6:0.6}MHz, "
             self._centre_frequency = 100.0e6
             msgs += f"set {self._centre_frequency / 1e6:0.6}MHz. \n"
@@ -96,7 +101,7 @@ class Input(DataSource.DataSource):
 
         # pluto does raise errors for sample rate though, but we check so we don't raise errors
         if self._sample_rate < 521e3 or self._sample_rate > 61e6:
-            msgs = f"{module_type} sample rate must be between 521kH and 61MHz, "
+            msgs = "sample rate must be between 521kH and 61MHz, "
             msgs += f"attempted {self._sample_rate / 1e6:0.6}MHz, "
             self._sample_rate = 1.0e6
             msgs += f"set {self._sample_rate / 1e6:0.6}MHz. "
@@ -108,53 +113,81 @@ class Input(DataSource.DataSource):
             self._sdr.rx_lo = int(self._centre_frequency)
             self._sdr.rx_rf_bandwidth = int(self._sample_rate)
             # AGC mode will depend on environment, lots of bursting signals or lots of continuous signals
-            self._sdr.gain_control_mode_chan0 = "manual"  # manual fast_attack slow_attack hybrid
-            self._sdr.rx_hardwaregain_chan0 = 40
+            self.set_gain_mode(self._gain_mode)  # self._sdr.gain_control_mode_chan0 = self._gain_mode
+            self.set_gain(40)
         except Exception as err:
-            msgs = f"{module_type} {err}"
+            msgs = f"problem with initialisation {err}"
+            print(err)
             self._error += f"str(msgs),\n"
             logger.error(msgs)
             raise ValueError(msgs)
 
         if self._number_complex_samples < 1024:
-            msgs = f"{module_type} is best with sizes above 1024"
+            msgs = f"sis best with sizes above 1024"
             logger.warning(msgs)
 
         logger.debug(f"{module_type}: {self._centre_frequency / 1e6:.6}MHz @ {self._sample_rate / 1e6:.3f}Msps")
         self._connected = True
+        return self._connected
 
-    def get_sample_rate(self):
+    def reconnect(self) -> bool:
+        logger.info(f"Reconnecting to {module_type}")
+        time.sleep(1)  # we may get called a lot on not connected, so slow reconnects down a bit
+        return self.open()
+
+    def get_sample_rate(self) -> float:
         if self._sdr:
             self._sample_rate = self._sdr.sample_rate
             return self._sample_rate
 
-    def get_centre_frequency(self):
+    def get_centre_frequency(self) -> float:
         if self._sdr:
             self._centre_frequency = float(self._sdr.rx_lo)
             return self._centre_frequency
 
-    def set_sample_rate(self, sr: float):
+    def set_sample_rate(self, sr: float) -> None:
         if self._sdr:
-            self._sdr.sample_rate = sr
-            self._sample_rate = self._sdr.sample_rate
-            self._sdr.rx_rf_bandwidth = int(sr)  # TODO: make this separate
+            if self._sample_rate >= 521e3 or self._sample_rate <= 61e6:
+                self._sdr.sample_rate = sr
+                self._sample_rate = self._sdr.sample_rate
+                self._sdr.rx_rf_bandwidth = int(sr)  # TODO: make this separate
 
-    def set_centre_frequency(self, cf: float):
+    def set_centre_frequency(self, cf: float) -> None:
         if self._sdr:
             if (cf >= 70.0e6) and (cf <= 6.0e9):
                 self._sdr.rx_lo = int(cf)
                 self._centre_frequency = float(self._sdr.rx_lo)
                 # logger.error(f"cf set to {self._centre_frequency} from {cf} {int(cf)}")
 
-    def set_sample_type(self, data_type: str):
+    def set_sample_type(self, data_type: str) -> None:
         # we can't set a different sample type on this source
         super().set_sample_type(self._constant_data_type)
 
-    def get_help(self):
-        return help_string
+    def get_gain(self) -> float:
+        if self._sdr:
+            self._gain = self._sdr.rx_hardwaregain_chan0
+        return self._gain
 
-    def get_web_help(self):
-        return web_help_string
+    def set_gain(self, gain: float) -> None:
+        self._gain = float(gain)
+        if self._gain > 73:
+            self._gain = 73
+        if self._gain < 0:
+            self._gain = 0
+        if self._sdr:
+            self._sdr.rx_hardwaregain_chan0 = self._gain
+
+    def get_gain_mode(self) -> str:
+        if self._sdr:
+            self._gain_mode = self._sdr.gain_control_mode_chan0
+        return self._gain_mode
+
+    def set_gain_mode(self, mode: str) -> None:
+        if mode in self._gain_modes:
+            self._gain_mode = mode
+            if self._sdr:
+                self._sdr.gain_control_mode_chan0 = self._gain_mode
+        return
 
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """
@@ -168,8 +201,15 @@ class Input(DataSource.DataSource):
         rx_time = 0
 
         if self._connected and self._sdr:
-            complex_data = self._sdr.rx()  # the samples here are complex128 i.e. full doubles
-            rx_time = self.get_time_ns()
-            complex_data = complex_data / 4096.0  # 12bit
-            complex_data = np.array(complex_data, dtype=np.complex64)  # if we need all values to be 32bit floats
+            try:
+                complex_data = self._sdr.rx()  # the samples here are complex128 i.e. full doubles
+                rx_time = self.get_time_ns()
+                complex_data = complex_data / 4096.0  # 12bit
+                complex_data = np.array(complex_data, dtype=np.complex64)  # if we need all values to be 32bit floats
+            except Exception  as err:
+                self._connected = False
+                self._error = str(err)
+                logger.error(self._error)
+                raise ValueError(err)
+
         return complex_data, rx_time

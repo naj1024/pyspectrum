@@ -35,9 +35,11 @@ to stdout or an mqtt server.
 
 ## Tested with the following:
 
-    Windows: audio, file, pluto (IP), rtltcp, socket
+    Windows: audio, file, pluto (IP), rtlsdr, rtltcp, socket
     Linux  : audio, file, pluto (IP), rtlsdr, rtltcp, socket
              soapy(audio, rtlsdr, sdrplay)
+    
+    On windows make sure to use the rlibrtlsdr.dll for your python 32bit/64bit
     
     Since, once, getting soapy to work under Linux i have failed to replicate 
         this ever again - pity it was my only interface to an sdrplay device

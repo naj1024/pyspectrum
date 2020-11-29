@@ -17,6 +17,10 @@ var stop = {
     type: "stop",
     value: false
 }
+var ack = {
+    type: "ack",
+    value: 0
+}
 
 
 async function handleBlob(binary_blob_data) {
@@ -66,6 +70,8 @@ async function handleBlob(binary_blob_data) {
                 index += 4;
             }
 
+            sdrState.setLastDataTime(start_time_sec);
+
             // tell the spectrum how this data is configured, which could change
             // TODO refactor so there is only one holding these values, sdrState
             let update = false;
@@ -77,12 +83,11 @@ async function handleBlob(binary_blob_data) {
 
                 sdrState.setCentreFrequencyHz(cfMHz*1e6);
                 sdrState.setSps(spsHz);
-                sdrState.setBw(spsHz);
                 sdrState.setFftSize(num_floats);
 
                 spectrum.setSps(spsHz);
                 spectrum.setSpanHz(spsHz);
-                spectrum.setCentreFreq(cfMHz);
+                spectrum.setCentreFreqHz(cfMHz*1e6);
                 // spectrum.setFftSize(num_floats); // don't do this here
                 spectrum.updateAxes();
                 update=true;
@@ -142,87 +147,49 @@ async function handleJsonControl(controlData) {
     try {
         let control = JSON.parse(controlData);
         // console.log(control);
-
-        let updateCfgTable = false;
-
         if (control.error.length > 0) {
             alert(control.error);
         }
-
-        if (control.centre_frequency_hz != sdrState.getCentreFrequencyHz()) {
-            sdrState.setCentreFrequencyHz(control.centre_frequency_hz);
-            spectrum.setCentreFreq(control.centre_frequency_hz);
-            updateCfgTable = true;
-        }
-
-        if (control.sample_rate != sdrState.getSps()) {
-            sdrState.setSps(control.sample_rate);
-            sdrState.setBw(control.sample_rate);
-            spectrum.setSps(control.sample_rate);
-            spectrum.setSpanHz(control.sample_rate);
-            updateCfgTable = true;
-        }
-
-        if (control.fft_size != sdrState.getFftSize()) {
-            sdrState.setFftSize(control.fft_size);
-            updateCfgTable = true;
-        }
-
-        if (control.input_source != sdrState.getInputSource()) {
-            sdrState.setInputSource(control.input_source);
-            updateCfgTable = true;
-        }
-
-        if (control.input_params != sdrState.getInputSourceParams()) {
-            sdrState.setInputSourceParams(control.input_params);
-            updateCfgTable = true;
-        }
-
-        if (control.input_sources != sdrState.getInputSources()) {
-            sdrState.setInputSources(control.input_sources);
-            updateCfgTable = true;
-        }
-
-        if (control.input_sources_web_helps != sdrState.getInputSourceHelps()) {
-            sdrState.setInputSourceHelps(control.input_sources_web_helps);
-            updateCfgTable = true;
-        }
-
-        if (control.sample_types != sdrState.getDataFormats()) {
-            sdrState.setDataFormats(control.sample_types);
-            updateCfgTable = true;
-        }
-
-        if (control.sample_type != sdrState.getDataFormat()) {
-            sdrState.setDataFormat(control.sample_type);
-            updateCfgTable = true;
-        }
-
-        if (control.measured_fps != sdrState.getMeasuredFps()) {
-            sdrState.setMeasuredFps(control.measured_fps);
-            updateCfgTable = true;
-        }
-
-        if (control.source_connected != sdrState.getSourceConnected()) {
-            sdrState.setSourceConnected(control.source_connected);
-            updateCfgTable = true;
-        }
-
+        let updateCfgTable = sdrState.setFromJason(control);
         if (updateCfgTable) {
             spectrum.updateAxes();
             updateConfigTable(spectrum);
         }
+
     } catch(err) {
         console.log("JSON control message had an error, ", err, controlData);
     }
 }
 
 
-function handleCfChange(newCf) {
-    sdrState.setCentreFrequencyHz(newCf*1e6);
-    spectrum.setCentreFreq(newCf);
+function handleCfChange(newCfMHz) {
+    sdrState.setCentreFrequencyHz(newCfMHz*1e6);
+    spectrum.setCentreFreqHz(newCfMHz*1e6);
     configTableFocusOut();
     sdrState.setSdrStateUpdated();
+}
+
+function setCfHz(newCfHz) {
+    console.log(newCfHz);
+    sdrState.setCentreFrequencyHz(newCfHz);
+    spectrum.setCentreFreqHz(newCfHz);
+    sdrState.setSdrStateUpdated();
+}
+function decrementCf() {
+    let newCfHz = sdrState.getCentreFrequencyHz();
+    let step = (sdrState.getSps() / spectrum.zoom) / 8;
+    newCfHz -= step;
+    setCfHz(newCfHz);
+}
+function incrementCf() {
+    let newCfHz = sdrState.getCentreFrequencyHz();
+    let step = (sdrState.getSps() / spectrum.zoom) / 8;
+    newCfHz += step;
+    setCfHz(newCfHz);
+}
+function zoomedToCf() {
+    setCfHz(spectrum.getZoomCfHz());
+    spectrum.resetZoom();
 }
 
 function handleSpsChange(newSps) {
@@ -254,11 +221,23 @@ function handleDataFormatChange(newFormat) {
 
 function handleFpsChange(newFps) {
     if (websocket.readyState == 1) {
+        sdrState.setFps(newFps);
         fps.value = newFps;
         let jsonString= JSON.stringify(fps);
         websocket.send(jsonString);
     }
     configTableFocusOut();
+}
+
+function handleGainChange(newGain) {
+    sdrState.setGain(newGain);
+    configTableFocusOut();
+    sdrState.setSdrStateUpdated();
+}
+function handleGainModeChange(newMode) {
+    sdrState.setGainMode(newMode);
+    configTableFocusOut();
+    sdrState.setSdrStateUpdated();
 }
 
 function handleStopToggle() {
@@ -307,6 +286,7 @@ function updateConfigTable(spec) {
     let sources = sdrState.getInputSources();
     let dataFormats = sdrState.getDataFormats();
     let dataFormat = sdrState.getDataFormat();
+    let gainModes = sdrState.getGainModes();
 
     let new_row = '';
 
@@ -328,7 +308,7 @@ function updateConfigTable(spec) {
 
         // the parameters for the source
         // TODO: when the source changes update the help, but it is already built here by then
-        new_row += '<input data-toggle="tooltip" title="'+sourceParamHelp+', '+sourceParams+'" type="text" size="20"';
+        new_row += '<input data-toggle="tooltip" title="'+sourceParamHelp+'" type="text" size="20"';
         new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
         new_row += ' value="'+ sourceParams + '" id="inputSourceParams" name="inputSourceParams">';
         new_row += '<input type="submit" value="Change">';
@@ -416,9 +396,48 @@ function updateConfigTable(spec) {
     $('#configTable').append(new_row);
 
     /////////////
+    // gain mode
+    ///////
+    let gainMode = sdrState.getGainMode();
+    new_row = "<tr><td><b>G-mode</b></td>";
+    if (gainModes.length > 0) {
+        new_row += '<td><form';
+        new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+        new_row += ' action="javascript:handleGainModeChange(gainModeInput.value)">';
+        new_row += '<select id="gainModeInput" name="gainModeInput" onchange="this.form.submit()">';
+        gainModes.forEach(function(mode) {
+            new_row += '<option value="'+mode+'"'+((mode==gainMode)?"selected":"")+'>'+mode+'</option>';
+        });
+        new_row += '</td>';
+    }
+    else {
+        new_row += '<td>'+gainMode+'</td>';
+    }
+    new_row += '</tr>';
+    $('#configTable').append(new_row);
+
+    /////////////
+    // gain
+    ///////
+    let gain_step = 0.1;
+    new_row = "<tr><td><b>Gain</b></td><td>";
+    new_row += '<form ';
+    new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+    new_row += ' action="javascript:handleGainChange(gainInput.value)">';
+    new_row += '<input type="number" size="10" min="0" ';
+    new_row += ' step="';
+    new_row += gain_step;
+    new_row += '" value="';
+    new_row += sdrState.getGain();
+    new_row += '" id="gainInput" name="gainInput">';
+    new_row += '<input type=submit id="submitbtn">';
+    new_row += 'dB</form></td></tr>';
+    $('#configTable').append(new_row);
+
+    /////////////
     // fps
     ///////
-    let fpsV = fps.value;
+    let fpsV = sdrState.getFps();
     new_row = "<tr><td><b>FPS</b></td><td>";
     new_row += '<form ';
     new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
@@ -440,8 +459,7 @@ function updateConfigTable(spec) {
     /////////////
     // the rest
     ///////
-    new_row = "<tr><td><b>BW</b></td><td>"+spec.convertFrequencyForDisplay(sps,3)+"</td></tr>";
-    $('#configTable').append(new_row);
+    new_row = "<tr><td><b>sdr Bw</b></td><td>"+sdrState.getSdrBw()+"</td></tr>";
     new_row = "<tr><td><b>RBW</b></td><td>"+spec.convertFrequencyForDisplay(sps / sdrState.getFftSize(),3)+"</td></tr>";
     $('#configTable').append(new_row);
     let start = spec.getStartTime();
@@ -529,6 +547,14 @@ function connectWebSocket(spec) {
         if (sdrState.getResetSdrStateUpdated()) {
             let jsonString= JSON.stringify(sdrState);
             // console.log(jsonString);
+            websocket.send(jsonString);
+        }
+
+        // send acks back as required
+        if (sdrState.getLastDataTime() >= sdrState.getNextAckTime()) {
+            ack.value = sdrState.getLastDataTime();
+            let jsonString= JSON.stringify(ack);
+            sdrState.setNextAckTime(sdrState.getLastDataTime()+1);  // every second
             websocket.send(jsonString);
         }
     }
@@ -642,6 +668,7 @@ function Main() {
     rhcol += '<tr>';
     rhcol += '<th scope="col">#</th>';
     rhcol += '<th scope="col">V</th>';
+    rhcol += '<th scope="col">cf</th>';
     rhcol += '<th scope="col">MHz</th>';
     rhcol += '<th scope="col">dB</th>';
     rhcol += '<th scope="col">time</th>';
@@ -685,6 +712,9 @@ function Main() {
     let main_buttons = '<h4>Stream</h4>';
     main_buttons += '<div">';
     main_buttons += '<button type="button" id="stopBut" title="stop front end sending data" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Stop</button>';
+    main_buttons += '<button type="button" id="cfDwnBut" title="decrease centre frequency by 1/8th displayed BW" class="specbuttons btn btn-outline-dark mx-1 my-1">cf-</button>';
+    main_buttons += '<button type="button" id="cfUpBut" title="increase centre frequency by 1/8th displayed BW" class="specbuttons btn btn-outline-dark mx-1 my-1">cf+</button>';
+    main_buttons += '<button type="button" id="zoomToCfBut" title="set the displayed centre frequency as the centre frequency " class="specbuttons btn btn-outline-dark mx-1 my-1">z->cf</button>';
     main_buttons += '</div>'
 
      // main buttons
@@ -739,6 +769,9 @@ function Main() {
     $('#markerButton').click(function() {showMarkers();});
 
     $('#stopBut').click(function() {handleStopToggle();});
+    $('#cfDwnBut').click(function() {decrementCf();});
+    $('#cfUpBut').click(function() {incrementCf();});
+    $('#zoomToCfBut').click(function() {zoomedToCf();});
 
     $('#pauseBut').click(function() {handlePauseToggle();});
     $('#maxHoldBut').click(function() {spectrum.toggleMaxHold();});

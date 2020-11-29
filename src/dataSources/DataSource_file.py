@@ -124,8 +124,10 @@ class Input(DataSource.DataSource):
         self._file = None
         self._rewound = False  # set to true when we rewind - which will force generation of one wrong sample buffer
         self._connected = False
+        super().set_help(help_string)
+        super().set_web_help(web_help_string)
 
-    def open(self):
+    def open(self) -> bool:
         try:
             # first off, is this a wav file ?
             self._wav_file = wave.open(self._source, "rb")
@@ -133,13 +135,13 @@ class Input(DataSource.DataSource):
             logger.debug(f"Opened wav {self._source} for reading")
 
             if self._wav_file.getnchannels() != 2:
-                msgs = f"{module_type} is wav but not 2 channels"
+                msgs = f"wav file does not have 2 channels"
                 self._error = msgs
                 logger.error(msgs)
                 raise ValueError(msgs)
 
-            if self._wav_file.getsampwidth() > 2:
-                msgs = f"{module_type} is wav but more than 2 bytes per sample"
+            if self._wav_file.getsampwidth() != 2:
+                msgs = "wav does not have 2 bytes per i,q sample, 4total"
                 self._error = msgs
                 logger.error(msgs)
                 raise ValueError(msgs)
@@ -192,14 +194,9 @@ class Input(DataSource.DataSource):
         logger.debug(f"Using {self._data_type}, sps {self._sample_rate}Hz, format {self._centre_frequency}")
 
         self._connected = True
+        return self._connected
 
-    def get_help(self):
-        return help_string
-
-    def get_web_help(self):
-        return web_help_string
-
-    def set_sample_type(self, data_type: str):
+    def set_sample_type(self, data_type: str) -> None:
         # we are only supporting 4byte complex variants, i.e. 2bytes I and 2bytes Q
         if self._is_wav_file:
             if data_type == '8o' or data_type == '8t':
