@@ -51,7 +51,8 @@ input[type=number] {
 }
 
 /* hide submit buttons */
-#submitbtn{display:none;}
+#submitbtnFreq{display:none;}
+#submitbtnGain{display:none;}
 
 /* the font for our buttons */
 .specbuttons{
@@ -71,4 +72,29 @@ input[type=number] {
 /* colour of font on the tab */
 .nav-tabs > li > a {
   color: black;
+}
+
+/* crop long lines of text */
+.CropLongTexts {
+  max-width: 100px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* tooltip for long text */
+.tooltipL {
+  position: relative;
+  display: inline-block;
+  border-bottom: 1px dotted black;
+}
+.tooltipL .tooltiptextL {
+  visibility: hidden;
+  position: absolute;
+  background-color: #555;
+  color: #fff;
+}
+.tooltipL:hover .tooltiptextL {
+  visibility: visible;
+  opacity: 1;
 }

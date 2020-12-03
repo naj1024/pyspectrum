@@ -232,18 +232,7 @@ Spectrum.prototype.updateAxes = function() {
                 }
 
                 var freq = centreFreqHz + spanHz / 10 * (i - 5);
-                if (centreFreqHz + spanHz > 1e9){
-                    freq = freq / 1e9;
-                    freq = freq.toFixed(3) + "GHz";
-                }
-                else if (centreFreqHz + spanHz > 1e6){
-                    freq = freq / 1e6;
-                    freq = freq.toFixed(3) + "MHz";
-                }
-                else if (centreFreqHz + spanHz > 1e3){
-                    freq = freq / 1e3;
-                    freq = freq.toFixed(3) + "kHz";
-                }
+                freq = this.convertFrequencyForDisplay(freq, 3);
                 this.ctx_axes.fillText(freq, x + adjust, height - 3);
             }
         }
@@ -1327,13 +1316,13 @@ Spectrum.prototype.convertFrequencyForDisplay = function(freqHz, decimalPoints) 
     let dec = parseInt(decimalPoints);
     let modFreq = Math.abs(freqHz);
     if (modFreq < 1.0e3){
-        displayValue = freqHz.toFixed(dec)+"Hz ";
+        displayValue = freqHz.toFixed(dec)+" Hz ";
     }else if (modFreq < 1.0e6){
-        displayValue = (freqHz / 1e3).toFixed(dec)+"kHz ";
+        displayValue = (freqHz / 1e3).toFixed(dec)+" kHz ";
     }else if (modFreq < 1.0e9){
-        displayValue = (freqHz / 1e6).toFixed(dec)+"MHz ";
+        displayValue = (freqHz / 1e6).toFixed(dec)+" MHz ";
     }else {
-        displayValue = (freqHz / 1e9).toFixed(dec)+"GHz ";
+        displayValue = (freqHz / 1e9).toFixed(dec)+" GHz ";
     }
 
     return displayValue;

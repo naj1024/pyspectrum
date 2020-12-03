@@ -36,7 +36,7 @@ class Input(DataSource.DataSource):
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
-                 sleep_time: float):
+                 input_bw: float):
         """
         The null input source
 
@@ -46,9 +46,9 @@ class Input(DataSource.DataSource):
         :param sample_rate: The sample rate we will set the source to
         :param centre_frequency: Not used
         :param sleep_time: Time in seconds between reads, not used on most sources
+        :param input_bw: The filtering of the input, may not be configurable
         """
-        super().__init__(source, number_complex_samples, data_type, sample_rate,
-                         centre_frequency, sleep_time)
+        super().__init__(source, number_complex_samples, data_type, sample_rate, centre_frequency, input_bw)
 
         self._connected = True
         super().set_help(help_string)

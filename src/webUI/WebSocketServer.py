@@ -183,8 +183,7 @@ class WebSocketServer(multiprocessing.Process):
                              await asyncio.sleep(1 / self._fps)  # we will not sleep this long
 
                 except queue.Empty:
-                    # unlikely to every keep up so shouldn't end up here
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(0.01)
 
         except Exception as msg:
             logger.error(f"WebSocket socket Tx exception for {client}, {msg}")

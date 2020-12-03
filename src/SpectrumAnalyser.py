@@ -102,7 +102,6 @@ def main() -> None:
     debug_time = 0
     config_time = 0  # when we will send our config to the UI
     fps_update_time = 0
-    reconnect_count = 0
 
     # keep processing until told to stop or an error occurs
     # loop_count = 0
@@ -154,7 +153,8 @@ def main() -> None:
                     _ = plugin_manager.call_plugin_method(method="report",
                                                           args={"data_samples_time": time_rx,
                                                                 "frequencies": freqs,
-                                                                "centre_frequency_hz": configuration.centre_frequency_hz})
+                                                                "centre_frequency_hz":
+                                                                    configuration.centre_frequency_hz})
 
                 ##########################
                 # Update the UI
@@ -197,7 +197,6 @@ def main() -> None:
             debug_print(expected_samples_receive_time,
                         configuration.fft_size, process_time,
                         sample_get_time,
-                        reconnect_count,
                         peak_average.get_ewma(),
                         configuration.fps,
                         configuration.measured_fps,
@@ -271,17 +270,8 @@ def initialise(configuration: Variables):
         data_source = create_source(configuration, factory)
         try:
             open_source(configuration, data_source)
-
-            # attempt to connect, but allow exit if we receive a CTRL-C signal
-            while not data_source.connected() and processing:
-                try:
-                    logger.debug(f"Input type {configuration.input_source} {configuration.input_params}")
-                    data_source.connect()
-                except Exception as err_msg:
-                    logger.error(f"Connection problem {err_msg}")
-                    time.sleep(1)
-
         except ValueError as msg:
+            logger.error(f"Connection problem {msg}")
             configuration.error += str(msg)
 
         # The main processor for producing ffts etc
@@ -308,7 +298,7 @@ def create_source(configuration: Variables, factory) -> DataSource:
                                  configuration.sample_type,
                                  configuration.sample_rate,
                                  configuration.centre_frequency_hz,
-                                 configuration.source_sleep)
+                                 configuration.input_bw_hz)
     return data_source
 
 
@@ -323,6 +313,10 @@ def open_source(configuration: Variables, data_source: DataSource) -> None:
     # few other things to configure first before the open()
     data_source.set_gain_mode(configuration.gain_mode)
     data_source.set_gain(configuration.gain)
+    try:
+        data_source.set_sleep_on_read(configuration.source_sleep)  # will fail on most sources, see file source
+    except:
+        pass
 
     if data_source.open():
         # may have updated various things
@@ -332,6 +326,7 @@ def open_source(configuration: Variables, data_source: DataSource) -> None:
         configuration.gain = data_source.get_gain()
         configuration.gain_modes = data_source.get_gain_modes()
         configuration.gain_mode = data_source.get_gain_mode()
+        configuration.input_bw_hz = data_source.get_sdr_filter_bandwidth()
 
         # patch up fps things
         configuration.oneInN = int(configuration.sample_rate /
@@ -366,10 +361,8 @@ def update_source(configuration: Variables, source_factory) -> DataSource:
     data_source = create_source(configuration, source_factory)
     try:
         open_source(configuration, data_source)
-        if len(configuration.error) == 0:
-            data_source.reconnect()
-            configuration.error += data_source.get_and_reset_error()
-            logger.info(f"Opened source {configuration.input_source}")
+        configuration.error += data_source.get_and_reset_error()
+        logger.info(f"Opened source {configuration.input_source}")
     except ValueError as msg:
         logger.error(f"Problem with new configuration, {msg} "
                      f"{configuration.centre_frequency_hz} "
@@ -397,7 +390,7 @@ def parse_command_line(configuration: Variables) -> None:
                                      description=textwrap.dedent('''\
         Provide a spectral web UI of a stream of digitised complex samples.
         A variety of different input sources are supported.
-        The web interface uses two ports, the web server and a websocket.
+        The web interface uses two ports, a web server and a websocket.
         The sample rate must be set for the programme to work correctly. When
         file input is used this sample rate may be recovered from the filename or
         from the meta data in a wav file.
@@ -481,15 +474,16 @@ def parse_command_line(configuration: Variables) -> None:
             quit()  # EXIT now
         else:
             parts = full_source_name.split(":")
-            if len(parts) >= 2:
+            if len(parts) >= 1:
                 configuration.input_source = parts[0]
                 # handle multiple ':' parts - make input_name up of them
                 configuration.input_params = ""
-                for part in parts[1:]:
-                    # add ':' between values
-                    if len(configuration.input_params) > 0:
-                        configuration.input_params += ":"
-                    configuration.input_params += f"{part}"
+                if len(parts) >= 2:
+                    for part in parts[1:]:
+                        # add ':' between values
+                        if len(configuration.input_params) > 0:
+                            configuration.input_params += ":"
+                        configuration.input_params += f"{part}"
             else:
                 logger.critical(f"input parameter incorrect, {full_source_name}")
                 quit()
@@ -660,6 +654,12 @@ def handle_control_queue(configuration: Variables,
                             configuration.error += data_source.get_and_reset_error()
                             configuration.centre_frequency_hz = data_source.get_centre_frequency()
 
+                        if new_config['sdrBwHz'] != configuration.input_bw_hz:
+                            new_bw = new_config['sdrBwHz']
+                            data_source.set_sdr_filter_bandwidth(new_bw)
+                            configuration.error += data_source.get_and_reset_error()
+                            configuration.input_bw_hz = data_source.get_sdr_filter_bandwidth()
+
                         if new_config['sps'] != configuration.sample_rate:
                             new_sps = new_config['sps']
                             data_source.set_sample_rate(new_sps)
@@ -772,8 +772,11 @@ def update_ui(configuration: Variables,
             peak_detect = True  # UI can't keep up
 
     if peak_detect:
-        # Record the maximum for each bin, so that ui can show things between display updates
-        peak_powers_since_last_display = np.maximum.reduce([powers, peak_powers_since_last_display])
+        if powers.shape == peak_powers_since_last_display.shape:
+            # Record the maximum for each bin, so that ui can show things between display updates
+            peak_powers_since_last_display = np.maximum.reduce([powers, peak_powers_since_last_display])
+        else:
+            peak_powers_since_last_display = powers
 
     return peak_powers_since_last_display, current_peak_count, max_peak_count
 
@@ -806,7 +809,6 @@ def debug_print(expect_samples_receive_time: float,
                 fft_size: int,
                 process_time: Ewma,
                 sample_get_time: Ewma,
-                reconnect_count: int,
                 peak_count: float,
                 fps: int,
                 mfps: int,
@@ -818,7 +820,6 @@ def debug_print(expect_samples_receive_time: float,
     :param fft_size: The number of samples per cycle
     :param process_time: How long we have spent processing the samples
     :param sample_get_time: How long it took as to receive the digitised samples
-    :param reconnect_count: How many times we have reconnected to our data source
     :param peak_count: Count of how many spectrums we are peak detecting on for the UI
     :param fps: requested fps
     :param mfps: measured fps
@@ -832,7 +833,6 @@ def debug_print(expect_samples_receive_time: float,
                  f'read:{1e6 * sample_get_time.get_ewma():.0f}usec, '
                  f'process:{1e6 * process_time.get_ewma():.0f}usec, '
                  f'total:{1e6 * total_time:.0f}usec, '
-                 f'reconnects:{reconnect_count}, '
                  f'pc:{peak_count:0.1f}, '
                  f'fps:{fps}, '
                  f'mfps:{mfps}, '

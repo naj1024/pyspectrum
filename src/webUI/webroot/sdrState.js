@@ -53,8 +53,8 @@ sdrState.prototype.setGainMode = function(gainMode) {
 sdrState.prototype.setGainModes = function(gainModes) {
     this.gainModes = gainModes;
 }
-sdrState.prototype.setSdrBw = function(sdrBw) {
-    this.sdrBw = sdrBw;
+sdrState.prototype.setSdrBwHz = function(sdrBwHz) {
+    this.sdrBwHz = sdrBwHz;
 }
 sdrState.prototype.setLastDataTime = function(last) {
     this.lastDataTime = last;
@@ -117,8 +117,8 @@ sdrState.prototype.getGainMode = function() {
 sdrState.prototype.getGainModes = function() {
     return this.gainModes;
 }
-sdrState.prototype.getSdrBw = function() {
-    return this.sdrBw;
+sdrState.prototype.getSdrBwHz = function() {
+    return this.sdrBwHz;
 }
 
 
@@ -159,6 +159,11 @@ sdrState.prototype.setFromJason = function(jsonConfig) {
         updateCfgTable = true;
     }
 
+    if (jsonConfig.input_bw_hz != sdrState.getSdrBwHz()) {
+        sdrState.setSdrBwHz(jsonConfig.input_bw_hz);
+        updateCfgTable = true;
+    }
+
     if (jsonConfig.fft_size != sdrState.getFftSize()) {
         sdrState.setFftSize(jsonConfig.fft_size);
         updateCfgTable = true;
@@ -193,14 +198,6 @@ sdrState.prototype.setFromJason = function(jsonConfig) {
         sdrState.setDataFormat(jsonConfig.sample_type);
         updateCfgTable = true;
     }
-
-    // TODO: race condition sometimes oscillating between two fps values
-    // both UI and config can change this
-//    if (jsonConfig.fps != sdrState.getFps()) {
-//        sdrState.setFps(jsonConfig.fps);
-//        handleFpsChange(jsonConfig.fps);
-//        updateCfgTable = true;
-//    }
 
     if (jsonConfig.measured_fps != sdrState.getMeasuredFps()) {
         sdrState.setMeasuredFps(jsonConfig.measured_fps);
@@ -241,11 +238,10 @@ function sdrState(name) {
     this.sources = [];
     this.sourceHelps = [];
     this.sourceConnected = false;
-    this.gainMode = "auto"; // TODO
     this.gain = 0;
     this.gainMode = "";
-    this.gainModes = []; // TODO
-    this.sdrBw = 0; // TODO
+    this.gainModes = [];
+    this.sdrBwHz = 0;
     this.dataFormat = "";
     this.dataFormats = [];
     this.fps = 0;

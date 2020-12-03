@@ -44,7 +44,7 @@ class Input(DataSource.DataSource):
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
-                 sleep_time: float):
+                 input_bw: float):
         """
         The pluto device on a socket, not the USB connection
 
@@ -58,12 +58,12 @@ class Input(DataSource.DataSource):
         :param data_type: Not used
         :param sample_rate: The sample rate the pluto device will be set to, AND it's BW
         :param centre_frequency: The Centre frequency we will tune to
-        :param sleep_time: Time in seconds between reads, not used on most sources
+        :param input_bw: The filtering of the input, may not be configurable
         """
         # Driver converts to floating point for us, underlying data from ad936x was 16bit i/q
         self._constant_data_type = "16tle"
         super().__init__(ip_address, number_complex_samples, self._constant_data_type, sample_rate,
-                         centre_frequency, sleep_time)
+                         centre_frequency, input_bw)
         self._sdr = None
         self._connected = False
         self._gain_modes = ["manual", "fast_attack", "slow_attack", "hybrid"]  # would ask, but can't
@@ -111,13 +111,12 @@ class Input(DataSource.DataSource):
             self._sdr.rx_buffer_size = self._number_complex_samples  # sets how many complex samples we get each rx()
             self._sdr.sample_rate = self._sample_rate
             self._sdr.rx_lo = int(self._centre_frequency)
-            self._sdr.rx_rf_bandwidth = int(self._sample_rate)
+            self._sdr.rx_rf_bandwidth = int(self._sdr_filter_bandwidth)
             # AGC mode will depend on environment, lots of bursting signals or lots of continuous signals
             self.set_gain_mode(self._gain_mode)  # self._sdr.gain_control_mode_chan0 = self._gain_mode
             self.set_gain(40)
         except Exception as err:
             msgs = f"problem with initialisation {err}"
-            print(err)
             self._error += f"str(msgs),\n"
             logger.error(msgs)
             raise ValueError(msgs)
@@ -129,11 +128,6 @@ class Input(DataSource.DataSource):
         logger.debug(f"{module_type}: {self._centre_frequency / 1e6:.6}MHz @ {self._sample_rate / 1e6:.3f}Msps")
         self._connected = True
         return self._connected
-
-    def reconnect(self) -> bool:
-        logger.info(f"Reconnecting to {module_type}")
-        time.sleep(1)  # we may get called a lot on not connected, so slow reconnects down a bit
-        return self.open()
 
     def get_sample_rate(self) -> float:
         if self._sdr:
@@ -147,7 +141,7 @@ class Input(DataSource.DataSource):
 
     def set_sample_rate(self, sr: float) -> None:
         if self._sdr:
-            if self._sample_rate >= 521e3 or self._sample_rate <= 61e6:
+            if sr >= 521e3 and sr <= 61e6:
                 self._sdr.sample_rate = sr
                 self._sample_rate = self._sdr.sample_rate
                 self._sdr.rx_rf_bandwidth = int(sr)  # TODO: make this separate
@@ -187,7 +181,16 @@ class Input(DataSource.DataSource):
             self._gain_mode = mode
             if self._sdr:
                 self._sdr.gain_control_mode_chan0 = self._gain_mode
-        return
+
+    def set_sdr_filter_bandwidth(self, bw: float) -> None:
+        if self._sdr:
+            self._sdr.rx_rf_bandwidth = int(bw)
+            self._sdr_filter_bandwidth = self._sdr.rx_rf_bandwidth
+
+    def get_sdr_filter_bandwidth(self) -> float:
+        if self._sdr:
+            self._sdr_filter_bandwidth = self._sdr.rx_rf_bandwidth
+        return self._sdr_filter_bandwidth
 
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """

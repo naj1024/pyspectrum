@@ -80,7 +80,7 @@ class Input(DataSource.DataSource):
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
-                 sleep_time: float):
+                 input_bw: float):
         """
         The rtltcp input source
 
@@ -89,11 +89,11 @@ class Input(DataSource.DataSource):
         :param data_type: ignored, we will be getting 8bit offset binary, '8o'
         :param sample_rate: The sample rate we will set the source to, note true sps is set from the device
         :param centre_frequency: The centre frequency the source will be set to
-        :param sleep_time: Time in seconds between reads, not used on most sources
+        :param input_bw: The filtering of the input, may not be configurable
         """
         self._constant_data_type = "8o"
         super().__init__(source, number_complex_samples, self._constant_data_type, sample_rate,
-                         centre_frequency, sleep_time)
+                         centre_frequency, input_bw)
 
         self._socket = None
         self._connected = False
@@ -132,24 +132,7 @@ class Input(DataSource.DataSource):
         self._connected = False
         self._tuner_type_str = "Unknown_Tuner"
 
-        return self._connected
-
-    def reconnect(self) -> bool:
-        """
-        Reconnect using the previous connect settings
-
-        We will return either connected or an exception. The caller can then decide what to do, i.e.
-        maybe a ctrl-c event has to be handled to terminate the programme
-        :return: Boolean on success/failure
-        """
-        logger.debug(f"Reconnecting to rtltcp {self._ip_address} port {self._ip_port}")
-        time.sleep(1)  # we may get called a lot on not connected, so slow reconnects down a bit
-        self._connected = False
-        try:
-            self._connected = self.connect()
-        except ValueError as msg:
-            self._error = str(msg)
-            raise ValueError(msg)
+        self.connect()
 
         return self._connected
 

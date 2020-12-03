@@ -56,7 +56,8 @@ class Input(DataSource.DataSource):
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
-                 sleep_time: float):
+                 input_bw: float
+                 ):
         """
         The audio input source
 
@@ -65,11 +66,11 @@ class Input(DataSource.DataSource):
         :param data_type: Not used
         :param sample_rate: The sample rate we will set the source to
         :param centre_frequency: Not used
-        :param sleep_time: Time in seconds between reads, not used on most sources
+        :param input_bw: The filtering of the input, may not be configurable
         """
         self._constant_data_type = "16tle"
         super().__init__(source, number_complex_samples, self._constant_data_type, sample_rate,
-                         centre_frequency, sleep_time)
+                         centre_frequency, input_bw)
         self.bound_sample_rate()
 
         self._connected = False
@@ -129,14 +130,6 @@ class Input(DataSource.DataSource):
             self._audio_stream.stop()
             self._audio_stream.close(ignore_errors=True)
         self._connected = False
-
-    def connect(self) -> bool:
-        # as we can list available then we may have to die here if someone asks us to connect to "?"
-        if not self._audio_stream:
-            if self._source != "?":
-                self._error = f"No such audio device as {self._source}"
-                logger.error(f"No such audio device as {self._source}")
-        return self._connected
 
     def set_sample_rate(self, sr: float) -> None:
         self._sample_rate = sr

@@ -18,8 +18,9 @@ class Variables:
         self.sample_types = []
         self.sample_type = '16tbe'  # default Format of sample data
         self.gain = 0
-        self.gain_modes = ["auto"]
-        self.gain_mode = "auto"
+        self.gain_modes = []
+        self.gain_mode = ""
+        self.input_bw_hz = self.sample_rate
 
         # display
         self.fps = 20
@@ -31,17 +32,18 @@ class Variables:
         self.ack = 0  # time in seconds of the last data displayed by the UI, updated by UI
 
         # where the data comes from
-        self.input_source = "?"  # the source type e.g. file, socket, pluto, soapy, rtlsdr, audio ....
+        self.input_source = "null"  # the source type e.g. file, socket, pluto, soapy, rtlsdr, audio ....
         self.input_params = ""  # the parameters for the source, e.g. filename or ip address ...
-        self.source_sleep = 0.01  # only used in file input for now, slows things down
+        self.source_sleep = 0.0  # only used in file input for now, slows things down
         self.time_first_spectrum: float = 0
         self.source_connected = False
 
-        # List of data source
+        # List of data source, discovered by looking in dataSources directory
         self.input_sources = []
         self.input_sources_web_helps = []
 
-        # List of plugin options, --plugin xyz:abc:def
+        # List of plugin options, discovered by looking in plugins directory
+        #   --plugin xyz:abc:def
         self.plugin_options = []
 
         self.error = ""  # any errors we want to have available in the UI

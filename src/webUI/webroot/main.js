@@ -3,7 +3,7 @@
 // GLOBALS !!!
 var data_active = false; // true when we are connected and receiving data
 var spectrum = null;     // don't like this global but can't get onclick in table of markers to work
-var sdrState = null;     // holds basics about the fron end sdr
+var sdrState = null;     // holds basics about the front end sdr
 var websocket = null;
 var updateTimer = null;  // for when we are not streaming we still need to update the display
 var formInFocus = false;
@@ -106,6 +106,8 @@ async function handleBlob(binary_blob_data) {
 
 async function handleJsonControl(controlData) {
     /*
+    Don't update UI controls with these values - tends to cause race conditions
+
     JSON control data, see python Variables.py for expected entries, e.g:
     {
     "fft_size": 2048,
@@ -194,14 +196,22 @@ function zoomedToCf() {
 
 function handleSpsChange(newSps) {
     sdrState.setSps(newSps*1e6);
+    // force the sdr input bw to the same as the sps
+    sdrState.setSdrBwHz(newSps*1e6);
     spectrum.setSps(newSps);
+    configTableFocusOut();
+    sdrState.setSdrStateUpdated();
+}
+
+function handleSdrBwChange(newBwMHz) {
+    sdrState.setSdrBwHz(newBwMHz*1e6);
     configTableFocusOut();
     sdrState.setSdrStateUpdated();
 }
 
 function handleFftChange(newFft) {
     sdrState.setFftSize(newFft);
-    // spec.setFftSize(num_floats); // don't do this here
+    // spec.setFftSize(num_floats); // don't do this here as spectrum has to know it changed
     configTableFocusOut();
     sdrState.setSdrStateUpdated();
 }
@@ -287,6 +297,11 @@ function updateConfigTable(spec) {
     let dataFormats = sdrState.getDataFormats();
     let dataFormat = sdrState.getDataFormat();
     let gainModes = sdrState.getGainModes();
+    let fftSize = sdrState.getFftSize();
+    let gainMode = sdrState.getGainMode();
+    let gain = sdrState.getGain();
+    let fpsV = sdrState.getFps();
+    let sdrBwHz = sdrState.getSdrBwHz();
 
     let new_row = '';
 
@@ -294,8 +309,13 @@ function updateConfigTable(spec) {
     // input
     ///////
     new_row = '<tr><td><b>Source</b></td>';
+    // new_row += '<td>'+source+' '+sourceParams+' '+(sdrState.getSourceConnected()?'Connected':'Not Connected')+'</td>';
+    // overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    new_row += '<td>'+source+' ';
+    new_row += '<div class="CropLongTexts tooltipL">'+sourceParams;
+    new_row += '<div class="tooltiptextL">'+sourceParams+'</div></div>';
+    new_row += (sdrState.getSourceConnected()?'Connected':'Not Connected')+'</td>';
     if (sources.length > 0) {
-        let sourceParamHelp = sdrState.getInputSourceParamHelp(source);
         new_row += '<td>';
         new_row += '<form name="myForm"';
         new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
@@ -308,12 +328,11 @@ function updateConfigTable(spec) {
 
         // the parameters for the source
         // TODO: when the source changes update the help, but it is already built here by then
-        new_row += '<input data-toggle="tooltip" title="'+sourceParamHelp+'" type="text" size="20"';
+        let help = source+' '+sourceParams+'\n'+sdrState.getInputSourceParamHelp(source);
+        new_row += '<input data-toggle="tooltip" title="'+help+'" type="text" size="10"';
         new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
         new_row += ' value="'+ sourceParams + '" id="inputSourceParams" name="inputSourceParams">';
         new_row += '<input type="submit" value="Change">';
-
-        new_row += '&nbsp '+(sdrState.getSourceConnected()?'Connected':'Not Connected');
         new_row += '</td>';
     }
     else {
@@ -326,6 +345,7 @@ function updateConfigTable(spec) {
     // data format
     ///////
     new_row = '<tr><td><b>Format</b></td>';
+    new_row += '<td>'+dataFormat+'</td>';
     if (dataFormats.length > 0) {
         new_row += '<td><form ';
         new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
@@ -346,42 +366,64 @@ function updateConfigTable(spec) {
     // centre frequency
     ///////
     let cf_step = 0.000001; // 1Hz - annoyingly if we set it to sps/4 say then you can't go finer than that
-    new_row = "<tr><td><b>Centre</b></td><td>";
-    new_row += '<form ';
+    new_row = '<tr><td><b>Centre</b></td>';
+    new_row += '<td>'+(cf/1e6).toFixed(6)+'&nbsp MHz</td>';
+    new_row += '<td><form ';
     new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
     new_row += ' action="javascript:handleCfChange(centreFrequencyInput.value)">';
-    new_row += '<input type="number" size="10" min="0" ';
+    // as we remove the number inc/dec arrows in css the size parameter does work
+    new_row += '<input type="number" size="10" min="0" max="10000" ';
     new_row += ' step="';
     new_row += cf_step;
     new_row += '" value="';
     new_row += (cf/1e6).toFixed(6);
     new_row += '" id="centreFrequencyInput" name="centreFrequencyInput">';
-    new_row += '<input type=submit id="submitbtn">';
-    new_row += 'MHz</form></td></tr>';
+    new_row += '<input type=submit id="submitbtnFreq">';
+    new_row += '&nbsp MHz</form></td></tr>';
     $('#configTable').append(new_row);
 
     /////////////
     // sps
     ///////
     let sps_step = 0.000001; // 1Hz
-    new_row = "<tr><td><b>SPS</b></td><td>";
-    new_row += '<form ';
+    new_row = '<tr><td><b>SPS</b></td>';
+    new_row += '<td>'+(sps/1e6).toFixed(6)+'&nbsp Msps</td>';
+    new_row += '<td><form ';
     new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
     new_row += 'action="javascript:handleSpsChange(spsInput.value)">';
-    new_row += '<input type="number" size="10" min="0" step="';
+    // as we remove the number inc/dec arrows in css the size parameter does work
+    new_row += '<input type="number" size="9" min="0" max="100" step="';
     new_row += sps_step;
     new_row += '" value="';
     new_row += (sps/1e6).toFixed(6);
     new_row += '" id="spsInput" name="spsInput">';
-    new_row += "Msps</form></td></tr>";
+    new_row += "&nbsp Msps</form></td></tr>";
+    $('#configTable').append(new_row);
+
+    /////////////
+    // sdr BW
+    ///////
+    let sdrbw_step = 0.01; // 10kHz
+    new_row = '<tr><td><b>sdr Bw</b></td>';
+    new_row += '<td>'+(sdrBwHz/1e6).toFixed(2)+'&nbsp MHz</td>';
+    new_row += '<td><form ';
+    new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+    new_row += 'action="javascript:handleSdrBwChange(sdrBwInput.value)">';
+    // as we remove the number inc/dec arrows in css the size parameter does work
+    new_row += '<input type="number" size="3" min="0" max="100" step="';
+    new_row += sdrbw_step;
+    new_row += '" value="';
+    new_row += (sdrBwHz/1e6).toFixed(2);
+    new_row += '" id="sdrBwInput" name="sdrBwInput">';
+    new_row += "&nbsp MHz</form></td></tr>";
     $('#configTable').append(new_row);
 
     /////////////
     // fft
     ///////
-    let fftSize = sdrState.getFftSize();
-    new_row = "<tr><td><b>FFT</b></td><td>";
-    new_row += '<form ';
+    new_row = '<tr><td><b>FFT</b></td>';
+    new_row += '<td>'+fftSize+'</td>';
+    new_row += '<td><form ';
     new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
     new_row += 'action="javascript:handleFftChange(fftSizeInput.value)">';
     new_row += '<select id="fftSizeInput" name="fftSizeInput" onchange="this.form.submit()">';
@@ -398,8 +440,8 @@ function updateConfigTable(spec) {
     /////////////
     // gain mode
     ///////
-    let gainMode = sdrState.getGainMode();
-    new_row = "<tr><td><b>G-mode</b></td>";
+    new_row = '<tr><td><b>Gmode</b></td>';
+    new_row += '<td>'+gainMode+'</td>';
     if (gainModes.length > 0) {
         new_row += '<td><form';
         new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
@@ -420,26 +462,28 @@ function updateConfigTable(spec) {
     // gain
     ///////
     let gain_step = 0.1;
-    new_row = "<tr><td><b>Gain</b></td><td>";
-    new_row += '<form ';
+    new_row = '<tr><td><b>Gain</b></td>'
+    new_row += '<td>'+gain+'&nbsp dB</td>';
+    new_row += '<td><form ';
     new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
     new_row += ' action="javascript:handleGainChange(gainInput.value)">';
-    new_row += '<input type="number" size="10" min="0" ';
+    // as we remove the number inc/dec arrows in css the size parameter does work
+    new_row += '<input type="number" size="2" min="0" max="100" ';
     new_row += ' step="';
     new_row += gain_step;
     new_row += '" value="';
     new_row += sdrState.getGain();
     new_row += '" id="gainInput" name="gainInput">';
-    new_row += '<input type=submit id="submitbtn">';
-    new_row += 'dB</form></td></tr>';
+    new_row += '<input type=submit id="submitbtnGain">';
+    new_row += '&nbsp dB</form></td></tr>';
     $('#configTable').append(new_row);
 
     /////////////
     // fps
     ///////
-    let fpsV = sdrState.getFps();
-    new_row = "<tr><td><b>FPS</b></td><td>";
-    new_row += '<form ';
+    new_row = '<tr><td><b>FPS</b></td>';
+    new_row += '<td>Max:'+spec.getmaxFps()+', Actual:'+sdrState.getMeasuredFps()+'</td>';
+    new_row += '<td><form ';
     new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
     new_row += 'action="javascript:handleFpsChange(fpsSizeInput.value)">';
     new_row += '<select id="fpsSizeInput" name="fpsSizeInput" onchange="this.form.submit()">';
@@ -453,26 +497,21 @@ function updateConfigTable(spec) {
     new_row += '<option value="640" '+((fpsV==640)?"selected":"")+'>640</option>';
     new_row += '<option value="10000" '+((fpsV==10000)?"selected":"")+'>10000</option>';
     new_row += '</select>';
-    new_row += ' Max:'+spec.getmaxFps()+', Actual:'+sdrState.getMeasuredFps()+'</form></td></tr>';
+    new_row += '</form></td></tr>';
     $('#configTable').append(new_row);
 
     /////////////
-    // the rest
+    // the rest, not configurable
     ///////
-    new_row = "<tr><td><b>sdr Bw</b></td><td>"+sdrState.getSdrBw()+"</td></tr>";
-    new_row = "<tr><td><b>RBW</b></td><td>"+spec.convertFrequencyForDisplay(sps / sdrState.getFftSize(),3)+"</td></tr>";
+    new_row = '<tr><td><b>RBW</b></td>'
+    new_row += '<td>'+spec.convertFrequencyForDisplay(sps / sdrState.getFftSize(),3)+'</td><td>&nbsp</td></tr>';
     $('#configTable').append(new_row);
-    let start = spec.getStartTime();
-    let seconds = parseInt(start);
-    let usec = parseInt((start-seconds)*1e6);
-    new_row = "<tr><td><b>Start</b></td><td>"+seconds+"Sec + "+usec.toFixed(0)+"usec</td></tr>";
+    new_row = '<tr><td><b>Avg</b></td><td>'+spec.averaging+'</td><td>&nbsp</td></tr>';
     $('#configTable').append(new_row);
-    new_row = "<tr><td><b>Avg</b></td><td>"+spec.averaging+"</td></tr>";
-    $('#configTable').append(new_row);
-    new_row = "<tr><td><b>Zoom</b></td><td>"+spec.zoom+"</td></tr>";
+    new_row = '<tr><td><b>Zoom</b></td><td>'+spec.zoom+'</td><td>&nbsp</td></tr>';
     $('#configTable').append(new_row);
     let zoomBw = sps/spec.zoom;
-    new_row = "<tr><td><b>Span</b></td><td>"+spec.convertFrequencyForDisplay(zoomBw,3)+"</td></tr>";
+    new_row = '<tr><td><b>Span</b></td><td>'+spec.convertFrequencyForDisplay(zoomBw,3)+'</td><td>&nbsp</td></tr>';
     $('#configTable').append(new_row);
 }
 
@@ -637,7 +676,8 @@ function Main() {
     rhcol += '<thead class="thead-dark">';
     rhcol += '<tr>';
     rhcol += '<th scope="col">Param</th>';
-    rhcol += '<th scope="col">Value</th>';
+    rhcol += '<th scope="col">Set</th>';
+    rhcol += '<th scope="col">New</th>';
     rhcol += '</tr>';
     rhcol += '</thead>';
     rhcol += '<tbody>';

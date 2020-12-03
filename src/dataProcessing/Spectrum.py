@@ -139,7 +139,7 @@ class Spectrum:
             signals_fft = np.fft.fft(complex_samples * self._win)
 
         if reorder:
-            # this is quite expensive, longer than the fft() numpy ans scipy are the same
+            # this is quite expensive, longer than the fft() numpy and scipy are the same
             signals_fft = np.fft.fftshift(signals_fft)
             # pyfftw is marginally faster but the test would blow away the gain
             # signals_fft = pyfftw.interfaces.numpy_fft.fftshift(signals_fft)

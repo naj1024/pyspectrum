@@ -33,31 +33,32 @@ class DataSource:
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
-                 sleep_time: float
+                 input_bw: float
                  ):
         """
         A wrapper around different types of data source that we may wish to have
 
-        TODO: Add more sample types
+        Creating a source dpoes not start the connection. We need to be able to detect errors on connecting
+        to a source. So the creation must not fail. When we open the device we may fail
 
         :param source: This source name is meaningful to the DataSource only
         :param number_complex_samples: How many samples we expect to get each time
         :param data_type: The type of data that this source will be converting to complex floats/doubles
         :param sample_rate: The sample rate this source is supposed to be working at, in Hz
         :param centre_frequency: The centre frequency this input is supposed to be at, in Hz
-        :param sleep_time: Time in seconds between reads, not used on most sources
+        :param input_bw: The filtering of the input, may not be configurable
 
         """
         self._source = source
         self._display_name = source
         self._number_complex_samples = number_complex_samples
         self._sample_rate = sample_rate
+        self._sdr_filter_bandwidth = input_bw
         self._centre_frequency = centre_frequency
-        self._sleep_time = sleep_time
 
         self._gain = 0
-        self._gain_modes = ["auto"]
-        self._gain_mode = "auto"
+        self._gain_modes = ['None']
+        self._gain_mode = "None"
         self._bandwidth = 0
 
         self._error = ""
@@ -71,6 +72,16 @@ class DataSource:
 
         self._connected = False
 
+    def open(self) -> bool:
+        """
+        Override in derived class
+        Actually connect to the source
+
+        :return: connected state
+        """
+        #
+        return self._connected
+
     def close(self) -> None:
         self._connected = False
 
@@ -80,18 +91,6 @@ class DataSource:
 
         :return: boolean
         """
-        return self._connected
-
-    def open(self) -> bool:
-        # Override in derived class
-        return self._connected
-
-    def connect(self) -> bool:
-        # Override in derived class if required
-        return self._connected
-
-    def reconnect(self) -> bool:
-        # Override in derived class if required
         return self._connected
 
     def get_and_reset_error(self) -> str:
@@ -110,6 +109,12 @@ class DataSource:
 
     def get_centre_frequency(self) -> float:
         return self._centre_frequency
+
+    def set_sdr_filter_bandwidth(self, bw: float) -> None:
+        self._sdr_filter_bandwidth = bw
+
+    def get_sdr_filter_bandwidth(self) -> float:
+        return self._sdr_filter_bandwidth
 
     def get_display_name(self) -> str:
         return self._display_name
@@ -245,7 +250,7 @@ class DataSource:
             logger.error(err_msg)
             raise ValueError(err_msg)
 
-        # TODO: would this be faster
+        # TODO: would the following be faster?
         #  rtlsdr.py uses the following, for 8bit offset binary?
         #   data = np.ctypeslib.as_array(bytes)
         #   iq = data.astype(np.float64).view(np.complex128)

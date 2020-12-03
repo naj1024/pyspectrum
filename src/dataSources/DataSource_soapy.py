@@ -37,7 +37,7 @@ class Input(DataSource.DataSource):
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
-                 sleep_time: float):
+                 input_bw: float):
         """
         The soapy input source
 
@@ -46,9 +46,9 @@ class Input(DataSource.DataSource):
         :param data_type: Not required, we set complex 32f
         :param sample_rate: The sample rate we will set the source to
         :param centre_frequency: The centre frequency the source will be set to
-        :param sleep_time: Time in seconds between reads, not used on most sources
+        :param input_bw: The filtering of the input, may not be configurable
         """
-        super().__init__(source, number_complex_samples, data_type, sample_rate, centre_frequency, sleep_time)
+        super().__init__(source, number_complex_samples, data_type, sample_rate, centre_frequency, input_bw)
         self._connected = False
         self._sdr = None
         self._channel = 0  # we will use channel zero for now
@@ -122,14 +122,6 @@ class Input(DataSource.DataSource):
 
         self._connected = True
 
-        return self._connected
-
-    def connect(self) -> bool:
-        # as we can list available then we may have to die here if someone asks us to connect to "?"
-        if not self._sdr:
-            if self._source != "?":
-                print(f"No such soapy device as {self._source}")
-            quit()
         return self._connected
 
     def close(self) -> None:

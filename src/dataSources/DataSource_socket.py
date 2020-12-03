@@ -32,7 +32,7 @@ class Input(DataSource.DataSource):
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
-                 sleep_time: float):
+                 input_bw: float):
         """Initialise the object
         Args:
         :param ip_address_port: The address and port we connect to, address empty then we are the server
@@ -40,10 +40,10 @@ class Input(DataSource.DataSource):
         :param data_type: The type of data we are going to be receiving on the socket
         :param sample_rate: The sample rate this source is supposed to be working at, in Hz
         :param centre_frequency: The centre frequency this input is supposed to be at, in Hz
-        :param sleep_time: Time in seconds between reads, not used on most sources
+        :param input_bw: The filtering of the input, may not be configurable
         """
 
-        super().__init__(ip_address_port, number_complex_samples, data_type, sample_rate, centre_frequency, sleep_time)
+        super().__init__(ip_address_port, number_complex_samples, data_type, sample_rate, centre_frequency, input_bw)
         self._connected = False
         self._ip_address = ""  # filled in when we open()
         self._ip_port = 0  # filled in when we open()
@@ -80,27 +80,7 @@ class Input(DataSource.DataSource):
         if self._ip_address == "":
             self._client = False
 
-        return self._connected
-
-    def is_server(self) -> bool:
-        return not self._client
-
-    def reconnect(self) -> bool:
-        """
-        Reconnect using the previous connect settings
-
-        We will return either connected or an exception. The caller can then decide what to do, i.e.
-        maybe a ctrl-c event has to be handled to terminate the programme
-        :return: Boolean on success/failure
-        """
-        logger.debug(f"Reconnecting to socket {self._ip_address} port {self._ip_port}")
-        time.sleep(1)  # we may get called a lot on not connected, so slow reconnects down a bit
-        self._connected = False
-        try:
-            self._connected = self.connect()
-        except ValueError as msg:
-            self._error = str(msg)
-            raise ValueError(msg)
+        self.connect()
 
         return self._connected
 
@@ -150,6 +130,9 @@ class Input(DataSource.DataSource):
             raise ValueError(msg)
 
         return self._connected
+
+    def is_server(self) -> bool:
+        return not self._client
 
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """Read data from the socket and convert them to complex floats using the data type specified

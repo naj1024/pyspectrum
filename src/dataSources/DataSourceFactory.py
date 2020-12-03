@@ -76,7 +76,7 @@ class DataSourceFactory:
                data_type: str,
                sample_rate: float,
                centre_frequency: float,
-               sleep_time: float
+               input_bw: float
                ) -> DataSource:
         """
         Create a new data source
@@ -87,7 +87,7 @@ class DataSourceFactory:
         :param data_type: The data type the source understands, the data will be converted by the source
         :param sample_rate: The sample rate this source is producing at, can be overridden
         :param centre_frequency: The frequency the source is tuned to
-        :param sleep_time: sleep by this amount afer each read - not used by most sources
+        :param input_bw: The filtered input bw of the source
         :return: The object
         """
         creator = self._data_sources.get(input_type)
@@ -97,10 +97,10 @@ class DataSourceFactory:
             raise ValueError(msg)
 
         source = creator(name,
-                       number_complex_samples,
-                       data_type,
-                       sample_rate,
-                       centre_frequency,
-                       sleep_time)
+                        number_complex_samples,
+                        data_type,
+                        sample_rate,
+                        centre_frequency,
+                        input_bw)
 
         return source

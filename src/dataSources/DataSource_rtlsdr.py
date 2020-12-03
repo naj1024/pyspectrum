@@ -51,7 +51,7 @@ class Input(DataSource.DataSource):
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
-                 sleep_time: float):
+                 input_bw: float):
         """
         The rtlsdr input source
 
@@ -60,12 +60,12 @@ class Input(DataSource.DataSource):
         :param data_type: The data type the rtlsdr is providing, we will convert this
         :param sample_rate: The sample rate we will set the source to, note true sps is set from the device
         :param centre_frequency: The centre frequency the source will be set to
-        :param sleep_time: Time in seconds between reads, not used on most sources
+        :param input_bw: The filtering of the input, may not be configurable
         """
         # Driver converts to floating point for us, underlying is 8o?
         self._constant_data_type = "16tle"
         super().__init__(source, number_complex_samples, self._constant_data_type, sample_rate,
-                         centre_frequency, sleep_time)
+                         centre_frequency, input_bw)
         self._connected = False
         self._sdr = None
         self._tuner_type = 0
@@ -128,11 +128,6 @@ class Input(DataSource.DataSource):
             self._sdr.close()
             self._sdr = None
         self._connected = False
-
-    def reconnect(self) -> bool:
-        time.sleep(1)  # we may get called a lot on not connected, so slow reconnects down a bit
-        self.close()
-        return self.open()
 
     def get_sample_rate(self) -> float:
         if self._sdr:
@@ -268,6 +263,19 @@ class Input(DataSource.DataSource):
                 # because the 'best' way to set the mode is to set the gain, apparently
                 self.set_gain(self._gain)
         return
+
+    def set_sdr_filter_bandwidth(self, bw: float) -> None:
+        if self._sdr:
+            try:
+                self._sdr.set_bandwidth(int(bw))
+            except Exception as msg:
+                self._error += str(msg)
+            self._sdr_filter_bandwidth = self._sdr.get_bandwidth()
+
+    def get_sdr_filter_bandwidth(self) -> float:
+        if self._sdr:
+            self._sdr_filter_bandwidth = self._sdr.get_bandwidth()
+        return self._sdr_filter_bandwidth
 
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """

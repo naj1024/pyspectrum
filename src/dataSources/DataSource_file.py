@@ -105,7 +105,7 @@ class Input(DataSource.DataSource):
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
-                 sleep_time: float):
+                 input_bw: float):
         """
         File input class
 
@@ -114,16 +114,18 @@ class Input(DataSource.DataSource):
         :param data_type: The type of data we have in the file
         :param sample_rate: The sample rate this source is supposed to be working at, in Hz
         :param centre_frequency: The centre frequency this input is supposed to be at, in Hz
-        :param sleep_time: Time in seconds between reads, i.e. pause by this amount after each read
+        :param input_bw: The filtering of the input, may not be configurable
         """
         self._is_wav_file = False  # until we work it out
 
-        super().__init__(file_name, number_complex_samples, data_type, sample_rate, centre_frequency, sleep_time)
+        super().__init__(file_name, number_complex_samples, data_type, sample_rate, centre_frequency, input_bw)
 
+        self._sleep_time = 0.0  # Time in seconds between reads, i.e. pause by this amount after each read
         self._wav_file = None
         self._file = None
-        self._rewound = False  # set to true when we rewind - which will force generation of one wrong sample buffer
+        self._rewind = True  # true if we will rewind the file each time it ends
         self._connected = False
+        self._file_time = 0  # for timing the samples from the file, increment accoring to sample rate
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 
@@ -146,6 +148,7 @@ class Input(DataSource.DataSource):
                 logger.error(msgs)
                 raise ValueError(msgs)
 
+            self._data_type = '16tbe'  # wav files ?
             self.set_sample_type(self._data_type)  # make data type correct
 
             self._sample_rate = self._wav_file.getframerate()
@@ -196,6 +199,39 @@ class Input(DataSource.DataSource):
         self._connected = True
         return self._connected
 
+    def close(self) -> None:
+        if self._wav_file:
+            self._wav_file.close()
+        elif self._file:
+            self._file.close()
+        self._connected = False
+
+    def set_sleep_on_read(self, sleep_time: float) -> None:
+        self._sleep_time = sleep_time
+
+    def rewind(self) -> bool:
+        """
+        Rewind the input file
+
+        :return: Boolean true if we managed to rewind the file
+        """
+        # Rewind the file
+        self._connected = False
+        try:
+            if self._wav_file:
+                self._wav_file.rewind()
+            elif self._file:
+                self._file.seek(0, 0)
+            self._file_time = 0.0  # start again
+        except OSError as msg:
+            msgs = f'Failed to rewind {self._source}, {msg}'
+            self._error = str(msgs)
+            logger.error(msgs)
+            raise ValueError(msgs)
+
+        self._connected = True
+        return self._connected
+
     def set_sample_type(self, data_type: str) -> None:
         # we are only supporting 4byte complex variants, i.e. 2bytes I and 2bytes Q
         if self._is_wav_file:
@@ -209,35 +245,39 @@ class Input(DataSource.DataSource):
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """
         Get complex float samples from the device.
-        If we have just rewound the file then generate one array of obviously wrong data
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
         complex_data = None
-        rx_time = 0
+        rx_time = 0  # in nsec
 
         if self._connected:
             raw_bytes = None
-            if self._rewound:
-                self._rewound = False
-                # generate one buffer of maximal signed bytes
-                raw_bytes = bytearray(self._bytes_per_snap)
-                rx_time = self.get_time_ns()
-            elif self._wav_file or self._file:
+            if self._wav_file or self._file:
                 try:
                     if self._wav_file:
                         raw_bytes = self._wav_file.readframes(self._number_complex_samples)
                     else:
                         # get just the number of bytes we needs
                         raw_bytes = self._file.read(self._bytes_per_snap)
-                    rx_time = self.get_time_ns()
+                    rx_time = self._file_time  # mark start of buffer as current distance into file
+                    # update time into the file by the sample rate
+                    self._file_time += (1.0e9 * self._number_complex_samples / self._sample_rate)
 
                     if len(raw_bytes) != self._bytes_per_snap:
-                        self._connected = False
-                        raise ValueError('End of file')
+                        raw_bytes = None
+                        if self._rewind:
+                            self.rewind()
+                        else:
+                            raise ValueError("end-of-file")
 
                     time.sleep(self._sleep_time)
                 except OSError as msg:
                     msgs = f'OSError, {msg}'
+                    self._error = str(msgs)
+                    logger.error(msgs)
+                    raise ValueError(msgs)
+                except ValueError as msg:
+                    msgs = f'file exception, {msg}'
                     self._error = str(msgs)
                     logger.error(msgs)
                     raise ValueError(msgs)
@@ -246,34 +286,3 @@ class Input(DataSource.DataSource):
                 complex_data = self.unpack_data(raw_bytes)
 
         return complex_data, rx_time
-
-    def close(self) -> None:
-        if self._wav_file:
-            self._wav_file.close()
-        elif self._file:
-            self._file.close()
-        self._connected = False
-
-    def reconnect(self) -> bool:
-        """
-        Rewind the input file
-
-        :return: Boolean true if we managed to rewind the file
-        """
-        # Rewind the file
-        self._connected = False
-        try:
-            if self._wav_file:
-                self._wav_file.rewind()
-            elif self._file:
-                self._file.seek(0, 0)
-        except OSError as msg:
-            msgs = f'Failed to rewind {self._source}, {msg}'
-            self._error = str(msgs)
-            logger.error(msgs)
-            raise ValueError(msgs)
-
-        self._connected = True
-        self._rewound = True
-
-        return self._connected
