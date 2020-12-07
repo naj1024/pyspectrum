@@ -9,7 +9,6 @@ Requires pyrtlsdr to be installed - provides RtlSdr
 import numpy as np
 from typing import Tuple
 import logging
-import time
 
 from dataSources import DataSource
 
@@ -268,8 +267,8 @@ class Input(DataSource.DataSource):
         if self._sdr:
             try:
                 self._sdr.set_bandwidth(int(bw))
-            except Exception as msg:
-                self._error += str(msg)
+            except Exception as err:
+                self._error += str(err)
             self._sdr_filter_bandwidth = self._sdr.get_bandwidth()
 
     def get_sdr_filter_bandwidth(self) -> float:

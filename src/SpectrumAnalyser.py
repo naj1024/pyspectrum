@@ -4,15 +4,12 @@ Provide a basic spectrum analyser for digitised complex samples
 
 """
 
-import argparse
 import time
 import multiprocessing
 import signal
-import textwrap
 import queue
 import logging
 from typing import Tuple
-import random
 import sys
 import json
 
@@ -24,13 +21,14 @@ from dataProcessing import ProcessSamples
 from misc import Ewma
 from misc import PluginManager
 from misc import Variables
+from misc import commandLine
 from webUI import WebServer
 
 processing = True  # global to be set to False from ctrl-c
 
 # we will use separate log files for each process, main/webserver/websocket
 # TODO: Perceived wisdom is to use a logging server in multiprocessing environments
-logger = None
+logger = logging.getLogger('spectrum_logger')
 
 MAX_UI_QUEUE_DEPTH = 4  # low for low latency, a high value will give a burst of contiguous spectrums at the start
 
@@ -49,7 +47,6 @@ def main() -> None:
     """
     # logging to our own logger, not the base one - we will not see log messages for imported modules
     global logger
-    logger = logging.getLogger('spectrum_logger')
     # don't use %Z for timezone as some say 'GMT' or 'GMT standard time'
     logging.basicConfig(format='%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
                         datefmt="%Y-%m-%d %H:%M:%S UTC",
@@ -58,22 +55,25 @@ def main() -> None:
     logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
     logger.setLevel(logging.INFO)
 
+    logger.info("SpectrumAnalyser starting")
+
+    # different python versions may impact us
     if sys.version_info < (3, 7):
         logger.warning(f"Python version means sample timings will be course, python V{sys.version}")
-
-    logger.info("SpectrumAnalyser starting")
 
     global processing
     signal.signal(signal.SIGINT, signal_handler)
 
+    # our configuration
     configuration = Variables.Variables()
-    parse_command_line(configuration)
+    commandLine.parse_command_line(configuration, logger)
 
     # check we have a valid input sample type
     if configuration.sample_type not in DataSource.supported_data_types:
         logger.critical(f'Illegal sample type of {configuration.sample_type} selected')
         quit()
 
+    # all the sources available to us
     configuration.input_sources = DataSourceFactory.DataSourceFactory().sources()
     configuration.input_sources_web_helps = DataSourceFactory.DataSourceFactory().web_help_strings()
 
@@ -81,10 +81,10 @@ def main() -> None:
     data_source, display, ui_queue, control_queue, processor, plugin_manager, source_factory = initialise(
         configuration)
 
-    # allowed sample types
+    # allowed sample types for base source converter
     configuration.sample_types = data_source.get_sample_types()
 
-    # expected time to get samples
+    # The amount of time to get samples
     expected_samples_receive_time = configuration.fft_size / configuration.sample_rate
     logger.info(f"SPS: {configuration.sample_rate / 1e6:0.3}MHz "
                 f"RBW: {(configuration.sample_rate / (configuration.fft_size * 1e3)):0.1f}kHz")
@@ -104,16 +104,15 @@ def main() -> None:
     fps_update_time = 0
 
     # keep processing until told to stop or an error occurs
-    # loop_count = 0
     peak_average = Ewma.Ewma(0.1)
     current_peak_count = 0
     max_peak_count = 0
     while processing:
 
         if not multiprocessing.active_children():
-            processing = False  # we will exit mow
+            processing = False  # we will exit mow as we lost our processes
 
-        # if there is a control message then it may change what the front end is doing
+        # if there is a control message then it may change whats happening
         data_source = handle_control_queue(configuration, ui_queue, control_queue, data_source, source_factory)
 
         ###########################################
@@ -125,7 +124,7 @@ def main() -> None:
             data_samples_perf_time_end = time.perf_counter()
             _ = sample_get_time.average(data_samples_perf_time_end - data_samples_perf_time_start)
             if samples is None:
-                time.sleep(0.1)  # rate limit on trying to get samples
+                time.sleep(0.01)  # rate limit on trying to get samples
             else:
                 # record start time so we can average how long processing is taking
                 complete_process_time_start = time.perf_counter()
@@ -315,7 +314,7 @@ def open_source(configuration: Variables, data_source: DataSource) -> None:
     data_source.set_gain(configuration.gain)
     try:
         data_source.set_sleep_on_read(configuration.source_sleep)  # will fail on most sources, see file source
-    except:
+    except AttributeError:
         pass
 
     if data_source.open():
@@ -375,224 +374,6 @@ def update_source(configuration: Variables, source_factory) -> DataSource:
 
     configuration.source_connected = data_source.connected()
     return data_source
-
-
-def parse_command_line(configuration: Variables) -> None:
-    """
-    Parse all the command line options
-
-    :param configuration: Where we store the configuration
-    :return: None
-    """
-    # noinspection PyTypeChecker
-    parser = argparse.ArgumentParser(epilog='',
-                                     formatter_class=argparse.RawDescriptionHelpFormatter,
-                                     description=textwrap.dedent('''\
-        Provide a spectral web UI of a stream of digitised complex samples.
-        A variety of different input sources are supported.
-        The web interface uses two ports, a web server and a websocket.
-        The sample rate must be set for the programme to work correctly. When
-        file input is used this sample rate may be recovered from the filename or
-        from the meta data in a wav file.
-        '''),
-                                     )
-
-    ######################
-    # Input options
-    ##########
-    input_opts = parser.add_argument_group('Input')
-    input_opts.add_argument('-W', '--wait', type=float, help="millisecond wait between reads for file "
-                                                             f"input (default: {configuration.source_sleep})",
-                            default=configuration.source_sleep, required=False)
-    input_opts.add_argument('-i', '--input', type=str, help="Input, '?' for list", required=False)
-
-    ######################
-    # Sampling options
-    ##########
-    data_opts = parser.add_argument_group('Sampling')
-    data_opts.add_argument('-c', '--centreFrequency', type=float,
-                           help=f'Centre frequency in Hz (default: {configuration.centre_frequency_hz})',
-                           default=configuration.centre_frequency_hz,
-                           required=False)
-    data_opts.add_argument('-s', '--sampleRate', type=float,
-                           help=f'Sample rate in sps (default: {configuration.sample_rate})',
-                           default=configuration.sample_rate,
-                           required=False)
-    data_opts.add_argument('-t', '--type',
-                           help=f'Sample type (default: {configuration.sample_type})',
-                           default=configuration.sample_type,
-                           choices=DataSource.supported_data_types,
-                           required=False)
-
-    ######################
-    # Misc options
-    ##########
-    misc_opts = parser.add_argument_group('Misc')
-    misc_opts.add_argument('-F', '--fftSize', type=int, help=f'Size of FFT (default: {configuration.fft_size})',
-                           default=configuration.fft_size, required=False)
-    misc_opts.add_argument('-w', '--web', type=int, help=f'Web port, (default: default={configuration.web_port}), '
-                                                         f'websocket one up from this)',
-                           default=configuration.web_port, required=False)
-    misc_opts.add_argument('-v', '--verbose', help='Verbose, -vvv debug, -vv info, -v warn', required=False,
-                           action='count', default=0)
-    misc_opts.add_argument('-H', '--HELP', help='This help', required=False, action='store_true')
-    misc_opts.add_argument('-T', '--TIME', help='Time the spectral algorithm)', required=False, action='store_true')
-
-    ######################
-    # plugin options
-    ##########
-    plugin_opts = parser.add_argument_group('Plugin')
-    plugin_opts.add_argument('--plugin', type=str,
-                             help='Plugin options, ? to see help, e.g. analysis:peak:threshold:-10.',
-                             required=False,
-                             action='append', nargs='+')
-
-    #####################
-    # now parse them into configuration, suppose could of used a dictionary instead of a Class to hold these
-    ############
-    args = vars(parser.parse_args())
-
-    if args['HELP'] is True:
-        parser.print_help()
-        list_sources()
-        list_plugin_help()
-        quit()
-
-    if args['centreFrequency'] is not None:
-        configuration.centre_frequency_hz = float(args['centreFrequency'])
-    if args['sampleRate'] is not None:
-        configuration.sample_rate = float(args['sampleRate'])
-    if args['type'] is not None:
-        configuration.sample_type = args['type']
-
-    if args['wait']:
-        configuration.source_sleep = float(args['wait']) / 1000.0
-    if args['input'] is not None:
-        full_source_name = args['input']
-        if full_source_name == "?":
-            list_sources()
-            quit()  # EXIT now
-        else:
-            parts = full_source_name.split(":")
-            if len(parts) >= 1:
-                configuration.input_source = parts[0]
-                # handle multiple ':' parts - make input_name up of them
-                configuration.input_params = ""
-                if len(parts) >= 2:
-                    for part in parts[1:]:
-                        # add ':' between values
-                        if len(configuration.input_params) > 0:
-                            configuration.input_params += ":"
-                        configuration.input_params += f"{part}"
-            else:
-                logger.critical(f"input parameter incorrect, {full_source_name}")
-                quit()
-
-    if args['fftSize'] is not None:
-        configuration.fft_size = abs(int(args['fftSize']))
-
-    if args['web']:
-        configuration.web_port = abs(int(args['web']))
-
-    if args['verbose']:
-        if args['verbose'] > 2:
-            logger.setLevel(logging.DEBUG)
-        elif args['verbose'] > 1:
-            logger.setLevel(logging.INFO)
-        elif args['verbose'] > 0:
-            logger.setLevel(logging.WARNING)
-
-    if args['plugin'] is not None:
-        # is any of the options a '?'
-        for plugin_opt in args['plugin']:
-            if '?' in plugin_opt:
-                list_plugin_help()
-                quit()
-        configuration.plugin_options = args['plugin']
-
-    if args['TIME'] is True:
-        time_spectral(configuration)
-        quit()
-
-    configuration.oneInN = int(configuration.sample_rate / (configuration.fps * configuration.fft_size))
-
-
-def list_plugin_help() -> None:
-    """
-    Show the help for the plugins we discover
-    :return: None
-    """
-    print("")
-    plugin_manager = PluginManager.PluginManager(register=False)
-    helps = plugin_manager.get_plugin_helps()
-    print("Plugin helps:")
-    for plugin, help_string in helps.items():
-        print(f"{plugin}: {help_string}")
-        print("")
-
-
-def list_sources() -> None:
-    """
-    List the names of all the sources the current python environment can support
-
-    :return: None
-    """
-    factory = DataSourceFactory.DataSourceFactory()
-    print(f"Available sources: {factory.sources()}")
-    helps = factory.help_strings()
-    for input_name, help_string in helps.items():
-        print(f"{help_string}")
-
-
-def time_spectral(configuration: Variables):
-    """
-    Time how long it takes to compute various things and show results
-
-    For FFT sizes Show results as max sps that would be possible all other things ignored
-    :return: None
-    """
-    data_size = 2048
-    # some random bytes, max of 4bytes per complex sample
-    bytes_d = bytes([random.randrange(0, 256) for _ in range(0, data_size * 4)])
-    print(f"data conversion time, 1Msps for 2048 samples is {data_size:0.1f}usec")
-    print("data \tusec \tnsec/sample\ttype")
-    print("===================================")
-    for data_type in DataSource.supported_data_types:
-        converter = DataSource.DataSource("null", data_size, data_type, 1e6, 1e6, 0)
-
-        iterations = 1000
-        time_start = time.perf_counter()
-        for loop in range(iterations):
-            _ = converter.unpack_data(bytes_d)
-        time_end = time.perf_counter()
-
-        processing_time = (time_end - time_start) / iterations
-        processing_time_per_sample = processing_time / data_size
-        print(f"{data_size} \t{processing_time * 1e6:0.1f} \t{processing_time_per_sample * 1e9:0.1f} \t\t{data_type}")
-
-    # only measuring powers of two, not limited to that though
-    fft_sizes = [256, 512, 1024, 2048, 4096, 8192, 16384, 32768]
-    print("\nSpectral processing time (sps are absolute maximums for the basic spectral calculation)")
-    print("spec \tusec  \tMsps")
-    print("========================")
-    for fft_size in fft_sizes:
-        configuration.fft_size = fft_size
-        processor = ProcessSamples.ProcessSamples(configuration)
-        rands = np.random.rand(fft_size * 2)
-        rands = rands - 0.5
-        samples = np.array(rands[0::2], dtype=np.complex64)
-        samples.imag = rands[1::2]
-
-        iterations = 1000
-        time_start = time.perf_counter()
-        for loop in range(iterations):
-            processor.process(samples)
-        time_end = time.perf_counter()
-
-        processing_time = (time_end - time_start) / iterations
-        max_sps = fft_size / processing_time
-        print(f"{fft_size} \t{processing_time * 1e6:0.1f} \t{max_sps / 1e6:0.3f}")
-    print("")
 
 
 def handle_control_queue(configuration: Variables,

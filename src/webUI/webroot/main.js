@@ -309,12 +309,9 @@ function updateConfigTable(spec) {
     // input
     ///////
     new_row = '<tr><td><b>Source</b></td>';
-    // new_row += '<td>'+source+' '+sourceParams+' '+(sdrState.getSourceConnected()?'Connected':'Not Connected')+'</td>';
-    // overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-    new_row += '<td>'+source+' ';
-    new_row += '<div class="CropLongTexts tooltipL">'+sourceParams;
-    new_row += '<div class="tooltiptextL">'+sourceParams+'</div></div>';
-    new_row += (sdrState.getSourceConnected()?'Connected':'Not Connected')+'</td>';
+    new_row += '<td><div>'+source+'</div>';
+    new_row += '<div title="'+sourceParams+'" class="CropLongTexts">'+sourceParams+'</div>'
+    new_row += '<div>'+(sdrState.getSourceConnected()?'Connected':'Not Connected')+'</div></td>';
     if (sources.length > 0) {
         new_row += '<td>';
         new_row += '<form name="myForm"';
@@ -758,13 +755,22 @@ function Main() {
     main_buttons += '</div>'
 
      // main buttons
-    main_buttons += '<h4>Trace</h4>';
+    main_buttons += '<h4>Trace 0</h4>';
     main_buttons += '<div">';
     main_buttons += '<button type="button" id="pauseBut" title="pause and allow scroll throuh previous spectrums" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Hold</button>';
     main_buttons += '<button type="button" id="maxHoldBut" data-toggle="button" title="record max dB level" class="specbuttons btn btn-outline-dark mx-1 my-1">Peak</button>';
     main_buttons += '<button type="button" id="avgDwnBut" title="decrease the number of averages" class="specbuttons btn btn-outline-dark mx-1 my-1">Avg-</button>';
     main_buttons += '<button type="button" id="avgUpBut" title="increase number of averages" class="specbuttons btn btn-outline-dark mx-1 my-1">Avg+</button>';
     main_buttons += '<button type="button" id="avgOffBut" title="turn averaging off" class="specbuttons btn btn-outline-dark mx-1 my-1">Avg0</button>';
+    main_buttons += '</div>'
+
+     // main buttons
+    main_buttons += '<h4>Trace 1</h4>';
+    main_buttons += '<div">';
+    main_buttons += '<button type="button" id="maxToTrc1But" title="peak to trace1" class="specbuttons btn btn-outline-dark mx-1 my-1">peak-></button>';
+    main_buttons += '<button type="button" id="avgToTrc1But" title="average to trace1" class="specbuttons btn btn-outline-dark mx-1 my-1">Avg-></button>';
+    main_buttons += '<button type="button" id="curToTrc1But" title="current to trace1" class="specbuttons btn btn-outline-dark mx-1 my-1">Curr-></button>';
+    main_buttons += '<button type="button" id="clrToTrc1But" title="clear trace1" class="specbuttons btn btn-outline-dark mx-1 my-1">clr</button>';
     main_buttons += '</div>'
 
     main_buttons += '<h4>Magnitude</h4>';
@@ -818,6 +824,11 @@ function Main() {
     $('#avgUpBut').click(function() {spectrum.incrementAveraging();});
     $('#avgDwnBut').click(function() {spectrum.decrementAveraging();});
     $('#avgOffBut').click(function() {spectrum.setAveraging(0);});
+
+    $('#maxToTrc1But').click(function() {spectrum.pkToTrace1();});
+    $('#avgToTrc1But').click(function() {spectrum.avgToTrace1();});
+    $('#curToTrc1But').click(function() {spectrum.curToTrace1();});
+    $('#clrToTrc1But').click(function() {spectrum.clrTrace1();});
 
     $('#refDwnBut').click(function() {spectrum.refDown();});
     $('#refUpBut').click(function() {spectrum.refUp();});

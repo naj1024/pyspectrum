@@ -97,10 +97,10 @@ class DataSourceFactory:
             raise ValueError(msg)
 
         source = creator(name,
-                        number_complex_samples,
-                        data_type,
-                        sample_rate,
-                        centre_frequency,
-                        input_bw)
+                         number_complex_samples,
+                         data_type,
+                         sample_rate,
+                         centre_frequency,
+                         input_bw)
 
         return source

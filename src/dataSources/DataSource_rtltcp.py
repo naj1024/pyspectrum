@@ -48,7 +48,6 @@ TODO: Put the reader in a separate process and use a multiprocessing queue for t
 import socket
 import struct
 import logging
-import time
 from typing import Tuple
 
 import numpy as np

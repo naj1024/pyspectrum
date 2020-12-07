@@ -14,7 +14,7 @@ from webUI import WebSocketServer
 web_root = f"{os.path.dirname(__file__)}/webroot/"
 
 # for logging in the webserver
-logger = None
+logger = logging.getLogger('web_server_logger')
 
 
 class _Handler(http.server.SimpleHTTPRequestHandler):
@@ -85,7 +85,6 @@ class WebServer(multiprocessing.Process):
         :return: None
         """
         global logger
-        logger = logging.getLogger('web_server_logger')
         # don't use %Z for timezone as some say 'GMT' or 'GMT standard time'
         logging.basicConfig(format='%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
                             datefmt="%Y-%m-%d %H:%M:%S UTC",

@@ -3,8 +3,10 @@
  * This software is released under the MIT license.
  * See the LICENSE file for further details.
  *
- * Modified from original with markers and other bits
+ * Modified from original a lot with markers and other bits
  */
+
+// TODO: move over to using Trace0 for things, now that we have trace1
 
 'use strict';
 
@@ -157,8 +159,11 @@ Spectrum.prototype.drawSpectrum = function(bins) {
     if (this.maxHold)
         this.drawFFT(this.binsMax, this.maxHoldColour);
 
+    if (this.trace1)
+        this.drawFFT(this.trace1, this.trace1Colour);
+
     // Draw FFT bins, note that last drawFFT may get the gradient fill, if we enable gradients
-    this.drawFFT(bins,this.magnitudesColour);
+    this.drawFFT(bins, this.magnitudesColour);
 
     // Restore scale
     this.ctx.restore();
@@ -540,6 +545,19 @@ Spectrum.prototype.setMaxHold = function(maxhold) {
 
 Spectrum.prototype.toggleMaxHold = function() {
     this.setMaxHold(!this.maxHold);
+}
+
+Spectrum.prototype.pkToTrace1 = function() {
+    this.trace1 = this.binsMax.slice();
+}
+Spectrum.prototype.avgToTrace1 = function() {
+    this.trace1 = this.binsAverage.slice();
+}
+Spectrum.prototype.curToTrace1 = function() {
+    this.trace1 = this.currentMagnitudes.slice();
+}
+Spectrum.prototype.clrTrace1 = function() {
+    this.trace1 = null;
 }
 
 Spectrum.prototype.toggleFullscreen = function() {
@@ -1513,7 +1531,9 @@ function Spectrum(id, options) {
 
     this.currentMagnitudes = null; // copy of just the current fft data for use when disconnected or paused
     this.currentSpectrum = null;   // as above but also includes times etc
-    this.binsMax = null;      // only present when max hold on
+    this.binsMax = null;           // only present when max hold on
+    this.binsAverage = null;       // average on trace0
+    this.trace1 = null             // trace 1
 
     // one up count of all spectrums received when not paused
     this.inputCount = 0;
@@ -1552,6 +1572,7 @@ function Spectrum(id, options) {
     this.magnitudesColour = "blue";
     this.canvasTextColour = "black";
     this.spectrumGradient = false;
+    this.trace1Colour = "gray"
 
     // Create main canvas and adjust dimensions to match actual
     this.canvas = document.getElementById(id);

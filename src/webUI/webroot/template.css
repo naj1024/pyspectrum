@@ -82,19 +82,3 @@ input[type=number] {
   text-overflow: ellipsis;
 }
 
-/* tooltip for long text */
-.tooltipL {
-  position: relative;
-  display: inline-block;
-  border-bottom: 1px dotted black;
-}
-.tooltipL .tooltiptextL {
-  visibility: hidden;
-  position: absolute;
-  background-color: #555;
-  color: #fff;
-}
-.tooltipL:hover .tooltiptextL {
-  visibility: visible;
-  opacity: 1;
-}

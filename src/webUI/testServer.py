@@ -27,7 +27,8 @@ class TestWebSocketServer(multiprocessing.Process):
         print("WebSocket server process exited")
         return
 
-    async def time_processor(self, web_socket, path):
+    @staticmethod
+    async def time_processor(web_socket, path):
         while True:
             try:
                 sps: int = 123

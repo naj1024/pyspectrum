@@ -125,7 +125,7 @@ class Input(DataSource.DataSource):
         self._file = None
         self._rewind = True  # true if we will rewind the file each time it ends
         self._connected = False
-        self._file_time = 0  # for timing the samples from the file, increment accoring to sample rate
+        self._file_time = 0  # for timing the samples from the file, increment according to sample rate
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 

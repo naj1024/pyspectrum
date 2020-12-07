@@ -119,13 +119,16 @@ class DataSource:
     def get_display_name(self) -> str:
         return self._display_name
 
-    def get_sample_types(self) -> List:
+    @staticmethod
+    def get_sample_types() -> List:
         return supported_data_types
 
-    def get_help(self) -> str:
+    @staticmethod
+    def get_help() -> str:
         return ""
 
-    def get_web_help(self) -> str:
+    @staticmethod
+    def get_web_help() -> str:
         return ""
 
     def set_help(self, help_str: str) -> None:
@@ -182,11 +185,12 @@ class DataSource:
     def get_gain(self) -> float:
         return self._gain
 
-    def get_time_ns(self) -> float:
+    @staticmethod
+    def get_time_ns() -> float:
         # python 3.7 and above has time.time_ns()
         try:
             return time.time_ns()
-        except Exception:
+        except AttributeError:
             return time.time() * 1e9
 
     def get_bytes_per_sample(self) -> float:

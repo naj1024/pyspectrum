@@ -12,7 +12,7 @@ import websockets
 from websockets import WebSocketServerProtocol
 
 # for logging in the webSocket
-logger = None
+logger = logging.getLogger('web_socket_logger')
 
 DEFAULT_FPS = 20.0
 
@@ -55,7 +55,6 @@ class WebSocketServer(multiprocessing.Process):
         """
         # logging to our own logger, not the base one - we will not see log messages for imported modules
         global logger
-        logger = logging.getLogger('web_socket_logger')
         # don't use %Z for timezone as some say 'GMT' or 'GMT standard time'
         logging.basicConfig(format='%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
                             datefmt="%Y-%m-%d %H:%M:%S UTC",
@@ -180,7 +179,7 @@ class WebSocketServer(multiprocessing.Process):
                         # We can end up with NO sleep, locks browser up and takes loads of memory
                         end_time = time.time() + (1 / self._fps)
                         while (end_time - time.time()) > 0:
-                             await asyncio.sleep(1 / self._fps)  # we will not sleep this long
+                            await asyncio.sleep(1 / self._fps)  # we will not sleep this long
 
                 except queue.Empty:
                     await asyncio.sleep(0.01)

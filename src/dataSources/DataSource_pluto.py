@@ -11,7 +11,6 @@ NOTE that the pluto device will accept 70Mhz to 6GHz frequency and 60MHz samplin
 import numpy as np
 from typing import Tuple
 import logging
-import time
 
 from dataSources import DataSource
 
@@ -141,14 +140,14 @@ class Input(DataSource.DataSource):
 
     def set_sample_rate(self, sr: float) -> None:
         if self._sdr:
-            if sr >= 521e3 and sr <= 61e6:
+            if 521e3 <= sr <= 61e6:
                 self._sdr.sample_rate = sr
                 self._sample_rate = self._sdr.sample_rate
                 self._sdr.rx_rf_bandwidth = int(sr)  # TODO: make this separate
 
     def set_centre_frequency(self, cf: float) -> None:
         if self._sdr:
-            if (cf >= 70.0e6) and (cf <= 6.0e9):
+            if 70.0e6 <= cf <= 6.0e9:
                 self._sdr.rx_lo = int(cf)
                 self._centre_frequency = float(self._sdr.rx_lo)
                 # logger.error(f"cf set to {self._centre_frequency} from {cf} {int(cf)}")
@@ -209,7 +208,7 @@ class Input(DataSource.DataSource):
                 rx_time = self.get_time_ns()
                 complex_data = complex_data / 4096.0  # 12bit
                 complex_data = np.array(complex_data, dtype=np.complex64)  # if we need all values to be 32bit floats
-            except Exception  as err:
+            except Exception as err:
                 self._connected = False
                 self._error = str(err)
                 logger.error(self._error)

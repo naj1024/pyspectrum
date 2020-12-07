@@ -1,7 +1,6 @@
 import socket
 from typing import Tuple
 import logging
-import time
 
 import numpy as np
 
