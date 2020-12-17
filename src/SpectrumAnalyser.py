@@ -26,11 +26,12 @@ from webUI import WebServer
 
 processing = True  # global to be set to False from ctrl-c
 
-# we will use separate log files for each process, main/webserver/websocket
-# TODO: Perceived wisdom is to use a logging server in multiprocessing environments
+# We will use separate log files for each process, main/webserver/websocket
+# Perceived wisdom is to use a logging server in multiprocessing environments, maybe in the future
 logger = logging.getLogger('spectrum_logger')
 
 MAX_UI_QUEUE_DEPTH = 4  # low for low latency, a high value will give a burst of contiguous spectrums at the start
+MAX_UI_CONTROL_QUEUE_DEPTH = 3  # stop things backing up when no UI connected
 
 
 def signal_handler(sig, __):
@@ -124,7 +125,7 @@ def main() -> None:
             data_samples_perf_time_end = time.perf_counter()
             _ = sample_get_time.average(data_samples_perf_time_end - data_samples_perf_time_start)
             if samples is None:
-                time.sleep(0.01)  # rate limit on trying to get samples
+                time.sleep(0.001)  # rate limit on trying to get samples
             else:
                 # record start time so we can average how long processing is taking
                 complete_process_time_start = time.perf_counter()
@@ -202,14 +203,16 @@ def main() -> None:
                         configuration.oneInN)
             debug_time = now + 6
 
+        # TODO: If the UI polled us instead then we wouldn't need this, maybe the acks could trigger it
         if now > config_time:
             # check on the source
             update_source_state(configuration, data_source)
-
-            # Send the current configuration to the UI
-            ui_queue.put((configuration.make_json(), None, None, None, None, None))
-            configuration.error = ""  # reset any error we are reporting
-            config_time = now + 3
+            config_time = now + 2
+            # don't backup up lots of config messages
+            if ui_queue.qsize() < MAX_UI_CONTROL_QUEUE_DEPTH:
+                # Send the current configuration to the UI
+                ui_queue.put((configuration.make_json(), None, None, None, None, None))
+                configuration.error = ""  # reset any error we reported
 
     ####################
     #
@@ -320,12 +323,12 @@ def open_source(configuration: Variables, data_source: DataSource) -> None:
     if data_source.open():
         # may have updated various things
         configuration.sample_type = data_source.get_sample_type()
-        configuration.sample_rate = data_source.get_sample_rate()
-        configuration.centre_frequency_hz = data_source.get_centre_frequency()
+        configuration.sample_rate = data_source.get_sample_rate_sps()
+        configuration.centre_frequency_hz = data_source.get_centre_frequency_hz()
         configuration.gain = data_source.get_gain()
         configuration.gain_modes = data_source.get_gain_modes()
         configuration.gain_mode = data_source.get_gain_mode()
-        configuration.input_bw_hz = data_source.get_sdr_filter_bandwidth()
+        configuration.input_bw_hz = data_source.get_bandwidth_hz()
 
         # patch up fps things
         configuration.oneInN = int(configuration.sample_rate /
@@ -431,21 +434,21 @@ def handle_control_queue(configuration: Variables,
                     else:
                         if new_config['centreFrequencyHz'] != configuration.centre_frequency_hz:
                             new_cf = new_config['centreFrequencyHz']
-                            data_source.set_centre_frequency(new_cf)
+                            data_source.set_centre_frequency_hz(new_cf)
                             configuration.error += data_source.get_and_reset_error()
-                            configuration.centre_frequency_hz = data_source.get_centre_frequency()
+                            configuration.centre_frequency_hz = data_source.get_centre_frequency_hz()
 
                         if new_config['sdrBwHz'] != configuration.input_bw_hz:
                             new_bw = new_config['sdrBwHz']
-                            data_source.set_sdr_filter_bandwidth(new_bw)
+                            data_source.set_bandwidth_hz(new_bw)
                             configuration.error += data_source.get_and_reset_error()
-                            configuration.input_bw_hz = data_source.get_sdr_filter_bandwidth()
+                            configuration.input_bw_hz = data_source.get_bandwidth_hz()
 
                         if new_config['sps'] != configuration.sample_rate:
                             new_sps = new_config['sps']
-                            data_source.set_sample_rate(new_sps)
+                            data_source.set_sample_rate_sps(new_sps)
                             configuration.error += data_source.get_and_reset_error()
-                            configuration.sample_rate = data_source.get_sample_rate()
+                            configuration.sample_rate = data_source.get_sample_rate_sps()
                             configuration.oneInN = int(configuration.sample_rate /
                                                        (configuration.fps * configuration.fft_size))
 

@@ -35,6 +35,7 @@ def is_available() -> Tuple[str, str]:
     return module_type, import_error_msg
 
 
+# noinspection PyUnusedLocal
 class Input(DataSource.DataSource):
 
     def __init__(self,
@@ -90,27 +91,27 @@ class Input(DataSource.DataSource):
         logger.debug(f"Connected to {module_type} on {self._source}")
 
         # pluto is not consistent in its errors so check ranges here
-        if self._centre_frequency < 70e6 or self._centre_frequency > 6e9:
+        if self._centre_frequency_hz < 70e6 or self._centre_frequency_hz > 6e9:
             msgs = "centre frequency must be between 70MHz and 6GHz, "
-            msgs += f"attempted {self._centre_frequency / 1e6:0.6}MHz, "
-            self._centre_frequency = 100.0e6
-            msgs += f"set {self._centre_frequency / 1e6:0.6}MHz. \n"
+            msgs += f"attempted {self._centre_frequency_hz / 1e6:0.6}MHz, "
+            self._centre_frequency_hz = 100.0e6
+            msgs += f"set {self._centre_frequency_hz / 1e6:0.6}MHz. \n"
             self._error = msgs
             logger.error(msgs)
 
         # pluto does raise errors for sample rate though, but we check so we don't raise errors
-        if self._sample_rate < 521e3 or self._sample_rate > 61e6:
+        if self._sample_rate_sps < 521e3 or self._sample_rate_sps > 61e6:
             msgs = "sample rate must be between 521kH and 61MHz, "
-            msgs += f"attempted {self._sample_rate / 1e6:0.6}MHz, "
-            self._sample_rate = 1.0e6
-            msgs += f"set {self._sample_rate / 1e6:0.6}MHz. "
+            msgs += f"attempted {self._sample_rate_sps / 1e6:0.6}MHz, "
+            self._sample_rate_sps = 1.0e6
+            msgs += f"set {self._sample_rate_sps / 1e6:0.6}MHz. "
             self._error += msgs
 
         try:
             self._sdr.rx_buffer_size = self._number_complex_samples  # sets how many complex samples we get each rx()
-            self._sdr.sample_rate = self._sample_rate
-            self._sdr.rx_lo = int(self._centre_frequency)
-            self._sdr.rx_rf_bandwidth = int(self._sdr_filter_bandwidth)
+            self._sdr.sample_rate = self._sample_rate_sps
+            self._sdr.rx_lo = int(self._centre_frequency_hz)
+            self._sdr.rx_rf_bandwidth = int(self._bandwidth_hz)
             # AGC mode will depend on environment, lots of bursting signals or lots of continuous signals
             self.set_gain_mode(self._gain_mode)  # self._sdr.gain_control_mode_chan0 = self._gain_mode
             self.set_gain(40)
@@ -124,33 +125,32 @@ class Input(DataSource.DataSource):
             msgs = f"sis best with sizes above 1024"
             logger.warning(msgs)
 
-        logger.debug(f"{module_type}: {self._centre_frequency / 1e6:.6}MHz @ {self._sample_rate / 1e6:.3f}Msps")
+        logger.debug(f"{module_type}: {self._centre_frequency_hz / 1e6:.6}MHz @ {self._sample_rate_sps / 1e6:.3f}Msps")
         self._connected = True
         return self._connected
 
-    def get_sample_rate(self) -> float:
+    def get_sample_rate_sps(self) -> float:
         if self._sdr:
-            self._sample_rate = self._sdr.sample_rate
-            return self._sample_rate
+            self._sample_rate_sps = self._sdr.sample_rate
+            return self._sample_rate_sps
 
-    def get_centre_frequency(self) -> float:
+    def get_centre_frequency_hz(self) -> float:
         if self._sdr:
-            self._centre_frequency = float(self._sdr.rx_lo)
-            return self._centre_frequency
+            self._centre_frequency_hz = float(self._sdr.rx_lo)
+            return self._centre_frequency_hz
 
-    def set_sample_rate(self, sr: float) -> None:
+    def set_sample_rate_sps(self, sr: float) -> None:
         if self._sdr:
             if 521e3 <= sr <= 61e6:
                 self._sdr.sample_rate = sr
-                self._sample_rate = self._sdr.sample_rate
-                self._sdr.rx_rf_bandwidth = int(sr)  # TODO: make this separate
+                self._sample_rate_sps = self._sdr.sample_rate
 
-    def set_centre_frequency(self, cf: float) -> None:
+    def set_centre_frequency_hz(self, cf: float) -> None:
         if self._sdr:
             if 70.0e6 <= cf <= 6.0e9:
                 self._sdr.rx_lo = int(cf)
-                self._centre_frequency = float(self._sdr.rx_lo)
-                # logger.error(f"cf set to {self._centre_frequency} from {cf} {int(cf)}")
+                self._centre_frequency_hz = float(self._sdr.rx_lo)
+                # logger.error(f"cf set to {self._centre_frequency_hz} from {cf} {int(cf)}")
 
     def set_sample_type(self, data_type: str) -> None:
         # we can't set a different sample type on this source
@@ -181,15 +181,15 @@ class Input(DataSource.DataSource):
             if self._sdr:
                 self._sdr.gain_control_mode_chan0 = self._gain_mode
 
-    def set_sdr_filter_bandwidth(self, bw: float) -> None:
+    def set_bandwidth_hz(self, bw: float) -> None:
         if self._sdr:
             self._sdr.rx_rf_bandwidth = int(bw)
-            self._sdr_filter_bandwidth = self._sdr.rx_rf_bandwidth
+            self._bandwidth_hz = self._sdr.rx_rf_bandwidth
 
-    def get_sdr_filter_bandwidth(self) -> float:
+    def get_bandwidth_hz(self) -> float:
         if self._sdr:
-            self._sdr_filter_bandwidth = self._sdr.rx_rf_bandwidth
-        return self._sdr_filter_bandwidth
+            self._bandwidth_hz = self._sdr.rx_rf_bandwidth
+        return self._bandwidth_hz
 
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """

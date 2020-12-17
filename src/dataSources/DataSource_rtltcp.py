@@ -41,8 +41,6 @@ the device. Each buffer is 128k complex samples (256k bytes):
         else{
             cur->next = rpt;
         }
-
-TODO: Put the reader in a separate process and use a multiprocessing queue for the samples + a timestamp
 """
 
 import socket
@@ -156,8 +154,8 @@ class Input(DataSource.DataSource):
             self._display_name += f" {self._tuner_type_str}"
 
             # say what we want
-            self.set_sample_rate(int(self._sample_rate))
-            self.set_center_frequency(int(self._centre_frequency))
+            self.set_sample_rate_sps(int(self._sample_rate_sps))
+            self.set_center_frequency(int(self._centre_frequency_hz))
             # not found a description of gain_mode / agc_mode ...
             self.set_tuner_gain_mode(1)
 
@@ -354,10 +352,10 @@ class Input(DataSource.DataSource):
             frequency = 600e6  # something safe
 
         logger.info(f"Set frequency {frequency / 1e6:0.6f}MHz")
-        self._centre_frequency = frequency
+        self._centre_frequency_hz = frequency
         return self.send_command(0x01, frequency)
 
-    def set_sample_rate(self, sample_rate: int) -> int:
+    def set_sample_rate_sps(self, sample_rate: int) -> int:
         # rtlsdr has limits on allowed sample rates
         # from librtlsdr.c data_source.get_bytes_per_sample()
         # 	/* check if the rate is supported by the resampler */
@@ -372,7 +370,7 @@ class Input(DataSource.DataSource):
             self._error = err
             logger.error(err)
             sample_rate = int(1e6)
-        self._sample_rate = sample_rate
+        self._sample_rate_sps = sample_rate
         logger.info(f"Set sample rate {sample_rate}sps")
         return self.send_command(0x02, sample_rate)
 

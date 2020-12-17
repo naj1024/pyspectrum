@@ -46,20 +46,19 @@ class DataSource:
         :param data_type: The type of data that this source will be converting to complex floats/doubles
         :param sample_rate: The sample rate this source is supposed to be working at, in Hz
         :param centre_frequency: The centre frequency this input is supposed to be at, in Hz
-        :param input_bw: The filtering of the input, may not be configurable
+        :param input_bw: The filtering of the input, may not be configurable, in Hz
 
         """
         self._source = source
         self._display_name = source
         self._number_complex_samples = number_complex_samples
-        self._sample_rate = sample_rate
-        self._sdr_filter_bandwidth = input_bw
-        self._centre_frequency = centre_frequency
+        self._sample_rate_sps = sample_rate
+        self._bandwidth_hz = input_bw
+        self._centre_frequency_hz = centre_frequency
 
         self._gain = 0
         self._gain_modes = ['None']
         self._gain_mode = "None"
-        self._bandwidth = 0
 
         self._error = ""
 
@@ -98,23 +97,23 @@ class DataSource:
         self._error = ""
         return err
 
-    def set_sample_rate(self, sr: float) -> None:
-        self._sample_rate = sr
+    def set_sample_rate_sps(self, sr: float) -> None:
+        self._sample_rate_sps = sr
 
-    def get_sample_rate(self) -> float:
-        return self._sample_rate
+    def get_sample_rate_sps(self) -> float:
+        return self._sample_rate_sps
 
-    def set_centre_frequency(self, cf: float) -> None:
-        self._centre_frequency = cf
+    def set_centre_frequency_hz(self, cf: float) -> None:
+        self._centre_frequency_hz = cf
 
-    def get_centre_frequency(self) -> float:
-        return self._centre_frequency
+    def get_centre_frequency_hz(self) -> float:
+        return self._centre_frequency_hz
 
-    def set_sdr_filter_bandwidth(self, bw: float) -> None:
-        self._sdr_filter_bandwidth = bw
+    def set_bandwidth_hz(self, bw: float) -> None:
+        self._bandwidth_hz = bw
 
-    def get_sdr_filter_bandwidth(self) -> float:
-        return self._sdr_filter_bandwidth
+    def get_bandwidth_hz(self) -> float:
+        return self._bandwidth_hz
 
     def get_display_name(self) -> str:
         return self._display_name
@@ -162,12 +161,6 @@ class DataSource:
             logger.error(msgs)
             raise ValueError(msgs)
         self._data_type = data_type
-
-    def get_bandwidth(self) -> float:
-        return self._bandwidth
-
-    def set_bandwidth(self, bw_hz: float):
-        self._bandwidth = bw_hz
 
     def get_gain_mode(self) -> str:
         return self._gain_mode

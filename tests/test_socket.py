@@ -1,7 +1,5 @@
-
 from dataSources import DataSource_socket
 import pytest
-import socket
 
 
 def test_socket_connection_fails():
@@ -40,8 +38,8 @@ def test_socket_bad_port_number():
 
 def test_socket_negative_port_number():
     sock = DataSource_socket.Input(ip_address_port="127.0.0.1:-1", number_complex_samples=100,
-                                data_type="16tle",
-                                sample_rate=1.0, centre_frequency=1.0, input_bw=1.0)
+                                   data_type="16tle",
+                                   sample_rate=1.0, centre_frequency=1.0, input_bw=1.0)
     with pytest.raises(Exception):
         sock.open()
 
@@ -73,7 +71,7 @@ def test_unpack_16tle():
     sock = DataSource_socket.Input(ip_address_port="127.0.0.1:1", number_complex_samples=100,
                                    data_type="16tle",
                                    sample_rate=1.0, centre_frequency=1.0, input_bw=1.0)
-    assert sock.unpack_data(data) == pytest.approx([0.5000076-0.2500038j])
+    assert sock.unpack_data(data) == pytest.approx([0.5000076 - 0.2500038j])
 
 
 def test_unpack_16tbe():
@@ -82,7 +80,7 @@ def test_unpack_16tbe():
     sock = DataSource_socket.Input(ip_address_port="127.0.0.1:1", number_complex_samples=100,
                                    data_type="16tbe",
                                    sample_rate=1.0, centre_frequency=1.0, input_bw=1.0)
-    assert sock.unpack_data(data) == pytest.approx([0.5000076-0.2500038j])
+    assert sock.unpack_data(data) == pytest.approx([0.5000076 - 0.2500038j])
 
 
 def test_unpack_8t():
@@ -91,7 +89,7 @@ def test_unpack_8t():
     sock = DataSource_socket.Input(ip_address_port="127.0.0.1:1", number_complex_samples=100,
                                    data_type="8t",
                                    sample_rate=1.0, centre_frequency=1.0, input_bw=1.0)
-    assert sock.unpack_data(data) == pytest.approx([0.5019608-0.2509804j])
+    assert sock.unpack_data(data) == pytest.approx([0.5019608 - 0.2509804j])
 
 
 def test_unpack_8o():
@@ -100,4 +98,4 @@ def test_unpack_8o():
     sock = DataSource_socket.Input(ip_address_port="127.0.0.1@1", number_complex_samples=100,
                                    data_type="8o",
                                    sample_rate=1.0, centre_frequency=1.0, input_bw=1.0)
-    assert sock.unpack_data(data) == pytest.approx([0.5019608-0.2509804j])
+    assert sock.unpack_data(data) == pytest.approx([0.5019608 - 0.2509804j])

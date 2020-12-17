@@ -7,6 +7,7 @@ import queue
 import struct
 import logging
 import time
+from builtins import Exception
 
 import websockets
 from websockets import WebSocketServerProtocol
@@ -63,11 +64,16 @@ class WebSocketServer(multiprocessing.Process):
         logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
         logger.setLevel(self._log_level)
 
-        logger.info(f"WebSocket starting on port {self._port}")
-        start_server = websockets.serve(self.handler, "0.0.0.0", self._port)
+        while not self._exit_now:
+            try:
+                logger.info(f"WebSocket starting on port {self._port}")
+                start_server = websockets.serve(self.handler, "0.0.0.0", self._port)
 
-        asyncio.get_event_loop().run_until_complete(start_server)
-        asyncio.get_event_loop().run_forever()
+                asyncio.get_event_loop().run_until_complete(start_server)
+                asyncio.get_event_loop().run_forever()
+            except Exception as msg:
+                logger.error(f"WebSocket {msg}")
+                time.sleep(1)
 
         logger.error("WebSocket server process exited")
         return
@@ -171,13 +177,11 @@ class WebSocketServer(multiprocessing.Process):
 
                         await web_socket.send(message)
 
-                        # TODO: Not happy with this algorithm
                         # wait 1/fps before proceeding
-                        # The problem is that the network/OS will buffer things for us if we go really fast
-                        # we then take lots of memory and can't break out of the processing
-                        # using asyncio.sleep() allows web_socket to service connections etc
-                        # We can end up with NO sleep, locks browser up and takes loads of memory
-                        end_time = time.time() + (1 / self._fps)
+                        # we use acks every second from the ui client to the main process, not this
+                        # websocket process. If we see acks >4 (say) seconds ago then we have a fps that is
+                        # too high the main process can drop the fps.
+                        end_time = time.time() + (1 / self._fps)  # can be same as time
                         while (end_time - time.time()) > 0:
                             await asyncio.sleep(1 / self._fps)  # we will not sleep this long
 

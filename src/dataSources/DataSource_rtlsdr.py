@@ -102,8 +102,8 @@ class Input(DataSource.DataSource):
         logger.debug(f"Connected to {module_type}")
 
         try:
-            self.set_sample_rate(self._sample_rate)
-            self.set_centre_frequency(self._centre_frequency)
+            self.set_sample_rate_sps(self._sample_rate_sps)
+            self.set_centre_frequency_hz(self._centre_frequency_hz)
             # self._sdr.freq_correction = 0 # ppm
             self.set_gain_mode('auto')
             self.set_gain(0)
@@ -114,10 +114,10 @@ class Input(DataSource.DataSource):
             raise ValueError(err)
 
         # recover the true values from the device
-        self._sample_rate = float(self._sdr.get_sample_rate())
-        self._centre_frequency = float(self._sdr.get_center_freq())
-        logger.debug(f"{allowed_tuner_types[self._tuner_type]} {self._centre_frequency / 1e6:.6}MHz @ "
-                     f"{self._sample_rate:.3f}sps")
+        self._sample_rate_sps = float(self._sdr.get_sample_rate())
+        self._centre_frequency_hz = float(self._sdr.get_center_freq())
+        logger.debug(f"{allowed_tuner_types[self._tuner_type]} {self._centre_frequency_hz / 1e6:.6}MHz @ "
+                     f"{self._sample_rate_sps:.3f}sps")
         self._connected = True
 
         return self._connected
@@ -128,21 +128,21 @@ class Input(DataSource.DataSource):
             self._sdr = None
         self._connected = False
 
-    def get_sample_rate(self) -> float:
+    def get_sample_rate_sps(self) -> float:
         if self._sdr:
-            self._sample_rate = float(self._sdr.get_sample_rate())
-        return self._sample_rate
+            self._sample_rate_sps = float(self._sdr.get_sample_rate_sps())
+        return self._sample_rate_sps
 
-    def get_centre_frequency(self) -> float:
+    def get_centre_frequency_hz(self) -> float:
         if self._sdr:
-            self._centre_frequency = float(self._sdr.get_center_freq())
-        return self._centre_frequency
+            self._centre_frequency_hz = float(self._sdr.get_center_freq())
+        return self._centre_frequency_hz
 
     def set_sample_type(self, data_type: str) -> None:
         # we can't set a different sample type on this source
         super().set_sample_type(self._constant_data_type)
 
-    def set_sample_rate(self, sample_rate: float) -> None:
+    def set_sample_rate_sps(self, sample_rate: float) -> None:
         # rtlsdr has limits on allowed sample rates
         # from librtlsdr.c data_source.get_bytes_per_sample()
         # 	/* check if the rate is supported by the resampler */
@@ -159,19 +159,19 @@ class Input(DataSource.DataSource):
             logger.error(err)
             sample_rate = 1e6  # something safe
 
-        self._sample_rate = sample_rate
+        self._sample_rate_sps = sample_rate
         if self._sdr:
             try:
                 self._sdr.sample_rate = sample_rate
-                self._sample_rate = float(self._sdr.get_sample_rate())
+                self._sample_rate_sps = float(self._sdr.get_sample_rate_sps())
             except Exception as err:
                 self._error = str(err)
-                logger.debug(f"bad sr {sample_rate} now {self._sample_rate}")
+                logger.debug(f"bad sr {sample_rate} now {self._sample_rate_sps}")
                 raise ValueError(err)
 
         logger.info(f"Set sample rate {sample_rate}sps")
 
-    def set_centre_frequency(self, frequency: float) -> None:
+    def set_centre_frequency_hz(self, frequency: float) -> None:
         # limits depend on tuner type: from https://wiki.radioreference.com/index.php/RTL-SDR
         # Tuner 	             Frequency Range
         # =======================================
@@ -231,7 +231,7 @@ class Input(DataSource.DataSource):
         if self._sdr:
             try:
                 self._sdr.center_freq = frequency
-                self._centre_frequency = float(self._sdr.get_center_freq())
+                self._centre_frequency_hz = float(self._sdr.get_center_freq())
                 logger.info(f"Set frequency {frequency / 1e6:0.6f}MHz")
             except Exception as err:
                 self._error = str(err)
@@ -263,18 +263,18 @@ class Input(DataSource.DataSource):
                 self.set_gain(self._gain)
         return
 
-    def set_sdr_filter_bandwidth(self, bw: float) -> None:
+    def set_bandwidth_hz(self, bw: float) -> None:
         if self._sdr:
             try:
-                self._sdr.set_bandwidth(int(bw))
+                self._sdr.set_bandwidth_hz(int(bw))
             except Exception as err:
                 self._error += str(err)
-            self._sdr_filter_bandwidth = self._sdr.get_bandwidth()
+            self._bandwidth_hz = self._sdr.get_bandwidth_hz()
 
-    def get_sdr_filter_bandwidth(self) -> float:
+    def get_bandwidth_hz(self) -> float:
         if self._sdr:
-            self._sdr_filter_bandwidth = self._sdr.get_bandwidth()
-        return self._sdr_filter_bandwidth
+            self._bandwidth_hz = self._sdr.get_bandwidth_hz()
+        return self._bandwidth_hz
 
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """

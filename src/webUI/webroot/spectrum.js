@@ -6,8 +6,6 @@
  * Modified from original a lot with markers and other bits
  */
 
-// TODO: move over to using Trace0 for things, now that we have trace1
-
 'use strict';
 
 Spectrum.prototype.squeeze = function(value, out_min, out_max) {
@@ -37,10 +35,11 @@ Spectrum.prototype.rowToImageData = function(bins) {
         let dataIndex = parseInt(dataPointIndex); // nearest integer bin index
         let cindex = this.squeeze(bins[dataIndex], 0, 255);
         let colour = 0;
-        if ( (cindex < this.colourmap.length) && (cindex >= 0) )
-            colour = this.colourmap[cindex];
-        else
-            colour = this.colourmap[0];
+        if ( (cindex < this.colourMap.length) && (cindex >= 0) ) {
+            colour = this.colourMap[cindex];
+        } else {
+            colour = this.colourMap[0];
+        }
         this.imagedata.data[i+0] = colour[0];
         this.imagedata.data[i+1] = colour[1];
         this.imagedata.data[i+2] = colour[2];
@@ -124,27 +123,29 @@ Spectrum.prototype.drawSpectrum = function(bins) {
     // should we max hold and average in a paused state?
     // Max hold, before averaging
     if (this.maxHold) {
-        if (!this.binsMax || this.binsMax.length != bins.length) {
-            this.binsMax = Array.from(bins);
+        if (!this.trace0Max || this.trace0Max.length != bins.length) {
+            this.trace0Max = Array.from(bins);
         } else {
             for (var i = 0; i < bins.length; i++) {
-                if (bins[i] > this.binsMax[i]) {
-                    this.binsMax[i] = bins[i];
+                if (bins[i] > this.trace0Max[i]) {
+                    this.trace0Max[i] = bins[i];
                 }
             }
         }
     }
 
     // Averaging
+    let displayBins = bins;
     if (this.averaging > 0) {
-        if (!this.binsAverage || this.binsAverage.length != bins.length) {
-            this.binsAverage = Array.from(bins);
+        console.log("avg bins[0]", bins[0], "avg[0]", (this.trace0Average)?this.trace0Average[0]:"-");
+        if (!this.trace0Average || this.trace0Average.length != bins.length) {
+            this.trace0Average = Array.from(bins);
         } else {
             for (var i = 0; i < bins.length; i++) {
-                this.binsAverage[i] += this.alpha * (bins[i] - this.binsAverage[i]);
+                this.trace0Average[i] += this.alpha * (bins[i] - this.trace0Average[i]);
             }
         }
-        bins = this.binsAverage;
+        displayBins = Array.from(this.trace0Average);
     }
 
     // Do not draw anything if spectrum is not visible
@@ -157,13 +158,20 @@ Spectrum.prototype.drawSpectrum = function(bins) {
 
     // Draw maxhold
     if (this.maxHold)
-        this.drawFFT(this.binsMax, this.maxHoldColour);
+        this.drawFFT(this.trace0Max, this.trace0MaxholdColour);
 
     if (this.trace1)
         this.drawFFT(this.trace1, this.trace1Colour);
 
+    // are we in difference to trace1 mode
+    if (this.diffTrace1 && this.trace1) {
+        for (let i=0; i<bins.length; i++) {
+            displayBins[i] = displayBins[i] - this.trace1[i];
+        }
+    }
+
     // Draw FFT bins, note that last drawFFT may get the gradient fill, if we enable gradients
-    this.drawFFT(bins, this.magnitudesColour);
+    this.drawFFT(displayBins, this.trace0Colour);
 
     // Restore scale
     this.ctx.restore();
@@ -325,9 +333,9 @@ Spectrum.prototype.updateSpectrumRatio = function() {
     this.spectrumHeight = Math.round(this.canvas.height * this.spectrumPercent / 100.0);
 
     this.gradient = this.ctx.createLinearGradient(0, 0, 0, this.spectrumHeight);
-    for (var i = 0; i < this.colourmap.length; i++) {
-        var c = this.colourmap[this.colourmap.length - 1 - i];
-        this.gradient.addColorStop(i / this.colourmap.length,
+    for (var i = 0; i < this.colourMap.length; i++) {
+        var c = this.colourMap[this.colourMap.length - 1 - i];
+        this.gradient.addColorStop(i / this.colourMap.length,
             "rgba(" + c[0] + "," + c[1] + "," + c[2] + ", 1.0)");
     }
 }
@@ -372,10 +380,10 @@ Spectrum.prototype.decrementSpectrumPercent = function() {
 }
 
 Spectrum.prototype.toggleColour = function() {
-    this.colourindex++;
-    if (this.colourindex >= colourmaps.length)
-        this.colourindex = 0;
-    this.colourmap = colourmaps[this.colourindex];
+    this.colourIndex++;
+    if (this.colourIndex >= colourMaps.length)
+        this.colourIndex = 0;
+    this.colourMap = colourMaps[this.colourIndex];
     this.updateSpectrumRatio();
 }
 
@@ -540,7 +548,12 @@ Spectrum.prototype.togglePaused = function() {
 
 Spectrum.prototype.setMaxHold = function(maxhold) {
     this.maxHold = maxhold;
-    this.binsMax = null;
+    this.trace0Max = null;
+}
+
+Spectrum.prototype.setDiff = function() {
+    // TODO: Remove? not sure if it is worth the effort
+    this.diffTrace1 = !this.diffTrace1;
 }
 
 Spectrum.prototype.toggleMaxHold = function() {
@@ -548,13 +561,13 @@ Spectrum.prototype.toggleMaxHold = function() {
 }
 
 Spectrum.prototype.pkToTrace1 = function() {
-    this.trace1 = this.binsMax.slice();
+    this.trace1 = Array.from(this.trace0Max);
 }
 Spectrum.prototype.avgToTrace1 = function() {
-    this.trace1 = this.binsAverage.slice();
+    this.trace1 = Array.from(this.trace0Average);
 }
 Spectrum.prototype.curToTrace1 = function() {
-    this.trace1 = this.currentMagnitudes.slice();
+    this.trace1 = Array.from(this.currentMagnitudes);
 }
 Spectrum.prototype.clrTrace1 = function() {
     this.trace1 = null;
@@ -696,16 +709,16 @@ Spectrum.prototype.addMarker = function(frequencyHz, magdB, time_start, inputCou
     new_row += "</tr>";
     $('#markerTable').append(new_row);
 
-    // todo: had to make spectrum global, can't work out how to get hold of this'
+    // TODO: had to make spectrum global, can't work out how to get hold of this'
     $('#'+marker_id).click(function() {spectrum.markerCheckBox(number);});
     $('#'+bin_id).click(function() {spectrum.deleteMarker(number);});
 
     // TODO: marker->cf - would like this on a right mouse click of table row then marker -> cf but can't work it out
+    // so we have a tick box per row instead
     $('#'+cf_id).click(function() {spectrum.handleMarkerTableClick(number);});
 }
 
 Spectrum.prototype.markerCheckBox = function(id) {
-    // toggle visible - bit open loop, TODO: better to have the state of the tick box
     let marker_num = 0;
     for (let item of this.markersSet) {
         if (id == marker_num) {
@@ -835,8 +848,8 @@ Spectrum.prototype.findNextPeak = function() {
 Spectrum.prototype.getMarkerValuesForAveraging = function() {
     // return a marker set from the average values
     let values = null;
-    if ((this.averaging > 0) && this.binsAverage != null) {
-        let basic = this.getBasicValuesFromMagnitudes(this.binsAverage);
+    if ((this.averaging > 0) && this.trace0Average != null) {
+        let basic = this.getBasicValuesFromMagnitudes(this.trace0Average);
 
         // markers format
         values = {
@@ -846,7 +859,7 @@ Spectrum.prototype.getMarkerValuesForAveraging = function() {
               diffTime: -1,
               bin: basic.bin,
               spectrum: null,
-              magnitudes: this.binsMax
+              magnitudes: this.trace0Max
         };
     }
     return values;
@@ -855,8 +868,8 @@ Spectrum.prototype.getMarkerValuesForAveraging = function() {
 Spectrum.prototype.getMarkerValuesForMaxHold = function() {
     // return a marker set from the max held values
     let values = null;
-    if (this.maxHold && this.binsMax != null) {
-        let basic = this.getBasicValuesFromMagnitudes(this.binsMax);
+    if (this.maxHold && this.trace0Max != null) {
+        let basic = this.getBasicValuesFromMagnitudes(this.trace0Max);
 
         // markers format
         values = {
@@ -866,7 +879,7 @@ Spectrum.prototype.getMarkerValuesForMaxHold = function() {
               diffTime: -1,
               bin: basic.bin,
               spectrum: null,
-              magnitudes: this.binsMax
+              magnitudes: this.trace0Max
         };
     }
     return values;
@@ -1092,7 +1105,7 @@ Spectrum.prototype.drawLockedMarker = function() {
         this.ctx.moveTo(0, y);
         this.ctx.lineTo(this.canvas.width, y);
         this.ctx.setLineDash([10,2,10]);
-        this.ctx.strokeStyle = this.lockedSpectrumColour;
+        this.ctx.strokeStyle = this.lockedSpectrumMarkerColour;
         this.ctx.lineWidth = 1;
         this.ctx.stroke();
         this.ctx.setLineDash([]);
@@ -1397,10 +1410,10 @@ Spectrum.prototype.getSpectrumMarkerValues = function(xpos, ypos) {
         t += spectrum.start_nsec/1e9;
         time_value =  t - this.firstTime;
     } else {
-        if (this.binsMax) {
-            signal_db = this.binsMax[bin_index];      // if in max hold then get that power
+        if (this.trace0Max) {
+            signal_db = this.trace0Max[bin_index];      // if in max hold then get that power
         } else if (this.averaging > 0 ) {
-            signal_db = this.binsAverage[bin_index];  // or average
+            signal_db = this.trace0Average[bin_index];  // or average
         } else {
             signal_db = this.currentMagnitudes[bin_index]; // or current
         }
@@ -1519,21 +1532,22 @@ function Spectrum(id, options) {
     this.live_peak_search = false;
 
     this.maxNumMarkers = 8;
-    this.hideAllMarkers = false; // true would require updating the button
+    this.hideAllMarkers = false;
     this.firstTime = 0;          // set to time of first spectrum so we can do relative to the start of the run
     this.currentTime = 0;        // the most recent time we have, not updated when paused
     this.oldestTime = 0;         // the oldest timestamp we have in the spectrums
 
     // copies of the data that went to the canvas, allows replay when paused or disconnected
-    this.spectrums = new Array(this.wf_rows); // copy of all fft data in spectrogram along with times
+    this.spectrums = new Array(this.wf_rows); // All fft data in spectrogram along with times, i.e. not just magnitudes
     this.spectrumsIndex = 0;                  // index where next spectrum will be written
     this.currentSpectrumIndex = 0;            // index that is the current spectrum
 
     this.currentMagnitudes = null; // copy of just the current fft data for use when disconnected or paused
     this.currentSpectrum = null;   // as above but also includes times etc
-    this.binsMax = null;           // only present when max hold on
-    this.binsAverage = null;       // average on trace0
+    this.trace0Max = null;         // only present when max hold on
+    this.trace0Average = null;     // average on trace0
     this.trace1 = null             // trace 1
+    this.diffTrace1 = false;
 
     // one up count of all spectrums received when not paused
     this.inputCount = 0;
@@ -1562,17 +1576,17 @@ function Spectrum(id, options) {
     this.updatedZoom = false;
 
     // Colours
-    this.colourindex = 0;
-    this.colourmap = colourmaps[0]; // map for spectrogram only
-    this.liveMarkerColour = "black";
-    this.lockedSpectrumColour = "black"
-    this.markersColour = "red";
-    this.backgroundColour = "white";
-    this.maxHoldColour = "green";
-    this.magnitudesColour = "blue";
+    this.colourIndex = 0;
+    this.colourMap = colourMaps[this.colourIndex]; // map for spectrogram only
+    this.backgroundColour = "whitesmoke";
     this.canvasTextColour = "black";
-    this.spectrumGradient = false;
+    this.trace0Colour = "blue"
     this.trace1Colour = "gray"
+    this.trace0MaxholdColour = "green";
+    this.markersColour = "red";
+    this.liveMarkerColour = "black";
+    this.lockedSpectrumMarkerColour = "black"
+    this.spectrumGradient = false;
 
     // Create main canvas and adjust dimensions to match actual
     this.canvas = document.getElementById(id);

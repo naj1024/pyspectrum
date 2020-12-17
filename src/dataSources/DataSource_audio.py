@@ -96,13 +96,13 @@ class Input(DataSource.DataSource):
 
         try:
             self._device_number = int(self._source)
-            self._audio_stream = sd.InputStream(samplerate=self._sample_rate,
+            self._audio_stream = sd.InputStream(samplerate=self._sample_rate_sps,
                                                 device=self._device_number,
                                                 channels=2, callback=audio_callback,
                                                 blocksize=self._number_complex_samples,  # NOTE the size, not zero
                                                 dtype="float32")
             self._audio_stream.start()  # required as we are not using 'with'
-            self._sample_rate = self._audio_stream.samplerate  # actual sample rate
+            self._sample_rate_sps = self._audio_stream.samplerate  # actual sample rate
             logger.info(f"Audio stream started ")
             logger.debug(f"Connected to {module_type} {self._device_number}")
             self._connected = True
@@ -131,8 +131,8 @@ class Input(DataSource.DataSource):
             self._audio_stream.close(ignore_errors=True)
         self._connected = False
 
-    def set_sample_rate(self, sr: float) -> None:
-        self._sample_rate = sr
+    def set_sample_rate_sps(self, sr: float) -> None:
+        self._sample_rate_sps = sr
         self.bound_sample_rate()
         # changing sample rate means resetting the audio device
         self.close()
@@ -143,12 +143,12 @@ class Input(DataSource.DataSource):
 
     def bound_sample_rate(self) -> None:
         # TODO: find max sample rate and set that as the limit
-        if self._sample_rate > 250.0e3:
-            self._sample_rate = 250000.0
+        if self._sample_rate_sps > 250.0e3:
+            self._sample_rate_sps = 250000.0
             self._error = "Audio source sample rate too high, setting 250kHz"
             logger.error("Audio source sample rate too high, setting 250kHz")
-        elif self._sample_rate < 1.0e3:
-            self._sample_rate = 1000.0
+        elif self._sample_rate_sps < 1.0e3:
+            self._sample_rate_sps = 1000.0
             self._error = "Audio source sample rate too low, setting 1kHz"
             logger.error("Audio source sample rate too low, setting 1kHz")
 

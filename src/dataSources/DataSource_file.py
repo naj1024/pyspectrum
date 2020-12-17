@@ -151,10 +151,10 @@ class Input(DataSource.DataSource):
             self._data_type = '16tbe'  # wav files ?
             self.set_sample_type(self._data_type)  # make data type correct
 
-            self._sample_rate = self._wav_file.getframerate()
+            self._sample_rate_sps = self._wav_file.getframerate()
             # we are assuming that someone is going to tell us what the data type in the wav file is
             # i.e. 16tbe or 16tle or even 8t
-            logger.info(f"Parameters for wav: cplx, {self._data_type}, {self._sample_rate}sps,")
+            logger.info(f"Parameters for wav: cplx, {self._data_type}, {self._sample_rate_sps}sps,")
 
         except wave.Error:
             # try again as a binary file
@@ -167,13 +167,13 @@ class Input(DataSource.DataSource):
                 if ok:
                     if complex_flag:
                         self.set_sample_type(data_type)  # update the type of samples we expect
-                        self._sample_rate = sample_rate_hz
+                        self._sample_rate_sps = sample_rate_hz
                         if centre_frequency_fn != 0:
-                            self._centre_frequency = centre_frequency_fn
+                            self._centre_frequency_hz = centre_frequency_fn
 
                         logger.info(f"Parameters from filename: cplx, {data_type}, "
                                     f"{sample_rate_hz:.0f}sps, "
-                                    f"{self._centre_frequency:.0f}Hz")
+                                    f"{self._centre_frequency_hz:.0f}Hz")
                     else:
                         msgs = f"Error: Unsupported input of type real from {self._source}"
                         self._error = msgs
@@ -194,7 +194,7 @@ class Input(DataSource.DataSource):
             self._error = str(e)
             raise ValueError(e)
 
-        logger.debug(f"Using {self._data_type}, sps {self._sample_rate}Hz, format {self._centre_frequency}")
+        logger.debug(f"Using {self._data_type}, sps {self._sample_rate_sps}Hz, format {self._centre_frequency_hz}")
 
         self._connected = True
         return self._connected
@@ -261,7 +261,7 @@ class Input(DataSource.DataSource):
                         raw_bytes = self._file.read(self._bytes_per_snap)
                     rx_time = self._file_time  # mark start of buffer as current distance into file
                     # update time into the file by the sample rate
-                    self._file_time += (1.0e9 * self._number_complex_samples / self._sample_rate)
+                    self._file_time += (1.0e9 * self._number_complex_samples / self._sample_rate_sps)
 
                     if len(raw_bytes) != self._bytes_per_snap:
                         raw_bytes = None

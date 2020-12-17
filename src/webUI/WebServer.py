@@ -56,9 +56,11 @@ class WebServer(multiprocessing.Process):
         self._httpd = None
         self._web_socket_server = None
         self._log_level = log_level
+        self._shutdown = False
 
     def shutdown(self):
         logger.debug("WebServer Shutting down")
+        self._shutdown = True
         if self._httpd:
             self._httpd.shutdown()
 
@@ -105,12 +107,15 @@ class WebServer(multiprocessing.Process):
                                                                   logger.level, self._port+1)
         self._web_socket_server.start()
 
-        logger.info(f"WebServer started WebSocketServer, {self._web_socket_server}")
-
         global web_root
-        logger.info(f"web server serving {web_root} on port {self._port}")
-        with socketserver.ThreadingTCPServer(("", self._port), _Handler) as self._httpd:
-            self._httpd.serve_forever()
+        while not self._shutdown:
+            try:
+                logger.info(f"web server serving {web_root} on port {self._port}")
+                with socketserver.ThreadingTCPServer(("", self._port), _Handler) as self._httpd:
+                    self._httpd.serve_forever()
+            except Exception as msg:
+                logger.error(f"WebServer {msg}")
+                time.sleep(1)
 
         logger.error("WebServer process exited")
         return

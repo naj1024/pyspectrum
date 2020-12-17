@@ -101,8 +101,8 @@ class Input(DataSource.DataSource):
 
         # NOTE soapy may not range check any values, may just go quiet and give no samples
         try:
-            self._sdr.setSampleRate(SoapySDR.SOAPY_SDR_RX, self._channel, self._sample_rate)
-            self._sdr.setFrequency(SoapySDR.SOAPY_SDR_RX, self._channel, self._centre_frequency)
+            self._sdr.setSampleRate(SoapySDR.SOAPY_SDR_RX, self._channel, self._sample_rate_sps)
+            self._sdr.setFrequency(SoapySDR.SOAPY_SDR_RX, self._channel, self._centre_frequency_hz)
             self._rx_stream = self._sdr.setupStream(SoapySDR.SOAPY_SDR_RX, SoapySDR.SOAPY_SDR_CF32)
 
             # Set Automatic Gain Control
@@ -118,7 +118,7 @@ class Input(DataSource.DataSource):
             raise ValueError(msgs) from None
 
         # print(self._sdr.getSampleRate(SoapySDR.SOAPY_SDR_RX, self._channel))
-        logger.debug(f"{module_type}: {self._centre_frequency / 1e6:.6}MHz @ {self._sample_rate:.3f}sps")
+        logger.debug(f"{module_type}: {self._centre_frequency_hz / 1e6:.6}MHz @ {self._sample_rate_sps:.3f}sps")
 
         self._connected = True
 

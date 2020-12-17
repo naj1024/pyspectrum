@@ -73,7 +73,6 @@ async function handleBlob(binary_blob_data) {
             sdrState.setLastDataTime(start_time_sec);
 
             // tell the spectrum how this data is configured, which could change
-            // TODO refactor so there is only one holding these values, sdrState
             let update = false;
             if ( (sdrState.getSps() != spsHz) ||
                     (sdrState.getCentreFrequencyHz() != parseInt(cfMHz*1e6)) ||
@@ -278,6 +277,8 @@ function handlePauseToggle() {
 }
 
 function updateConfigTable(spec) {
+    // TODO: use labels for current and new entries and stop deleting / recreating the whole table each time
+
     // if we have focus on a form then don't update the table
     if (formInFocus) {
         return;
@@ -324,7 +325,7 @@ function updateConfigTable(spec) {
         });
 
         // the parameters for the source
-        // TODO: when the source changes update the help, but it is already built here by then
+        // TODO: when the source changes update the help, but it is already built here by then - so how?
         let help = source+' '+sourceParams+'\n'+sdrState.getInputSourceParamHelp(source);
         new_row += '<input data-toggle="tooltip" title="'+help+'" type="text" size="10"';
         new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
@@ -484,6 +485,7 @@ function updateConfigTable(spec) {
     new_row += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
     new_row += 'action="javascript:handleFpsChange(fpsSizeInput.value)">';
     new_row += '<select id="fpsSizeInput" name="fpsSizeInput" onchange="this.form.submit()">';
+    new_row += '<option value="1" '+((fpsV==1)?"selected":"")+'>1</option>';
     new_row += '<option value="5" '+((fpsV==5)?"selected":"")+'>5</option>';
     new_row += '<option value="10" '+((fpsV==10)?"selected":"")+'>10</option>';
     new_row += '<option value="20" '+((fpsV==20)?"selected":"")+'>20</option>';
@@ -762,6 +764,7 @@ function Main() {
     main_buttons += '<button type="button" id="avgDwnBut" title="decrease the number of averages" class="specbuttons btn btn-outline-dark mx-1 my-1">Avg-</button>';
     main_buttons += '<button type="button" id="avgUpBut" title="increase number of averages" class="specbuttons btn btn-outline-dark mx-1 my-1">Avg+</button>';
     main_buttons += '<button type="button" id="avgOffBut" title="turn averaging off" class="specbuttons btn btn-outline-dark mx-1 my-1">Avg0</button>';
+    main_buttons += '<button type="button" id="diffBut" title="difference to trace1" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Diff</button>';
     main_buttons += '</div>'
 
      // main buttons
@@ -824,6 +827,7 @@ function Main() {
     $('#avgUpBut').click(function() {spectrum.incrementAveraging();});
     $('#avgDwnBut').click(function() {spectrum.decrementAveraging();});
     $('#avgOffBut').click(function() {spectrum.setAveraging(0);});
+    $('#diffBut').click(function() {spectrum.setDiff();});
 
     $('#maxToTrc1But').click(function() {spectrum.pkToTrace1();});
     $('#avgToTrc1But').click(function() {spectrum.avgToTrace1();});
