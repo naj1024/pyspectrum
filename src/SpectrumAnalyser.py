@@ -21,6 +21,7 @@ from dataProcessing import ProcessSamples
 from misc import Ewma
 from misc import PluginManager
 from misc import Variables
+from misc import SnapVariables
 from misc import commandLine
 from webUI import WebServer
 
@@ -31,7 +32,7 @@ processing = True  # global to be set to False from ctrl-c
 logger = logging.getLogger('spectrum_logger')
 
 MAX_UI_QUEUE_DEPTH = 4  # low for low latency, a high value will give a burst of contiguous spectrums at the start
-MAX_UI_CONTROL_QUEUE_DEPTH = 3  # stop things backing up when no UI connected
+MAX_UI_CONTROL_QUEUE_DEPTH = 10  # stop things backing up when no UI connected
 
 
 def signal_handler(sig, __):
@@ -68,6 +69,9 @@ def main() -> None:
     # our configuration
     configuration = Variables.Variables()
     commandLine.parse_command_line(configuration, logger)
+
+    # snapshot config
+    snap_configuration = SnapVariables.SnapVariables()
 
     # check we have a valid input sample type
     if configuration.sample_type not in DataSource.supported_data_types:
@@ -114,7 +118,8 @@ def main() -> None:
             processing = False  # we will exit mow as we lost our processes
 
         # if there is a control message then it may change whats happening
-        data_source = handle_control_queue(configuration, ui_queue, control_queue, data_source, source_factory)
+        data_source = handle_control_queue(configuration, snap_configuration, ui_queue, control_queue, data_source,
+                                           source_factory)
 
         ###########################################
         # Get and process the complex samples we will work on
@@ -203,16 +208,16 @@ def main() -> None:
                         configuration.oneInN)
             debug_time = now + 6
 
-        # TODO: If the UI polled us instead then we wouldn't need this, maybe the acks could trigger it
         if now > config_time:
             # check on the source
             update_source_state(configuration, data_source)
-            config_time = now + 2
+            config_time = now + 1
             # don't backup up lots of config messages
             if ui_queue.qsize() < MAX_UI_CONTROL_QUEUE_DEPTH:
                 # Send the current configuration to the UI
                 ui_queue.put((configuration.make_json(), None, None, None, None, None))
                 configuration.error = ""  # reset any error we reported
+                ui_queue.put((snap_configuration.make_json(), None, None, None, None, None))
 
     ####################
     #
@@ -379,20 +384,108 @@ def update_source(configuration: Variables, source_factory) -> DataSource:
     return data_source
 
 
+def handle_snap_message(snap_config: SnapVariables, new_config) -> None:
+    """
+
+    :param snapConfig: current snap state etc
+    :param new_config: json new configuration for snap
+    :return: None
+    """
+    if new_config['baseFilename'] != snap_config.baseFilename:
+        snap_config.baseFilename = new_config['baseFilename']
+
+    if new_config['snapState'] != snap_config.snapState:
+        snap_config.snapState = new_config['snapState']
+
+    if new_config['preTriggerMilliSec'] != snap_config.preTriggerMilliSec:
+        snap_config.preTriggerMilliSec = new_config['preTriggerMilliSec']
+
+    if new_config['postTriggerMilliSec'] != snap_config.postTriggerMilliSec:
+        snap_config.postTriggerMilliSec = new_config['postTriggerMilliSec']
+
+    if new_config['triggerType'] != snap_config.triggerType:
+        snap_config.triggerType = new_config['triggerType']
+
+
+def handle_sdr_message(configuration: Variables, new_config, data_source, source_factory) -> DataSource:
+    """
+    Handle specific sdr related control messages
+    :param configuration: current config
+    :param new_config: json with possible new config
+    :param data_source: where we get data from currently
+    :param source_factory:
+    :return: DataSource
+    """
+    if (new_config['source'] != configuration.input_source) \
+            or (new_config['sourceParams'] != configuration.input_params) \
+            or (new_config['dataFormat'] != configuration.sample_type):
+        configuration.input_source = new_config['source']
+        configuration.input_params = new_config['sourceParams']
+        configuration.sample_type = new_config['dataFormat']
+        configuration.centre_frequency_hz = new_config['centreFrequencyHz']
+        logger.info(f"changing source to '{configuration.input_source}' "
+                    f"'{configuration.input_params}' '{configuration.sample_type}'")
+        data_source.close()
+        data_source = update_source(configuration, source_factory)
+    else:
+        if new_config['centreFrequencyHz'] != configuration.centre_frequency_hz:
+            new_cf = new_config['centreFrequencyHz']
+            data_source.set_centre_frequency_hz(new_cf)
+            configuration.error += data_source.get_and_reset_error()
+            configuration.centre_frequency_hz = data_source.get_centre_frequency_hz()
+
+        if new_config['sdrBwHz'] != configuration.input_bw_hz:
+            new_bw = new_config['sdrBwHz']
+            data_source.set_bandwidth_hz(new_bw)
+            configuration.error += data_source.get_and_reset_error()
+            configuration.input_bw_hz = data_source.get_bandwidth_hz()
+
+        if new_config['sps'] != configuration.sample_rate:
+            new_sps = new_config['sps']
+            data_source.set_sample_rate_sps(new_sps)
+            configuration.error += data_source.get_and_reset_error()
+            configuration.sample_rate = data_source.get_sample_rate_sps()
+            configuration.oneInN = int(configuration.sample_rate /
+                                       (configuration.fps * configuration.fft_size))
+
+        if new_config['fftSize'] != configuration.fft_size:
+            configuration.fft_size = new_config['fftSize']
+            configuration.oneInN = int(configuration.sample_rate /
+                                       (configuration.fps * configuration.fft_size))
+            data_source.close()
+            data_source = update_source(configuration, source_factory)
+
+        if new_config['gain'] != configuration.gain:
+            configuration.gain = new_config['gain']
+            data_source.set_gain(configuration.gain)
+            configuration.error += data_source.get_and_reset_error()
+            configuration.gain = data_source.get_gain()
+
+        if new_config['gainMode'] != configuration.gain_mode:
+            configuration.gain_mode = new_config['gainMode']
+            data_source.set_gain_mode(configuration.gain_mode)
+            configuration.error += data_source.get_and_reset_error()
+            configuration.gain_mode = data_source.get_gain_mode()
+
+    return data_source
+
+
 def handle_control_queue(configuration: Variables,
+                         snap_configuration: SnapVariables,
                          ui_queue: multiprocessing.Queue,
                          control_queue: multiprocessing.Queue,
                          data_source,
-                         source_factory):
+                         source_factory) -> DataSource:
     """
     Check the control queue for messages and handle them
 
     :param configuration: the current configuration
+    :param snap_configuration: the current snapshot config
     :param ui_queue: The queue used for talking to the UI process
     :param control_queue: The queue to check on
     :param data_source:
     :param source_factory:
-    :return:
+    :return: a DataSource, which may not be what we started with
     """
     try:
         config = control_queue.get(block=False)
@@ -419,57 +512,14 @@ def handle_control_queue(configuration: Variables,
                     configuration.ack = int(new_config['value'])
                 elif new_config['type'] == "stop":
                     configuration.stop = int(new_config['value'])
+                elif new_config['type'] == "snapUpdate":
+                    handle_snap_message(snap_configuration, new_config)
                 elif new_config['type'] == "sdrUpdate":
-                    if (new_config['source'] != configuration.input_source) \
-                            or (new_config['sourceParams'] != configuration.input_params) \
-                            or (new_config['dataFormat'] != configuration.sample_type):
-                        configuration.input_source = new_config['source']
-                        configuration.input_params = new_config['sourceParams']
-                        configuration.sample_type = new_config['dataFormat']
-                        configuration.centre_frequency_hz = new_config['centreFrequencyHz']
-                        logger.info(f"changing source to '{configuration.input_source}' "
-                                    f"'{configuration.input_params}' '{configuration.sample_type}'")
-                        data_source.close()
-                        data_source = update_source(configuration, source_factory)
-                    else:
-                        if new_config['centreFrequencyHz'] != configuration.centre_frequency_hz:
-                            new_cf = new_config['centreFrequencyHz']
-                            data_source.set_centre_frequency_hz(new_cf)
-                            configuration.error += data_source.get_and_reset_error()
-                            configuration.centre_frequency_hz = data_source.get_centre_frequency_hz()
-
-                        if new_config['sdrBwHz'] != configuration.input_bw_hz:
-                            new_bw = new_config['sdrBwHz']
-                            data_source.set_bandwidth_hz(new_bw)
-                            configuration.error += data_source.get_and_reset_error()
-                            configuration.input_bw_hz = data_source.get_bandwidth_hz()
-
-                        if new_config['sps'] != configuration.sample_rate:
-                            new_sps = new_config['sps']
-                            data_source.set_sample_rate_sps(new_sps)
-                            configuration.error += data_source.get_and_reset_error()
-                            configuration.sample_rate = data_source.get_sample_rate_sps()
-                            configuration.oneInN = int(configuration.sample_rate /
-                                                       (configuration.fps * configuration.fft_size))
-
-                        if new_config['fftSize'] != configuration.fft_size:
-                            configuration.fft_size = new_config['fftSize']
-                            configuration.oneInN = int(configuration.sample_rate /
-                                                       (configuration.fps * configuration.fft_size))
-                            data_source.close()
-                            data_source = update_source(configuration, source_factory)
-
-                        if new_config['gain'] != configuration.gain:
-                            configuration.gain = new_config['gain']
-                            data_source.set_gain(configuration.gain)
-                            configuration.error += data_source.get_and_reset_error()
-                            configuration.gain = data_source.get_gain()
-
-                        if new_config['gainMode'] != configuration.gain_mode:
-                            configuration.gain_mode = new_config['gainMode']
-                            data_source.set_gain_mode(configuration.gain_mode)
-                            configuration.error += data_source.get_and_reset_error()
-                            configuration.gain_mode = data_source.get_gain_mode()
+                    # we may be directed to change the source
+                    data_source = handle_sdr_message(configuration, new_config, data_source, source_factory)
+                else:
+                    logger.error(f"Unknown control json from client {new_config}")
+                    print(f"Unknown control json from client {new_config}")
 
                 # reply with the current configuration whenever we receive something on the control queue
                 ui_queue.put((configuration.make_json(), None, None, None, None, None))

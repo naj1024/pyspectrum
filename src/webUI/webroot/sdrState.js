@@ -121,8 +121,6 @@ sdrState.prototype.getSdrBwHz = function() {
     return this.sdrBwHz;
 }
 
-
-
 sdrState.prototype.setSdrStateUpdated = function() {
     this.sdrStateUpdated = true;
 }
@@ -144,7 +142,7 @@ sdrState.prototype.getResetSdrStateUpdated = function() {
     return state;
 }
 
-sdrState.prototype.setFromJason = function(jsonConfig) {
+sdrState.prototype.setConfigFromJason = function(jsonConfig) {
     let updateCfgTable = false;
     if (jsonConfig.centre_frequency_hz != sdrState.getCentreFrequencyHz()) {
         sdrState.setCentreFrequencyHz(jsonConfig.centre_frequency_hz);
@@ -227,7 +225,7 @@ sdrState.prototype.setFromJason = function(jsonConfig) {
     return updateCfgTable;
 }
 
-function sdrState(name) {
+function sdrState() {
     this.type = "sdrUpdate",
     this.sdrStateUpdated = false; // true if the UI has changed something
     this.centreFrequencyHz = 0.0;

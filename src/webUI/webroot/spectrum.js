@@ -137,7 +137,6 @@ Spectrum.prototype.drawSpectrum = function(bins) {
     // Averaging
     let displayBins = bins;
     if (this.averaging > 0) {
-        console.log("avg bins[0]", bins[0], "avg[0]", (this.trace0Average)?this.trace0Average[0]:"-");
         if (!this.trace0Average || this.trace0Average.length != bins.length) {
             this.trace0Average = Array.from(bins);
         } else {
@@ -637,8 +636,8 @@ Spectrum.prototype.onKeypress = function(e) {
 }
 
 Spectrum.prototype.handleMarkerTableClick = function(row) {
-    console.log("row", row);
     let marker_num = 0;
+    // find the correct marker entry
     for (let item of this.markersSet) {
         if (row == marker_num) {
             setCfHz(item.freqHz);
@@ -683,12 +682,12 @@ Spectrum.prototype.addMarker = function(frequencyHz, magdB, time_start, inputCou
     // marker number and checkbox
     new_row += '<td>'+number+'</td>';
     new_row += '<td>';
-    new_row += '<input type="checkbox" checked="true" id="'+marker_id+'"> ';
+    new_row += '<input type="checkbox" title="visible" checked="true" id="'+marker_id+'"> ';
     new_row += '<label for="'+marker_id+'" /label>';
     new_row += '</td>';
 
     new_row += '<td>';
-    new_row += '<input type="checkbox" unchecked="true" id="'+cf_id+'"> ';
+    new_row += '<input type="checkbox" title="marker to centre frequency" unchecked="true" id="'+cf_id+'"> ';
     new_row += '<label for="'+cf_id+'" /label>';
     new_row += '</td>';
 
@@ -703,7 +702,7 @@ Spectrum.prototype.addMarker = function(frequencyHz, magdB, time_start, inputCou
 
     // bin
     new_row += '<td>';
-    new_row += '<input type="image" id="'+bin_id+'" src="./icons/bin.png"> ';
+    new_row += '<input type="image" title="delete" id="'+bin_id+'" src="./icons/bin.png"> ';
     new_row += '</td>';
 
     new_row += "</tr>";
@@ -713,9 +712,8 @@ Spectrum.prototype.addMarker = function(frequencyHz, magdB, time_start, inputCou
     $('#'+marker_id).click(function() {spectrum.markerCheckBox(number);});
     $('#'+bin_id).click(function() {spectrum.deleteMarker(number);});
 
-    // TODO: marker->cf - would like this on a right mouse click of table row then marker -> cf but can't work it out
-    // so we have a tick box per row instead
-    $('#'+cf_id).click(function() {spectrum.handleMarkerTableClick(number);});
+    // set the cf to this markers frequency if checkbox ticked
+    $('#'+cf_id).click(function() { if ($('#'+cf_id).prop('checked')){spectrum.handleMarkerTableClick(number);}});
 }
 
 Spectrum.prototype.markerCheckBox = function(id) {
@@ -839,10 +837,6 @@ Spectrum.prototype.findPeak = function() {
     if (!data_active) {
         this.updateWhenPaused();
     }
-}
-
-Spectrum.prototype.findNextPeak = function() {
-    console.log("Next peak button support not available yet");
 }
 
 Spectrum.prototype.getMarkerValuesForAveraging = function() {
@@ -1007,6 +1001,22 @@ Spectrum.prototype.convertInputCountToSpectrogramCanvasRow = function(inputCount
     return canvas_row;
 }
 
+Spectrum.prototype.convertTimeToSpectrogramCanvasRow = function(time) {
+    // as we don't have constant sampling per row on the spectrogram we need to find the row
+    // nearest to the time given
+    let index = 0;
+    let row = 0;
+    for (index=0; index<this.spectrums.length; index++) {
+        let row_time = this.spectrums[index].start_sec + this.spectrums[index].start_nsec / 1.0e9;
+        if (time < row_time) {
+            row += this.convertInputCountToSpectrogramCanvasRow(this.spectrums[index].inputCount);
+            console.log("convertTimeToSpectrogramCanvasRow()", time, row_time, row);
+            break;
+        }
+    }
+    return index;
+}
+
 Spectrum.prototype.drawMarkers = function() {
     if (this.hideAllMarkers)
         return;
@@ -1017,6 +1027,8 @@ Spectrum.prototype.drawMarkers = function() {
 }
 
 Spectrum.prototype.drawLiveMarker = function() {
+
+    //this.convertTimeToSpectrogramCanvasRow(this.currentTime-1);
     if (!this.live_marker_on)
         return;
 

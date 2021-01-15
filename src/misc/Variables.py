@@ -11,6 +11,8 @@ import json
 
 class Variables:
     def __init__(self):
+        self.type = "control"  # for use by javascript to distinguish control types
+
         # input data related
         self.fft_size = 2048  # default, but any integer allowed
         self.sample_rate = 1e6  # default

@@ -167,7 +167,6 @@ class Input(DataSource.DataSource):
             except Exception as err:
                 self._error = str(err)
                 logger.debug(f"bad sr {sample_rate} now {self._sample_rate_sps}")
-                raise ValueError(err)
 
         logger.info(f"Set sample rate {sample_rate}sps")
 
@@ -182,6 +181,7 @@ class Input(DataSource.DataSource):
         # FCI FC2580 	         146 – 308 MHz / 438 – 924 MHz
 
         freq_ok = True
+        ok = True
         # logger.info(f"set cf rtlsdr tuner type {self._tuner_type}, {allowed_tuner_types[self._tuner_type]}")
 
         # what type of tuner do we have ?
@@ -220,22 +220,21 @@ class Input(DataSource.DataSource):
         else:
             self._error = f"Unknown tuner type {self._tuner_type}, frequency range checking impossible"
             logger.error(self._error)
-            raise ValueError(self._error)
+            ok = False
 
         if not freq_ok:
             self._error = f"{allowed_tuner_types[self._tuner_type]} invalid frequency {frequency}Hz, " \
                           f"outside range {freq_range}"
-            frequency = 600e6  # something safe
             logger.error(self._error)
+            ok = False
 
-        if self._sdr:
+        if self._sdr and ok:
             try:
                 self._sdr.center_freq = frequency
                 self._centre_frequency_hz = float(self._sdr.get_center_freq())
                 logger.info(f"Set frequency {frequency / 1e6:0.6f}MHz")
             except Exception as err:
                 self._error = str(err)
-                raise ValueError(err)
 
     def get_gain(self) -> float:
         if self._sdr:
@@ -253,7 +252,6 @@ class Input(DataSource.DataSource):
                     self._sdr.set_gain(float(gain))
             except Exception as err:
                 self._error = f"failed to set gain of '{gain}'"
-                raise ValueError(err)
 
     def set_gain_mode(self, mode: str) -> None:
         if mode in self._gain_modes:

@@ -50,20 +50,153 @@
                 <!-- 2 colums of tables and buttons -->
                 <div id="metaData" class="col-3" style="overflow-y:auto;">
                     <ul class="nav nav-tabs">
-                        <!-- static rows -->
                         <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#configTab">Config</a></li>
-                        <!- static rows of buttons -- >
-                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#displayTab">Display</a></li>
-                        <!- static and dynamic content -->
+                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#buttonTab">Display</a></li>
                         <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#markersTab">Markers</a></li>
+                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#snapshotTab">Snapshot</a></li>
                     </ul>
 
                     <div class="tab-content">
-                        <div id="configTab" class="tab-pane active"></div>
-                        <div id="displayTab" class="tab-pane"></div>
-                        <div id="markersTab" class="tab-pane"></div>
-                    </div>
 
+                        <div id="configTab" class="tab-pane active">
+                            <table id="configTable" class="table table-hover table-striped table-bordered table-sm">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th scope="col">Param</th>
+                                        <th scope="col">Current</th>
+                                        <th scope="col">New</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><b>Source</b></td><td><div id="currentSource"></div></td><td><div id="newSource"></div></td></tr>
+                                    <tr><td><b>Format</b></td><td><div id="currentFormat"></div></td><td><div id="newFormat"></div></td></tr>
+                                    <tr><td><b>Centre</b></td><td><div id="currentCentre"></div></td><td><div id="newCentre"></div></td></tr>
+                                    <tr><td><b>SPS</b></td><td><div id="currentSps"></div></td><td><div id="newSps"></div></td></tr>
+                                    <tr><td><b>SDR BW</b></td><td><div id="currentSdrBw"></div></td><td><div id="newSdrBw"></div></td></tr>
+                                    <tr><td><b>FFT</b></td><td><div id="currentFft"></div></td><td><div id="newFft"></div></td></tr>
+                                    <tr><td><b>Gmode</b></td><td><div id="currentGmode"></div></td><td><div id="newGmode"></div></td></tr>
+                                    <tr><td><b>Gain</b></td><td><div id="currentGain"></div></td><td><div id="newGain"></div></td></tr>
+                                    <tr><td><b>FPS</b></td><td><div id="currentFPS"></div></td><td><div id="newFPS"></div></td></tr>
+                                    <tr><td><b>RBW</b></td><td><div id="currentRBW"></div></td><td><div id="newRBW"></div></td></tr>
+                                    <tr><td><b>Avg</b></td><td><div id="currentAvg"></div></td><td><div id="newAvg"></div></td></tr>
+                                    <tr><td><b>Zoom</b></td><td><div id="currentZoom"></div></td><td><div id="newZoom"></div></td></tr>
+                                    <tr><td><b>Span</b></td><td><div id="currentSpan"></div></td><td><div id="newSpan"></div></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div id="buttonTab" class="tab-pane">
+                            <div id="buttons">
+                                <h4>Stream</h4>
+                                <div>
+                                    <button type="button" id="stopBut" title="stop front end sending data" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Stop</button>
+                                    <button type="button" id="cfDwnBut" title="decrease centre frequency by 1/4th displayed BW" class="specbuttons btn btn-outline-dark mx-1 my-1">cf-</button>
+                                    <button type="button" id="cfUpBut" title="increase centre frequency by 1/4th displayed BW" class="specbuttons btn btn-outline-dark mx-1 my-1">cf+</button>
+                                    <button type="button" id="zoomToCfBut" title="set the displayed centre frequency as the centre frequency " class="specbuttons btn btn-outline-dark mx-1 my-1">z->cf</button>
+                                </div>
+
+                                <h4>Trace 0</h4>
+                                <div>
+                                    <button type="button" id="pauseBut" title="pause and allow scroll throuh previous spectrums" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Hold</button>
+                                    <button type="button" id="maxHoldBut" data-toggle="button" title="record max dB level" class="specbuttons btn btn-outline-dark mx-1 my-1">Peak</button>
+                                    <button type="button" id="avgDwnBut" title="decrease the number of averages" class="specbuttons btn btn-outline-dark mx-1 my-1">Avg-</button>
+                                    <button type="button" id="avgUpBut" title="increase number of averages" class="specbuttons btn btn-outline-dark mx-1 my-1">Avg+</button>
+                                    <button type="button" id="avgOffBut" title="turn averaging off" class="specbuttons btn btn-outline-dark mx-1 my-1">Avg0</button>
+                                    <button type="button" id="diffBut" title="difference to trace1" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Diff</button>
+                                </div>
+
+                                <h4>Trace 1</h4>
+                                <div>
+                                    <button type="button" id="maxToTrc1But" title="peak to trace1" class="specbuttons btn btn-outline-dark mx-1 my-1">peak-></button>
+                                    <button type="button" id="avgToTrc1But" title="average to trace1" class="specbuttons btn btn-outline-dark mx-1 my-1">Avg-></button>
+                                    <button type="button" id="curToTrc1But" title="current to trace1" class="specbuttons btn btn-outline-dark mx-1 my-1">Curr-></button>
+                                    <button type="button" id="clrToTrc1But" title="clear trace1" class="specbuttons btn btn-outline-dark mx-1 my-1">clr</button>
+                                </div>
+
+                                <h4>Magnitude</h4>
+                                <div>
+                                    <button type="button" id="refUpBut" title="decrease the reference dB" class="specbuttons btn btn-outline-dark mx-1 my-1">Ref-</button>
+                                    <button type="button" id="refDwnBut" title="increase the reference dB" class="specbuttons btn btn-outline-dark mx-1 my-1">Ref+</button>
+                                    <button type="button" id="rangeDwnBut" title="decrease the dB range" class="specbuttons btn btn-outline-dark mx-1 my-1">Rng-</button>
+                                    <button type="button" id="rangeUpBut" title="increase the dB range" class="specbuttons btn btn-outline-dark mx-1 my-1">Rng+</button>
+                                    <button type="button" id="autoRangeBut" title="autorange on dB acros full spectrum" class="specbuttons btn btn-outline-dark mx-1 my-1">Auto</button>
+                                </div>
+
+                                <h4>Span</h4>
+                                <div>
+                                    <button type="button" id="zoomInBut" title="decrease span" class="specbuttons btn btn-outline-dark mx-1 my-1">Spn-</button>
+                                    <button type="button" id="zoomOutBut" title="increase span" class="specbuttons btn btn-outline-dark mx-1 my-1">Spn+</button>
+                                    <button type="button" id="unZoomBut" title="reset span" class="specbuttons btn btn-outline-dark mx-1 my-1">Full</button>
+                                </div>
+
+                                <h4>Visualisation</h4>
+                                <div>
+                                    <button type="button" id="SpecPcUpBut" title="decrease spectrum size" class="specbuttons btn btn-outline-dark mx-1 my-1">Spc-</button>
+                                    <button type="button" id="SpecPcDownBut" title="increase spectrum size" class="specbuttons btn btn-outline-dark mx-1 my-1">Spc+</button>
+                                    <button type="button" id="ColourMapBut" title="cycle through colour maps" class="specbuttons btn btn-outline-dark mx-1 my-1">Map</button>
+                                    <button type="button" id="ColourGradientBut" title="toggle gradient fill on spectrum" class="specbuttons btn btn-outline-dark mx-1 my-1">Grad</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="markersTab" class="tab-pane">
+                            <div id="markersTabTop">
+                                <b>Live </b>
+                                <div class="custom-control custom-radio custom-control-inline">
+                                    <input type="radio" value="off" class="custom-control-input" id="markerRadio_off" name="markerRadio" checked="checked">
+                                    <label class="custom-control-label" for="markerRadio_off">Off</label>
+                                </div>
+                                <div class="custom-control custom-radio custom-control-inline">
+                                    <input type="radio" value="on" class="custom-control-input" id="markerRadio_on" name="markerRadio">
+                                    <label class="custom-control-label" for="markerRadio_on">On</label>
+                                </div>
+                                <div id="marker-buttons">
+                                    <button type="button" id="hideMarkersBut" data-toggle="button" title="hide all markers" class="specbuttons btn btn-outline-dark mx-1 my-1">Hide</button>
+                                    <button type="button" id="clearMarkersBut" title="clear all markers" class="specbuttons btn btn-outline-dark mx-1 my-1">Clr&nbsp</button>
+                                    <button type="button" id="searchPeakBut" title="find and record peak in spectrogram data, may be zoomed" class="specbuttons btn btn-outline-dark mx-1 my-1">Peak</button>
+                                    <button type="button" id="peakTrackBut" data-toggle="button" title="follow the peak" class="specbuttons btn btn-outline-dark mx-1 my-1">Trck</button>
+                                </div>
+                                <div id="theMarkerTable">
+                                    <table id="markerTable" class="table-condensed table-hover table-striped table-bordered table-sm">
+                                        <thead class="thead-dark">
+                                            <tr>
+                                                <th scope="col">#</th>
+                                                <th scope="col">V</th>
+                                                <th scope="col">cf</th>
+                                                <th scope="col">MHz</th>
+                                                <th scope="col">dB</th>
+                                                <th scope="col">time</th>
+                                                <th scope="col">Deltas: Hz, dB, sec</th>
+                                                <th scope="col">X</th>
+                                            </tr>
+                                        </thead>
+                                     <tbody><!--- dynamically created marker data will go here ---></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="snapshotTab" class="tab-pane">
+                            <button type="button" id="snapStartBut" title="Manual trigger" class="specbuttons btn btn-outline-dark mx-1 my-1">Start</button>
+                            <button type="button" id="snapStopBut" title="Manual trigger" class="specbuttons btn btn-outline-dark mx-1 my-1">Stop</button>
+                            <table id="snapshotTable" class="table table-hover table-striped table-bordered table-sm">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th scope="col">Param</th>
+                                        <th scope="col">Current</th>
+                                        <th scope="col">New</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><b>Snapshot</b></td><td><div id="currentSnapState"></div></td><td><div id="newSnapState"></div></td></tr>
+                                    <tr><td><b>baseName</b></td><td><div id="currentSnapBaseName"></div></td><td><div id="newSnapBaseName"></div></td></tr>
+                                    <tr><td><b>Trigger</b></td><td><div id="currentSnapTriggerState"></div></td><td><div id="newSnapTriggerState"></div></td></tr>
+                                    <tr><td><b>Trigger type</b></td><td><div id="currentSnapTriggerType"></div></td><td><div id="newSnapTriggerType"></div></td></tr>
+                                    <tr><td><b>PreTrigger</b></td><td><div id="currentSnapPreTrigger"></div></td><td><div id="newSnapPreTrigger"></div></td></tr>
+                                    <tr><td><b>PostTrigger</b></td><td><div id="currentSnapPostTrigger"></div></td><td><div id="newSnapPostTrigger"></div></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -81,6 +214,7 @@
         <script src="spectrum.js"></script>
         <script src="main.js"></script>
         <script src="sdrState.js"></script>
+        <script src="snapState.js"></script>
 
     </body>
 </html>

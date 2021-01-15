@@ -254,7 +254,6 @@ class Input(DataSource.DataSource):
             self.set_tuner_gain_mode(int(gain))
         except Exception as msg:
             self._error = str(msg)
-            raise ValueError(msg)
 
     def set_gain_mode(self, mode: str) -> None:
         if mode in self._gain_modes:
@@ -349,11 +348,12 @@ class Input(DataSource.DataSource):
             err = f"{self._tuner_type_str}, {frequency}Hz outside range {freq_range}"
             self._error = err
             logger.error(err)
-            frequency = 600e6  # something safe
+        else:
+            logger.info(f"Set frequency {frequency / 1e6:0.6f}MHz")
+            self._centre_frequency_hz = frequency
+            return self.send_command(0x01, frequency)
 
-        logger.info(f"Set frequency {frequency / 1e6:0.6f}MHz")
-        self._centre_frequency_hz = frequency
-        return self.send_command(0x01, frequency)
+        return 0
 
     def set_sample_rate_sps(self, sample_rate: int) -> int:
         # rtlsdr has limits on allowed sample rates
