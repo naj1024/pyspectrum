@@ -1540,7 +1540,7 @@ function Spectrum(id, options) {
     // markers
     this.markersSet = new Set();
     this.liveMarker = null;
-    this.live_marker_on = false;
+    this.live_marker_on = true;
     this.live_peak_search = false;
 
     this.maxNumMarkers = 8;
