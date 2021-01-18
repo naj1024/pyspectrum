@@ -165,7 +165,7 @@ class Input(DataSource.DataSource):
         rx_time = 0
 
         if self._connected:
-            global audio_qs
+            global audio_q
             complex_data = audio_q.get()
             rx_time = self.get_time_ns()
         return complex_data, rx_time

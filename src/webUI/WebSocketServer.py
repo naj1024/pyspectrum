@@ -24,21 +24,24 @@ class WebSocketServer(multiprocessing.Process):
     """
 
     def __init__(self,
-                 data_queue: multiprocessing.Queue,
-                 control_queue: multiprocessing.Queue,
+                 to_ui_queue: multiprocessing.Queue,
+                 to_ui_control_queue: multiprocessing.Queue,
+                 from_ui_queue: multiprocessing.Queue,
                  log_level: int,
                  websocket_port: int):
         """
         Configure the basics of this class
 
-        :param data_queue: we will receive structured data from this queue
-        :param control_queue: Future use as data to be sent back from whatever UI will hang of us
+        :param to_ui_queue: we will receive structured spectrum data from this queue
+        :param to_ui_control_queue: we will receive structured control data from this queue
+        :param from_ui_queue: Future use as data to be sent back from whatever UI will hang of us
         :param log_level: The logging level we wish to use
         :param websocket_port: The port the web socket will be on
         """
         multiprocessing.Process.__init__(self)
-        self._data_queue = data_queue
-        self._control_queue = control_queue
+        self._to_ui_queue = to_ui_queue
+        self._to_ui_control_queue = to_ui_control_queue
+        self._from_ui_queue = from_ui_queue
         self._port = websocket_port
         self._exit_now = False
         self._fps = DEFAULT_FPS
@@ -107,7 +110,7 @@ class WebSocketServer(multiprocessing.Process):
 
     async def rx_handler(self, web_socket: WebSocketServerProtocol):
         """
-        Receive JSON data from the client
+        Receive JSON data from the UI client
 
         :param web_socket: The client connection
         :return: None
@@ -125,14 +128,18 @@ class WebSocketServer(multiprocessing.Process):
                 if mess['type'] == "fps":
                     self._fps = int(mess['value'] * 2)  # read twice as fast as data being put in, stops stuttering
 
-                self._control_queue.put(message, timeout=0.1)
+                try:
+                    self._from_ui_queue.put(message, timeout=0.1)
+                except queue.Full:
+                    print("Failed in websocketserver to put onto from_ui_queue")
+                    pass
 
         except Exception as msg:
             logger.error(f"WebSocket socket Rx exception for {client}, {msg}")
 
     async def tx_handler(self, web_socket: WebSocketServerProtocol):
         """
-        Send data packed binary data to the client
+        Send data to the UI client
 
         :param web_socket: The client connection
         :return: None
@@ -141,52 +148,57 @@ class WebSocketServer(multiprocessing.Process):
         client = web_socket.remote_address[0]
         logger.info(f"web socket Tx for client {client}")
         # NOTE this is not going to end
-        try:
-            while not self._exit_now:
+        while not self._exit_now:
+            try:
+                # check for control messages first
                 try:
-                    # timeout on queue read so we can, if we wanted to, exit our forever loop
-                    state, sps, centre, magnitudes, time_start, time_end = self._data_queue.get(timeout=0.1)
-
-                    # if we have the state then just send this, ignore the rest
+                    state = self._to_ui_control_queue.get(block=False)
                     if state:
                         await web_socket.send(state)  # it is json
-                    else:
-                        centre_mhz = float(centre) / 1e6  # in MHz
+                except queue.Empty:
+                    pass
 
-                        # times are in nsec and javascript won't handle 8byte int so break it up
-                        start_sec: int = int(time_start / 1e9)
-                        start_nsec: int = int(time_start - start_sec * 1e9)
-                        end_sec: int = int(time_end / 1e9)
-                        end_nsec: int = int(time_end - end_sec * 1e9)
+                # timeout on queue read so we can, if we wanted to, exit our forever loop
+                try:
+                    sps, centre, magnitudes, time_start, time_end = self._to_ui_queue.get(timeout=0.1)
 
-                        num_floats = int(magnitudes.size)
-                        # pack the data up in binary, watch out for sizes
-                        # ignoring times for now as still to handle 8byte ints in javascript
-                        # !2id5i{num_floats}f{num_floats}f is in network order 2 int, 1 double, 5 int, N float
-                        data_type: int = 1  # magnitude data
-                        message = struct.pack(f"!2id5i{num_floats}f",  # format
-                                              int(data_type),  # 4bytes
-                                              int(sps),  # 4bytes
-                                              centre_mhz,  # 8byte double float (64bit)
-                                              int(start_sec),  # 4bytes
-                                              int(start_nsec),  # 4bytes
-                                              int(end_sec),  # 4bytes
-                                              int(end_nsec),  # 4bytes
-                                              num_floats,  # 4bytes (N)
-                                              *magnitudes)  # N * 4byte floats (32bit)
+                    centre_mhz = float(centre) / 1e6  # in MHz
 
-                        await web_socket.send(message)
+                    # times are in nsec and javascript won't handle 8byte int so break it up
+                    start_sec: int = int(time_start / 1e9)
+                    start_nsec: int = int(time_start - start_sec * 1e9)
+                    end_sec: int = int(time_end / 1e9)
+                    end_nsec: int = int(time_end - end_sec * 1e9)
 
-                        # wait 1/fps before proceeding
-                        # we use acks every second from the ui client to the main process, not this
-                        # websocket process. If we see acks >4 (say) seconds ago then we have a fps that is
-                        # too high the main process can drop the fps.
-                        end_time = time.time() + (1 / self._fps)  # can be same as time
-                        while (end_time - time.time()) > 0:
-                            await asyncio.sleep(1 / self._fps)  # we will not sleep this long
+                    num_floats = int(magnitudes.size)
+                    # pack the data up in binary, watch out for sizes
+                    # ignoring times for now as still to handle 8byte ints in javascript
+                    # !2id5i{num_floats}f{num_floats}f is in network order 2 int, 1 double, 5 int, N float
+                    data_type: int = 1  # magnitude data
+                    message = struct.pack(f"!2id5i{num_floats}f",  # format
+                                          int(data_type),  # 4bytes
+                                          int(sps),  # 4bytes
+                                          centre_mhz,  # 8byte double float (64bit)
+                                          int(start_sec),  # 4bytes
+                                          int(start_nsec),  # 4bytes
+                                          int(end_sec),  # 4bytes
+                                          int(end_nsec),  # 4bytes
+                                          num_floats,  # 4bytes (N)
+                                          *magnitudes)  # N * 4byte floats (32bit)
+
+                    await web_socket.send(message)
+
+                    # wait 1/fps before proceeding
+                    # we use acks every second from the ui client to the main process, not this
+                    # websocket process. If we see acks >4 (say) seconds ago then we have a fps that is
+                    # too high the main process can drop the fps.
+                    end_time = time.time() + (1 / self._fps)  # can be same as time
+                    while (end_time - time.time()) > 0:
+                        await asyncio.sleep(1 / self._fps)  # we will not sleep this long
 
                 except queue.Empty:
+                    # no data for us yet
                     await asyncio.sleep(0.01)
 
-        except Exception as msg:
-            logger.error(f"WebSocket socket Tx exception for {client}, {msg}")
+            except Exception as msg:
+                logger.error(f"WebSocket socket Tx exception for {client}, {msg}")

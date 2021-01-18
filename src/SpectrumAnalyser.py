@@ -6,8 +6,8 @@ Provide a basic spectrum analyser for digitised complex samples
 
 import time
 import multiprocessing
-import signal
 import queue
+import signal
 import logging
 from typing import Tuple
 import sys
@@ -31,8 +31,8 @@ processing = True  # global to be set to False from ctrl-c
 # Perceived wisdom is to use a logging server in multiprocessing environments, maybe in the future
 logger = logging.getLogger('spectrum_logger')
 
-MAX_UI_QUEUE_DEPTH = 4  # low for low latency, a high value will give a burst of contiguous spectrums at the start
-MAX_UI_CONTROL_QUEUE_DEPTH = 10  # stop things backing up when no UI connected
+MAX_TO_UI_QUEUE_DEPTH = 4  # low for low latency, a high value will give a burst of contiguous spectrums at the start
+MAX_FROM_UI_QUEUE_DEPTH = 10  # stop things backing up when no UI connected
 
 
 def signal_handler(sig, __):
@@ -83,7 +83,7 @@ def main() -> None:
     configuration.input_sources_web_helps = DataSourceFactory.DataSourceFactory().web_help_strings()
 
     # configure us
-    data_source, display, ui_queue, control_queue, processor, plugin_manager, source_factory = initialise(
+    data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, plugin_manager, source_factory = initialise(
         configuration)
 
     # allowed sample types for base source converter
@@ -118,8 +118,8 @@ def main() -> None:
             processing = False  # we will exit mow as we lost our processes
 
         # if there is a control message then it may change whats happening
-        data_source = handle_control_queue(configuration, snap_configuration, ui_queue, control_queue, data_source,
-                                           source_factory)
+        data_source = handle_from_ui_queue(configuration, snap_configuration, to_ui_control_queue,
+                                           from_ui_queue, data_source, source_factory)
 
         ###########################################
         # Get and process the complex samples we will work on
@@ -166,7 +166,7 @@ def main() -> None:
                 #################
                 peak_powers_since_last_display, current_peak_count, max_peak_count = \
                     update_ui(configuration,
-                              ui_queue,
+                              to_ui_queue,
                               processor.get_powers(False),
                               peak_powers_since_last_display,
                               current_peak_count,
@@ -212,12 +212,14 @@ def main() -> None:
             # check on the source
             update_source_state(configuration, data_source)
             config_time = now + 1
-            # don't backup up lots of config messages
-            if ui_queue.qsize() < MAX_UI_CONTROL_QUEUE_DEPTH:
+            # is there space
+            try:
                 # Send the current configuration to the UI
-                ui_queue.put((configuration.make_json(), None, None, None, None, None))
+                to_ui_control_queue.put(configuration.make_json(), block=False)
                 configuration.error = ""  # reset any error we reported
-                ui_queue.put((snap_configuration.make_json(), None, None, None, None, None))
+                to_ui_control_queue.put(snap_configuration.make_json(), block=False)
+            except queue.Full:
+                pass
 
     ####################
     #
@@ -236,18 +238,21 @@ def main() -> None:
             display.shutdown()
             display.join()
 
-    if ui_queue:
-        # ui_queue.close()
-        while not ui_queue.empty():
-            _ = ui_queue.get()
-        logger.debug("SpectrumAnalyser ui_queue empty")
+    if to_ui_queue:
+        while not to_ui_queue.empty():
+            _ = to_ui_queue.get()
+        logger.debug("SpectrumAnalyser to_ui_queue empty")
+
+    if to_ui_control_queue:
+        while not to_ui_control_queue.empty():
+            _ = to_ui_control_queue.get()
+        logger.debug("SpectrumAnalyser to_ui_control_queue empty")
 
     logger.error("SpectrumAnalyser exit")
 
 
 # Problem defining what we return, DataSource can be many different things
-# def initialise(configuration: Variables) -> Tuple[DataSource, DisplayProcessor, multiprocessing.Queue,
-#                                                  multiprocessing.Queue, ProcessSamples, PluginManager]:
+# def initialise(configuration: Variables) -> Tuple[...]:
 def initialise(configuration: Variables):
     """
     Initialise everything we need
@@ -263,11 +268,14 @@ def initialise(configuration: Variables):
             print("Available sources: ", factory.sources())
             raise ValueError(f"Error: Input source type of '{configuration.input_source}' is not supported")
 
-        # Queues for UI
-        data_queue = multiprocessing.Queue()
-        control_queue = multiprocessing.Queue()
+        # Queues for UI, control and data are separate when going to ui
+        to_ui_queue = multiprocessing.Queue(MAX_TO_UI_QUEUE_DEPTH)
+        to_ui_control_queue = multiprocessing.Queue(MAX_TO_UI_QUEUE_DEPTH)
+        # queue from ui only has control
+        from_ui_queue = multiprocessing.Queue(MAX_FROM_UI_QUEUE_DEPTH)
 
-        display = WebServer.WebServer(data_queue, control_queue, logger.level, configuration.web_port)
+        display = WebServer.WebServer(to_ui_queue, to_ui_control_queue, from_ui_queue,
+                                      logger.level, configuration.web_port)
         display.start()
         logger.debug(f"Started WebServer, {display}")
 
@@ -284,7 +292,7 @@ def initialise(configuration: Variables):
         # The main processor for producing ffts etc
         processor = ProcessSamples.ProcessSamples(configuration)
 
-        return data_source, display, data_queue, control_queue, processor, plugin_manager, factory
+        return data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, plugin_manager, factory
 
     except Exception as msg:
         # exceptions here are fatal
@@ -386,8 +394,9 @@ def update_source(configuration: Variables, source_factory) -> DataSource:
 
 def handle_snap_message(snap_config: SnapVariables, new_config) -> None:
     """
+    messages from UI
 
-    :param snapConfig: current snap state etc
+    :param snap_config: current snap state etc
     :param new_config: json new configuration for snap
     :return: None
     """
@@ -470,10 +479,10 @@ def handle_sdr_message(configuration: Variables, new_config, data_source, source
     return data_source
 
 
-def handle_control_queue(configuration: Variables,
+def handle_from_ui_queue(configuration: Variables,
                          snap_configuration: SnapVariables,
-                         ui_queue: multiprocessing.Queue,
-                         control_queue: multiprocessing.Queue,
+                         to_ui_control_queue: multiprocessing.Queue,
+                         from_ui_queue: multiprocessing.Queue,
                          data_source,
                          source_factory) -> DataSource:
     """
@@ -481,58 +490,62 @@ def handle_control_queue(configuration: Variables,
 
     :param configuration: the current configuration
     :param snap_configuration: the current snapshot config
-    :param ui_queue: The queue used for talking to the UI process
-    :param control_queue: The queue to check on
+    :param to_ui_control_queue: The queue used for talking to the UI process
+    :param from_ui_queue: The queue to check on
     :param data_source:
     :param source_factory:
     :return: a DataSource, which may not be what we started with
     """
+    config = None
     try:
-        config = control_queue.get(block=False)
-        if config:
-            # config message is a json string
-            # e.g. {"type":"sdrUpdate","name":"unknown","centreFrequencyHz":433799987,"sps":600000,
-            #       "bw":600000,"fftSize":"8192","sdrStateUpdated":false}
-            new_config = None
-            try:
-                new_config = json.loads(config)
-            except ValueError as msg:
-                logger.error(f"Problem with json control message {config}, {msg}")
-
-            if new_config:
-                if new_config['type'] == "null":
-                    pass
-                elif new_config['type'] == "fps":
-                    configuration.fps = int(new_config['value'])
-                    if configuration.fps > 0:
-                        configuration.oneInN = int(configuration.sample_rate /
-                                                   (configuration.fps * configuration.fft_size))
-                elif new_config['type'] == "ack":
-                    # time of last UI processed data
-                    configuration.ack = int(new_config['value'])
-                elif new_config['type'] == "stop":
-                    configuration.stop = int(new_config['value'])
-                elif new_config['type'] == "snapUpdate":
-                    handle_snap_message(snap_configuration, new_config)
-                elif new_config['type'] == "sdrUpdate":
-                    # we may be directed to change the source
-                    data_source = handle_sdr_message(configuration, new_config, data_source, source_factory)
-                else:
-                    logger.error(f"Unknown control json from client {new_config}")
-                    print(f"Unknown control json from client {new_config}")
-
-                # reply with the current configuration whenever we receive something on the control queue
-                ui_queue.put((configuration.make_json(), None, None, None, None, None))
-                configuration.error = ""  # reset any error we are reporting
-
+        config = from_ui_queue.get(block=False)
     except queue.Empty:
         pass
+
+    if config:
+        # config message is a json string
+        # e.g. {"type":"sdrUpdate","name":"unknown","centreFrequencyHz":433799987,"sps":600000,
+        #       "bw":600000,"fftSize":"8192","sdrStateUpdated":false}
+        new_config = None
+        try:
+            new_config = json.loads(config)
+        except ValueError as msg:
+            logger.error(f"Problem with json control message {config}, {msg}")
+
+        if new_config:
+            if new_config['type'] == "null":
+                pass
+            elif new_config['type'] == "fps":
+                configuration.fps = int(new_config['value'])
+                if configuration.fps > 0:
+                    configuration.oneInN = int(configuration.sample_rate /
+                                               (configuration.fps * configuration.fft_size))
+            elif new_config['type'] == "ack":
+                # time of last UI processed data
+                configuration.ack = int(new_config['value'])
+            elif new_config['type'] == "stop":
+                configuration.stop = int(new_config['value'])
+            elif new_config['type'] == "snapUpdate":
+                handle_snap_message(snap_configuration, new_config)
+            elif new_config['type'] == "sdrUpdate":
+                # we may be directed to change the source
+                data_source = handle_sdr_message(configuration, new_config, data_source, source_factory)
+            else:
+                logger.error(f"Unknown control json from client {new_config}")
+                print(f"Unknown control json from client {new_config}")
+
+            # reply with the current configuration whenever we receive something on the control queue
+            try:
+                to_ui_control_queue.put(configuration.make_json(), block=False)
+                configuration.error = ""  # reset any error we are reporting
+            except queue.Full:
+                pass
 
     return data_source
 
 
 def update_ui(configuration: Variables,
-              ui_queue: multiprocessing.Queue,
+              to_ui_queue: multiprocessing.Queue,
               powers: np.ndarray,
               peak_powers_since_last_display: np.ndarray,
               current_peak_count: int,
@@ -542,7 +555,7 @@ def update_ui(configuration: Variables,
     Send data to the queue used for talking to the ui processes
 
     :param configuration: Our programme state variables
-    :param ui_queue: The queue used for talking to the UI process
+    :param to_ui_queue: The queue used for talking to the UI process
     :param powers: The powers of the spectrum bins
     :param peak_powers_since_last_display: The powers since we last updated the UI
     :param current_peak_count: count of spectrums we have peak held on
@@ -560,27 +573,25 @@ def update_ui(configuration: Variables,
 
         # should we try and add to the ui queue
         if configuration.update_count >= configuration.oneInN:
-            # is there space
-            if ui_queue.qsize() < MAX_UI_QUEUE_DEPTH:
-                configuration.update_count = 0
-                # timings need to be altered
-                if current_peak_count == 1:
-                    configuration.time_first_spectrum = time_spectrum
+            configuration.update_count = 0
+            # timings need to be altered
+            if current_peak_count == 1:
+                configuration.time_first_spectrum = time_spectrum
 
-                # order the spectral magnitudes, zero in the middle
-                display_peaks = np.fft.fftshift(peak_powers_since_last_display)
+            # order the spectral magnitudes, zero in the middle
+            display_peaks = np.fft.fftshift(peak_powers_since_last_display)
 
-                # data into the UI queue, we don't send state here
-                state = None
-                ui_queue.put((state, configuration.sample_rate, configuration.centre_frequency_hz,
-                              display_peaks, configuration.time_first_spectrum, time_spectrum))
+            # data into the UI queue
+            try:
+                to_ui_queue.put((configuration.sample_rate, configuration.centre_frequency_hz,
+                                 display_peaks, configuration.time_first_spectrum, time_spectrum), block=False)
 
                 # peak since last time is the current powers
                 max_peak_count = current_peak_count
                 current_peak_count = 0
                 peak_powers_since_last_display = powers
                 configuration.time_first_spectrum = time_spectrum
-            else:
+            except queue.Full:
                 peak_detect = True  # UI can't keep up
         else:
             peak_detect = True

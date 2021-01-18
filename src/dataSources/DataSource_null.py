@@ -2,7 +2,6 @@
 A null input
 """
 
-import queue
 import pprint as pp
 from typing import Tuple
 import logging
@@ -24,9 +23,6 @@ import_error_msg = ""
 def is_available() -> Tuple[str, str]:
     return module_type, import_error_msg
 
-
-# A queue for the audio streamer callback to put samples in to
-audio_q = queue.Queue()
 
 class Input(DataSource.DataSource):
 

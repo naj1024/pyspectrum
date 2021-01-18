@@ -632,7 +632,6 @@ function connectWebSocket(spec) {
         let new_element = '<img src="./icons/led-red.png" alt="no connection title="No connection" ">';
         $("#connection_state").empty();
         $('#connection_state').append(new_element);
-
     }
 
     websocket.onmessage = function (event) {
