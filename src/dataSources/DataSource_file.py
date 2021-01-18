@@ -143,17 +143,12 @@ class Input(DataSource.DataSource):
                 raise ValueError(msgs)
 
             if self._wav_file.getsampwidth() != 2:
-                msgs = "wav does not have 2 bytes per i,q sample, 4total"
+                msgs = "wav does not have 2 bytes per i,q sample, 4 bytes complex"
                 self._error = msgs
                 logger.error(msgs)
                 raise ValueError(msgs)
 
-            self._data_type = '16tbe'  # wav files ?
-            self.set_sample_type(self._data_type)  # make data type correct
-
             self._sample_rate_sps = self._wav_file.getframerate()
-            # we are assuming that someone is going to tell us what the data type in the wav file is
-            # i.e. 16tbe or 16tle or even 8t
             logger.info(f"Parameters for wav: cplx, {self._data_type}, {self._sample_rate_sps}sps,")
 
         except wave.Error:
@@ -231,16 +226,6 @@ class Input(DataSource.DataSource):
 
         self._connected = True
         return self._connected
-
-    def set_sample_type(self, data_type: str) -> None:
-        # we are only supporting 4byte complex variants, i.e. 2bytes I and 2bytes Q
-        if self._is_wav_file:
-            if data_type == '8o' or data_type == '8t':
-                super().set_sample_type('16tbe')
-            else:
-                super().set_sample_type(data_type)
-        else:
-            super().set_sample_type(data_type)
 
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """
