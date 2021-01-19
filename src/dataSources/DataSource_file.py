@@ -134,7 +134,8 @@ class Input(DataSource.DataSource):
             # first off, is this a wav file ?
             self._wav_file = wave.open(self._source, "rb")
             self._is_wav_file = True
-            logger.debug(f"Opened wav {self._source} for reading")
+            self._data_type = "16tle"  # wav files are little endian
+            logger.debug(f"Opened wav {self._source} for reading as 16tle")
 
             if self._wav_file.getnchannels() != 2:
                 msgs = f"wav file does not have 2 channels"

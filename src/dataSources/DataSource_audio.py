@@ -87,7 +87,7 @@ class Input(DataSource.DataSource):
 
         self._connected = False
         self._device_number = 0
-        self._channels = 2 # we are really expecting stereo
+        self._channels = 2  # we are really expecting stereo
         self._audio_stream = None
         super().set_help(help_string)
         super().set_web_help(web_help_string)
