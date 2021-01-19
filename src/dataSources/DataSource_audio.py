@@ -1,5 +1,10 @@
 """
 Audio input wrapper
+
+We expect a stereo input with something external doing a proper IQ split and feeding the left/right audio
+inputs.
+
+If we have a mono input we duplicate each sample into both I and Q samples
 """
 
 import queue
@@ -40,11 +45,18 @@ def audio_callback(incoming_samples: np.ndarray, frames: int, time_1, status) ->
         raise ValueError(f"Error: {module_type} had a problem, {status}")
 
     # make complex array with left/right as real/imaginary
-    # this is wrong unless you are feeding the audio LR with a complex source
+    # this will be wrong unless you are feeding the audio LR with a complex source
     # frames is the number of left/right sample pairs, i.e. the samples
     complex_data = np.zeros(shape=(frames,), dtype=np.complex64)
-    for n in range(frames):
-        complex_data[n] = complex(incoming_samples[n][0], incoming_samples[n][1])
+
+    if incoming_samples.shape[1] == 2:
+        for n in range(frames):
+            complex_data[n] = complex(incoming_samples[n][0], incoming_samples[n][1])
+    else:
+        # must be mono
+        for n in range(frames):
+            complex_data[n] = complex(incoming_samples[n], incoming_samples[n])
+
     audio_q.put(complex_data.copy())
 
 
@@ -75,6 +87,7 @@ class Input(DataSource.DataSource):
 
         self._connected = False
         self._device_number = 0
+        self._channels = 2 # we are really expecting stereo
         self._audio_stream = None
         super().set_help(help_string)
         super().set_web_help(web_help_string)
@@ -96,9 +109,13 @@ class Input(DataSource.DataSource):
 
         try:
             self._device_number = int(self._source)
+
+            capabilities = sd.query_devices(device=self._device_number)
+            if capabilities['max_input_channels'] < 2:
+                self._channels = 1
             self._audio_stream = sd.InputStream(samplerate=self._sample_rate_sps,
                                                 device=self._device_number,
-                                                channels=2, callback=audio_callback,
+                                                channels=self._channels, callback=audio_callback,
                                                 blocksize=self._number_complex_samples,  # NOTE the size, not zero
                                                 dtype="float32")
             self._audio_stream.start()  # required as we are not using 'with'
