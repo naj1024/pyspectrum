@@ -147,9 +147,12 @@ class WebSocketServer(multiprocessing.Process):
 
         client = web_socket.remote_address[0]
         logger.info(f"web socket Tx for client {client}")
-        # NOTE this is not going to end
-        while not self._exit_now:
-            try:
+
+        # NOTE this is not going to end until:
+        # websocket connection exceptions - probably closed
+        # we force an exit
+        try:
+            while not self._exit_now:
                 # check for control messages first
                 try:
                     state = self._to_ui_control_queue.get(block=False)
@@ -200,5 +203,5 @@ class WebSocketServer(multiprocessing.Process):
                     # no data for us yet
                     await asyncio.sleep(0.01)
 
-            except Exception as msg:
-                logger.error(f"WebSocket socket Tx exception for {client}, {msg}")
+        except Exception as msg:
+            logger.error(f"WebSocket socket Tx exception for {client}, {msg}")

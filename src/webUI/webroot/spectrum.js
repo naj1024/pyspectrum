@@ -1426,7 +1426,7 @@ Spectrum.prototype.getSpectrumMarkerValues = function(xpos, ypos) {
             signal_db = this.trace0Max[bin_index];      // if in max hold then get that power
         } else if (this.averaging > 0 ) {
             signal_db = this.trace0Average[bin_index];  // or average
-        } else {
+        } else if (this.currentMagnitudes) {
             signal_db = this.currentMagnitudes[bin_index]; // or current
         }
     }
