@@ -108,25 +108,27 @@ class Input(DataSource.DataSource):
             self._error = str(sd.query_devices())
             return False
 
+        self._device_number = int(self._source)
         try:
-            self._device_number = int(self._source)
-
             capabilities = sd.query_devices(device=self._device_number)
             if capabilities['max_input_channels'] < 2:
                 self._channels = 1
+        except Exception as err_msg:
+            msgs = f"{module_type} query error: {err_msg}"
+            self._error = str(msgs)
+            logger.error(msgs)
+            raise ValueError(msgs)  # from None
+
+        try:
             self._audio_stream = sd.InputStream(samplerate=self._sample_rate_sps,
-                                                device=self._device_number,
-                                                channels=self._channels, callback=audio_callback,
-                                                blocksize=self._number_complex_samples,  # NOTE the size, not zero
-                                                dtype="float32")
+                                            device=self._device_number,
+                                            channels=self._channels, callback=audio_callback,
+                                            blocksize=self._number_complex_samples,  # NOTE the size, not zero
+                                            dtype="float32")
             self._audio_stream.start()  # required as we are not using 'with'
-            self._sample_rate_sps = self._audio_stream.samplerate  # actual sample rate
-            logger.info(f"Audio stream started ")
-            logger.debug(f"Connected to {module_type} {self._device_number}")
-            self._connected = True
 
         except sd.PortAudioError as err_msg:
-            msgs = f"{module_type} error: {err_msg}"
+            msgs = f"{module_type} inputStream error: {err_msg}"
             self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)  # from None
@@ -140,6 +142,11 @@ class Input(DataSource.DataSource):
             self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)  # from None
+
+        self._sample_rate_sps = self._audio_stream.samplerate  # actual sample rate
+        logger.info(f"Audio stream started ")
+        logger.debug(f"Connected to {module_type} {self._device_number}")
+        self._connected = True
 
         return self._connected
 
