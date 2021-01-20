@@ -3,20 +3,23 @@
 Provide a basic spectrum analyser for digitised complex samples
 
 """
-
+import os
 import time
 import multiprocessing
 import queue
 import signal
 import logging
-from typing import Tuple
 import sys
 import json
+from typing import Tuple
+from typing import Dict
+from typing import Any
 
 import numpy as np
 
 from dataSources import DataSourceFactory
 from dataSources import DataSource
+from dataSink import DataSink_file
 from dataProcessing import ProcessSamples
 from misc import Ewma
 from misc import PluginManager
@@ -72,6 +75,8 @@ def main() -> None:
 
     # snapshot config
     snap_configuration = SnapVariables.SnapVariables()
+    if not os.path.isdir(snap_configuration.baseDirectory):
+        os.mkdir(snap_configuration.baseDirectory)
 
     # check we have a valid input sample type
     if configuration.sample_type not in DataSource.supported_data_types:
@@ -85,13 +90,15 @@ def main() -> None:
     # configure us
     data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, plugin_manager, source_factory = initialise(
         configuration)
+    data_sink = DataSink_file.FileOutput(snap_configuration,
+                                         configuration.centre_frequency_hz, configuration.sample_rate)
 
     # allowed sample types for base source converter
     configuration.sample_types = data_source.get_sample_types()
 
     # The amount of time to get samples
     expected_samples_receive_time = configuration.fft_size / configuration.sample_rate
-    logger.info(f"SPS: {configuration.sample_rate / 1e6:0.3}MHz "
+    logger.info(f"SPS: {configuration.sample_rate / 1e6:0.3}MHzs "
                 f"RBW: {(configuration.sample_rate / (configuration.fft_size * 1e3)):0.1f}kHz")
     logger.info(f"Samples {configuration.fft_size}: {(1000000 * expected_samples_receive_time):.0f}usec")
     logger.info(f"Required FFT per second: {configuration.sample_rate / configuration.fft_size:.0f}")
@@ -118,8 +125,9 @@ def main() -> None:
             processing = False  # we will exit mow as we lost our processes
 
         # if there is a control message then it may change whats happening
-        data_source = handle_from_ui_queue(configuration, snap_configuration, to_ui_control_queue,
-                                           from_ui_queue, data_source, source_factory)
+        data_source, data_sink = handle_from_ui_queue(configuration, snap_configuration,
+                                                      to_ui_control_queue, from_ui_queue,
+                                                      data_source, source_factory, data_sink)
 
         ###########################################
         # Get and process the complex samples we will work on
@@ -160,6 +168,15 @@ def main() -> None:
                                                                 "frequencies": freqs,
                                                                 "centre_frequency_hz":
                                                                     configuration.centre_frequency_hz})
+
+                ##########################
+                # Handle snapshots
+                # -- this may alter sample values
+                #################
+                if data_sink.write(snap_configuration.triggered, samples):
+                    snap_configuration.triggered = False
+                    snap_configuration.triggerState =  "wait"
+                    snap_configuration.snapState = "stop"
 
                 ##########################
                 # Update the UI
@@ -392,35 +409,64 @@ def update_source(configuration: Variables, source_factory) -> DataSource:
     return data_source
 
 
-def handle_snap_message(snap_config: SnapVariables, new_config) -> None:
+def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
+                        new_config: Dict, cf: float, sps: float) -> DataSink_file:
     """
     messages from UI
+    We may change the snap object here, data_sink, due to changes in cf, sps or configuration
 
+    :param data_sink: where snap data will go, may change
     :param snap_config: current snap state etc
-    :param new_config: json new configuration for snap
+    :param new_config: dictionary from a json string with new configuration for snap
+    :param cf: the centre frequency this snap is happening at
+    :param sps: The sample rate this snap is happening at
     :return: None
     """
+    changed = False
     if new_config['baseFilename'] != snap_config.baseFilename:
         snap_config.baseFilename = new_config['baseFilename']
+        changed = True
 
     if new_config['snapState'] != snap_config.snapState:
-        snap_config.snapState = new_config['snapState']
+        # only 'manual' type can change state here
+        if snap_config.triggerType == "manual":
+            snap_config.snapState = new_config['snapState']
+            if snap_config.snapState == "start":
+                snap_config.triggered = True
+                snap_config.triggerState = "triggered"
+            else:
+                snap_config.triggered = False
+                snap_config.triggerState = "wait"
+                snap_config.snapState = "stop"
+            changed = True
 
     if new_config['preTriggerMilliSec'] != snap_config.preTriggerMilliSec:
         snap_config.preTriggerMilliSec = new_config['preTriggerMilliSec']
+        changed = True
 
     if new_config['postTriggerMilliSec'] != snap_config.postTriggerMilliSec:
         snap_config.postTriggerMilliSec = new_config['postTriggerMilliSec']
+        changed = True
 
     if new_config['triggerType'] != snap_config.triggerType:
         snap_config.triggerType = new_config['triggerType']
+        changed = True
+
+    # has non-snap setting changed
+    if cf != snap_config.cf or sps != snap_config.sps:
+        changed = True
+
+    if changed:
+        data_sink = DataSink_file.FileOutput(snap_config, cf, sps)
+
+    return data_sink
 
 
-def handle_sdr_message(configuration: Variables, new_config, data_source, source_factory) -> DataSource:
+def handle_sdr_message(configuration: Variables, new_config: Dict, data_source, source_factory) -> DataSource:
     """
     Handle specific sdr related control messages
     :param configuration: current config
-    :param new_config: json with possible new config
+    :param new_config: dictionary from a json string with possible new config
     :param data_source: where we get data from currently
     :param source_factory:
     :return: DataSource
@@ -484,7 +530,8 @@ def handle_from_ui_queue(configuration: Variables,
                          to_ui_control_queue: multiprocessing.Queue,
                          from_ui_queue: multiprocessing.Queue,
                          data_source,
-                         source_factory) -> DataSource:
+                         source_factory,
+                         snap_sink) -> Tuple[Any, Any]:
     """
     Check the control queue for messages and handle them
 
@@ -494,7 +541,8 @@ def handle_from_ui_queue(configuration: Variables,
     :param from_ui_queue: The queue to check on
     :param data_source:
     :param source_factory:
-    :return: a DataSource, which may not be what we started with
+    :param snap_sink:
+    :return: DataSource and snapSink, either of which may of changed
     """
     config = None
     try:
@@ -526,7 +574,11 @@ def handle_from_ui_queue(configuration: Variables,
             elif new_config['type'] == "stop":
                 configuration.stop = int(new_config['value'])
             elif new_config['type'] == "snapUpdate":
-                handle_snap_message(snap_configuration, new_config)
+                snap_sink = handle_snap_message(snap_sink,
+                                                snap_configuration,
+                                                new_config,
+                                                configuration.centre_frequency_hz,
+                                                configuration.sample_rate)
             elif new_config['type'] == "sdrUpdate":
                 # we may be directed to change the source
                 data_source = handle_sdr_message(configuration, new_config, data_source, source_factory)
@@ -541,7 +593,7 @@ def handle_from_ui_queue(configuration: Variables,
             except queue.Full:
                 pass
 
-    return data_source
+    return data_source, snap_sink
 
 
 def update_ui(configuration: Variables,

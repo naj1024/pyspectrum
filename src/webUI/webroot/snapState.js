@@ -18,10 +18,10 @@ snapState.prototype.setTriggers = function(trigs) {
     this.triggers = trigs;
 }
 snapState.prototype.setPreTriggerMilliSec = function(preMilliSec) {
-    this.preTriggerMilliSec = preMilliSec;
+    this.preTriggerMilliSec = parseInt(preMilliSec);
 }
 snapState.prototype.setPostTriggerMilliSec = function(postMilliSec) {
-    this.postTriggerMilliSec = postMilliSec;
+    this.postTriggerMilliSec = parseInt(postMilliSec);
 }
 snapState.prototype.setSnapState = function(state) {
     this.snapState = state;
@@ -96,12 +96,8 @@ snapState.prototype.getSnapStateUpdated = function() {
     return this.snapStateUpdated;
 }
 
-function handleSnapStart() {
+function handleSnapTrigger() {
     snapState.setSnapState("start");
-    snapState.setSnapStateUpdated();
-}
-function handleSnapStop() {
-    snapState.setSnapState("stop");
     snapState.setSnapStateUpdated();
 }
 function handleSnapBaseNameChange(name) {
@@ -127,7 +123,7 @@ function snapState() {
     this.type = "snapUpdate";
     this.baseFilename = "snapp";
     this.snapStateUpdated = false;
-    this.snapState = "stop"; // start,stop,pause
+    this.snapState = "stop"; // start,stop
     this.preTriggerMilliSec = 1000;
     this.postTriggerMilliSec = 2000;
     this.triggerState = "wait";

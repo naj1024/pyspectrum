@@ -822,8 +822,7 @@ function Main() {
     $('#searchPeakBut').click(function() {spectrum.findPeak();});
     $('#peakTrackBut').click(function() {spectrum.toggleTrackPeak();});
 
-    $('#snapStopBut').click(function() {handleSnapStop();});
-    $('#snapStartBut').click(function() {handleSnapStart();});
+    $('#snapTriggerBut').click(function() {handleSnapTrigger();});
 
     updateConfigTable(spectrum);
 
