@@ -3,9 +3,9 @@ File input class
 
 """
 import time
-from typing import Tuple
 import wave
 import logging
+from typing import Tuple
 
 import numpy as np
 

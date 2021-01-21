@@ -12,7 +12,7 @@ import_error_msg = ""
 
 logger = logging.getLogger('spectrum_logger')
 
-supported_data_types = ["8t", "8o", "16tbe", "16tle"]
+supported_data_types = ["8t", "8o", "16tbe", "16tle", "32fle"]
 
 
 class DataSource:
@@ -148,7 +148,9 @@ class DataSource:
         """
         # how many bytes are required if reading bytes from somewhere
         # side effect is that we check for the types we can handle
-        if data_type == '16tle':
+        if data_type == '32fle':
+            self._bytes_per_snap = self._number_complex_samples * 8
+        elif data_type == '16tle':
             self._bytes_per_snap = self._number_complex_samples * 4
         elif data_type == '16tbe':
             self._bytes_per_snap = self._number_complex_samples * 4
@@ -157,7 +159,7 @@ class DataSource:
         elif data_type == '8o':
             self._bytes_per_snap = self._number_complex_samples * 2
         else:
-            msgs = f'Unsupported data type {self._data_type}'
+            msgs = f'Unsupported data type {data_type}'
             logger.error(msgs)
             raise ValueError(msgs)
         self._data_type = data_type
@@ -202,8 +204,20 @@ class DataSource:
         :param data: The data bytes to convert
         :return: complex floats in a numpy array
         """
+        # numpy character codes for types:
+        # https://numpy.org/devdocs/reference/arrays.scalars.html
+
         # put data back into +-1 range as a complex 32bit float
-        if self._data_type == '16tle':
+        if self._data_type == '32fle':
+            # little endian 32bit floats
+            num_samples = len(data) // 4  # 4 bytes per number
+            # TODO: Use 'F' type for complex
+            data_floats = np.ndarray(np.shape(1), dtype=f'<{num_samples}f', buffer=data)
+            complex_data = np.array(data_floats[0::2], dtype=np.complex64)
+            complex_data.imag = data_floats[1::2]
+            pass
+
+        elif self._data_type == '16tle':
             # little endian short signed int
             num_samples = len(data) // 2  # 2 bytes per number
             # use a numpy array for speed, DO NOT use struct.unpack()

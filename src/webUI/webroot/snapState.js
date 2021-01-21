@@ -123,7 +123,7 @@ function snapState() {
     this.type = "snapUpdate";
     this.baseFilename = "snapp";
     this.snapStateUpdated = false;
-    this.snapState = "stop"; // start,stop
+    this.snapState = "stop"; // start to trigger
     this.preTriggerMilliSec = 1000;
     this.postTriggerMilliSec = 2000;
     this.triggerState = "wait";

@@ -13,7 +13,7 @@ class SnapVariables:
 
         self.baseFilename = "snap"
         self.snapState = "stop"  # start, stop
-        self.preTriggerMilliSec = 500  # milliseconds of capture before a trigger event
+        self.preTriggerMilliSec = 0  # milliseconds of capture before a trigger event
         self.postTriggerMilliSec = 1000  # milliseconds of capture after a trigger event
         self.triggerState = "wait"  # "wait", "triggered"
         self.triggered = False  # rather than the state we have a simple boolean

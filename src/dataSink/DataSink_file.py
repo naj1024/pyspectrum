@@ -1,14 +1,14 @@
 """
 For saving samples to file
 
-We will store samples in a wrap round buffer which is sized according to the pre-trigger depth required.
-When triggered to start writing to file we will output the pre-trigger depth first
-
-Output sample type will be signed 16bit little endian with the filename set to give meta data.
+We save the raw float data to file:
+    * converting to 16bit ints takes to long, either we drop samples each buffer or at then end when we write
+      all the buffers
+    * we don't write buffers immediately so that we won't stall the input samples
 
 TODO: implement the wrap round buffer for pre-trigger samples
 TODO: maybe add .wav output type
-todo: implement this as a memory buffer so we don't spend time writting to disk until the end
+TODO: maybe have another process that converts samples to 16bit?, or wav
 """
 
 import time
@@ -41,17 +41,32 @@ class FileOutput:
         self._centre_freq_hz = centre_frequency_hz
         self._sample_rate_sps = sample_rate_sps
         self._post_milliseconds = config.postTriggerMilliSec
-        self._pre_milliseconds = 0  # TODO: config.preTriggerMilliSec
+        self._pre_milliseconds = 0  # config.preTriggerMilliSec not implemented
 
         self._max_total_samples = self._sample_rate_sps * ((self._pre_milliseconds + self._post_milliseconds) / 1000)
+
+        # check we don't go over the max file size we are allowing, 8bytes per IQ sample for float32 * 2
+        max_file_size = 200e6
+        if (self._max_total_samples * 8) > max_file_size:
+            self._max_total_samples = max_file_size / 8
+            secs = self._max_total_samples / self._sample_rate_sps
+            # TODO: handle pre as well
+            self._post_milliseconds = secs * 1000
+            logger.error(f"Max file size of {max_file_size}MBytes exceeded, limiting to {secs}seconds")
+
         self._number_samples_written = 0
         self._triggered = False
         self._file = None
         self._start_time = 0
 
-        self._complex_post_data = None
-        self._post_index = 0
+        self._complex_post_data = []
         self._complex_pre_data = None
+
+    def get_pre_trigger_milli_seconds(self) -> float:
+        return self._pre_milliseconds
+
+    def get_post_trigger_milli_seconds(self) -> float:
+        return self._post_milliseconds
 
     def _start(self) -> None:
         """
@@ -64,10 +79,8 @@ class FileOutput:
             self._start_time = time.time() - (self._pre_milliseconds / 1000)
             self._triggered = True
 
-            # self._complex_post_data = np.array(shape=(self._max_total_samples,), dtype=np.complex64)
-            # self._post_index = 0
-
-            print("Snap started")
+            self._complex_post_data = []
+            self._post_index = 0
             logger.info("Snap started")
         except OSError as e:
             logger.error(e)
@@ -75,27 +88,38 @@ class FileOutput:
 
     def _end(self) -> None:
         """
-        Close the file
-        """
-        if self._file:
-            self._file.close()  # would of normally delete the temporary file, but we added delete=False
+        Write out the data to file
 
-            # create the filename we will use
+        """
+        # create the filename we will use
+        if len(self._complex_post_data):
             then = int(self._start_time)
             filename = self._base_filename + f".{then}.cf{self._centre_freq_hz / 1e6:.6f}" \
-                                             f".cplx.{self._sample_rate_sps:.0f}.16tle"
+                                             f".cplx.{self._sample_rate_sps:.0f}.32fle"
             path_and_filename = f"{self._base_directory}\\{filename}"
 
-            seconds = self._number_samples_written / self._sample_rate_sps
-            print(f"Record: {path_and_filename}  {seconds}s {self._number_samples_written} samples")
-            logger.info(f"Record: {path_and_filename}  {seconds}s {self._number_samples_written} samples")
+            try:
+                file = open(path_and_filename, "wb")
 
-            os.renames(self._file.name, path_and_filename)
-            self._file = None
+                start = time.perf_counter()
+                for buff in self._complex_post_data:
+                    #_ = buff.tofile(file)
+                    file.write(buff)
+                end = time.perf_counter()
+                file.close()
+                print(f"save time is {end-start} for {self._number_samples_written*4/(1024*1024)}MBytes")
+
+                seconds = self._number_samples_written / self._sample_rate_sps
+                msg = f"Record: {path_and_filename}  {round(seconds,6)}s {self._number_samples_written} samples"
+                logger.info(msg)
+            except OSError as e:
+                logger.error(f"failed to write snapshot to file, {e}")
+
+            self._complex_post_data = []
 
     def write(self, trigger: bool, data: np.array) -> bool:
         """
-        Write the data to the file
+        Write the data for the snapshot
 
         :param trigger: Boolean that indicates we have to start writing to file
         :param data: To write, complex floating point values
@@ -107,20 +131,14 @@ class FileOutput:
             if trigger:
                 self._start()
 
-        if self._file:
-            if (self._max_total_samples - self._number_samples_written) > 0:
-                # this is messy as we wish to write out 16tle and we have floating point complex samples
-                converted_data = np.empty(shape=(1, 2 * data.size), dtype="int16")[0]
-                index_out = 0
-                data *= 32768  # scale to max of int16 type, as we know we are already limited to +-1 on inputs
-                for val in data:
-                    converted_data[index_out] = np.int16(val.real)
-                    converted_data[index_out + 1] = np.int16(val.imag)
-                    index_out += 2
-
-                _ = converted_data.tofile(self._file)
-
+        if self._triggered:
+            if (self._max_total_samples - self._number_samples_written) >= 0:
+                # take a copy of the data for now
+                copied = np.array(data)
+                # add it to the list of buffers
+                self._complex_post_data.append(copied)
                 self._number_samples_written += data.shape[0]
+
                 if (self._max_total_samples - self._number_samples_written) <= 0:
                     self._end()
                     end = True

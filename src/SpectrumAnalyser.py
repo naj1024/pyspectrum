@@ -136,6 +136,7 @@ def main() -> None:
             data_samples_perf_time_start = time.perf_counter()
             samples, time_rx = data_source.read_cplx_samples()
             data_samples_perf_time_end = time.perf_counter()
+
             _ = sample_get_time.average(data_samples_perf_time_end - data_samples_perf_time_start)
             if samples is None:
                 time.sleep(0.001)  # rate limit on trying to get samples
@@ -441,6 +442,7 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
             changed = True
 
     if new_config['preTriggerMilliSec'] != snap_config.preTriggerMilliSec:
+        logger.error(f"Ignoring request pre-trigger snap of {new_config['preTriggerMilliSec']}msec, not implemented")
         snap_config.preTriggerMilliSec = new_config['preTriggerMilliSec']
         changed = True
 
@@ -458,6 +460,9 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
 
     if changed:
         data_sink = DataSink_file.FileOutput(snap_config, cf, sps)
+        # following may of been changed by the sink
+        snap_config.postTriggerMilliSec = data_sink.get_post_trigger_milli_seconds()
+        snap_config.preTriggerMilliSec = data_sink.get_pre_trigger_milli_seconds()
 
     return data_sink
 

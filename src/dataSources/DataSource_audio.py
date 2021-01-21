@@ -51,7 +51,7 @@ def audio_callback(incoming_samples: np.ndarray, frames: int, time_1, status) ->
     # make complex array with left/right as real/imaginary
     # you should be feeding the audio LR with a complex source
     # frames is the number of left/right sample pairs, i.e. the samples
-    complex_data = np.zeros(shape=(frames,), dtype=np.complex64)
+    complex_data = np.empty(shape=(frames,), dtype=np.complex64)
 
     # handle stereo/mono incoming_samples
     if incoming_samples.shape[1] >= 2:

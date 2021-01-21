@@ -114,7 +114,7 @@ async function handleJsonControl(controlData) {
     "fft_size": 2048,
     "sample_rate": 2000000,
     "centre_frequency_hz": 153200000.0,
-    "sample_types": ["8t", "8o", "16tbe", "16tle"],
+    "sample_types": ["8t", "8o", "16tbe", "16tle", "32fle"],
     "sample_type": "16tle",
     "fps": 20,
     "measured_fps": 21,
@@ -357,7 +357,7 @@ function updateSnapTableNew() {
     new_html += ' onfocusin="snapTableFocusIn()" onfocusout="snapTableFocusOut()" ';
     new_html += 'action="javascript:handleSnapPostTriggerChange(snapPostTrigMilliSec.value)">';
     // as we remove the number inc/dec arrows in css the size parameter does work
-    new_html += '<input type="number" size="6" min="0" max="100000" " value="';
+    new_html += '<input type="number" size="6" min="0" max="1000000" " value="';
     new_html += snapState.getPostTriggerMilliSec();
     new_html += '" id="snapPostTrigMilliSec" name="snapPostTrigMilliSec">';
     new_html += '&nbsp msec</form>';
