@@ -23,9 +23,13 @@ class _Handler(http.server.SimpleHTTPRequestHandler):
     """
 
     def __init__(self, *args, **kwargs):
-        global web_root
-        os.chdir(web_root)  # don't use directory=web_root as not supported until python 3.8
-        super().__init__(*args, **kwargs)
+        try:
+            global web_root
+            os.chdir(web_root)  # don't use directory=web_root as not supported until python 3.8
+            super().__init__(*args, **kwargs)
+        except Exception as msg:
+            logger.error(f"http handler error, {msg}")
+            pass
 
 
 class WebServer(multiprocessing.Process):

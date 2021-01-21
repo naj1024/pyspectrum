@@ -46,7 +46,9 @@ def audio_callback(incoming_samples: np.ndarray, frames: int, time_1, status) ->
         if status.input_overflow:
             logger.error("audio input overflow")
         else:
-            raise ValueError(f"Error: {module_type} had a problem, {status}")
+            msg = f"Error: {module_type} had a problem, {status}"
+            logger.error(msg)
+            raise ValueError(msg)
 
     # make complex array with left/right as real/imaginary
     # you should be feeding the audio LR with a complex source
