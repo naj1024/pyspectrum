@@ -9,8 +9,9 @@ If we have a mono input we duplicate each sample into both I and Q samples
 
 import queue
 import pprint as pp
-from typing import Tuple
 import logging
+import time
+from typing import Tuple
 
 import numpy as np
 
@@ -36,13 +37,16 @@ def is_available() -> Tuple[str, str]:
     return module_type, import_error_msg
 
 
-# A queue for the audio streamer callback to put samples in to
-audio_q = queue.Queue()
+# A queue for the audio streamer callback to put samples in to, 4 deep for low latency
+audio_q = queue.Queue(4)
 
 
 def audio_callback(incoming_samples: np.ndarray, frames: int, time_1, status) -> None:
     if status:
-        raise ValueError(f"Error: {module_type} had a problem, {status}")
+        if status.input_overflow:
+            logger.error("audio input overflow")
+        else:
+            raise ValueError(f"Error: {module_type} had a problem, {status}")
 
     # make complex array with left/right as real/imaginary
     # you should be feeding the audio LR with a complex source
@@ -93,6 +97,11 @@ class Input(DataSource.DataSource):
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 
+        # sounddevice seems to require a reboot quite often before it works
+        # so count number of queue emtpy events, along with sleep to get an idea if
+        # something is broken
+        self._empty_count = 0
+
     def open(self) -> bool:
         global import_error_msg
         if import_error_msg != "":
@@ -122,7 +131,8 @@ class Input(DataSource.DataSource):
         try:
             self._audio_stream = sd.InputStream(samplerate=self._sample_rate_sps,
                                             device=self._device_number,
-                                            channels=self._channels, callback=audio_callback,
+                                            channels=self._channels,
+                                            callback=audio_callback,
                                             blocksize=self._number_complex_samples,  # NOTE the size, not zero
                                             dtype="float32")
             self._audio_stream.start()  # required as we are not using 'with'
@@ -144,8 +154,8 @@ class Input(DataSource.DataSource):
             raise ValueError(msgs)  # from None
 
         self._sample_rate_sps = self._audio_stream.samplerate  # actual sample rate
-        logger.info(f"Audio stream started ")
         logger.debug(f"Connected to {module_type} {self._device_number}")
+        logger.info(f"Audio stream started ")
         self._connected = True
 
         return self._connected
@@ -191,6 +201,19 @@ class Input(DataSource.DataSource):
 
         if self._connected:
             global audio_q
-            complex_data = audio_q.get()
-            rx_time = self.get_time_ns()
+            try:
+                complex_data = audio_q.get(block=False)
+                rx_time = self.get_time_ns()
+                self._empty_count = 0
+            except queue.Empty:
+                time.sleep(0.001)
+                self._empty_count += 1
+                if self._empty_count > 10000:
+                    msgs = f"{module_type} not producing samples, reboot required?"
+                    self._error = str(msgs)
+                    logger.error(msgs)
+                    print(msgs)
+                    self._empty_count = 0
+                pass
+
         return complex_data, rx_time
