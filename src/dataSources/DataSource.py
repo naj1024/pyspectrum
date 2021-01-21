@@ -12,7 +12,7 @@ import_error_msg = ""
 
 logger = logging.getLogger('spectrum_logger')
 
-supported_data_types = ["8t", "8o", "16tbe", "16tle", "32fle"]
+supported_data_types = ["8t", "8o", "16tbe", "16tle", "32fle", "32fbe"]
 
 
 class DataSource:
@@ -150,6 +150,8 @@ class DataSource:
         # side effect is that we check for the types we can handle
         if data_type == '32fle':
             self._bytes_per_snap = self._number_complex_samples * 8
+        elif data_type == '32fbe':
+            self._bytes_per_snap = self._number_complex_samples * 8
         elif data_type == '16tle':
             self._bytes_per_snap = self._number_complex_samples * 4
         elif data_type == '16tbe':
@@ -208,14 +210,16 @@ class DataSource:
         # https://numpy.org/devdocs/reference/arrays.scalars.html
 
         # put data back into +-1 range as a complex 32bit float
+
         if self._data_type == '32fle':
             # little endian 32bit floats
-            num_samples = len(data) // 4  # 4 bytes per number
-            # TODO: Use 'F' type for complex
-            data_floats = np.ndarray(np.shape(1), dtype=f'<{num_samples}f', buffer=data)
-            complex_data = np.array(data_floats[0::2], dtype=np.complex64)
-            complex_data.imag = data_floats[1::2]
-            pass
+            num_samples = len(data) // 8  # 8 bytes per complex number
+            complex_data = np.ndarray(np.shape(1), dtype=f'<{num_samples}F', buffer=data)
+
+        elif self._data_type == '32fbe':
+            # little endian 32bit floats
+            num_samples = len(data) // 8  # 8 bytes per complex number
+            complex_data = np.ndarray(np.shape(1), dtype=f'>{num_samples}F', buffer=data)
 
         elif self._data_type == '16tle':
             # little endian short signed int
