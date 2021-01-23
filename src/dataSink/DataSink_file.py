@@ -11,7 +11,6 @@ TODO: maybe add .wav output type
 TODO: maybe have another process that converts samples to 16bit?, or wav
 """
 import datetime
-import time
 import logging
 import pathlib
 
@@ -92,11 +91,11 @@ class FileOutput:
 
         """
         if len(self._complex_post_data):
-            then = int(self._start_time_nsec/1e9)
+            then = int(self._start_time_nsec / 1e9)
             date_time = datetime.datetime.utcfromtimestamp(then).strftime('%Y-%m-%d_%H-%M-%S')
             filename = self._base_filename + f".{date_time}.cf{self._centre_freq_hz / 1e6:.6f}" \
                                              f".cplx.{self._sample_rate_sps:.0f}.32fle"
-            path_and_filename = pathlib.PurePath(self._base_directory+"/"+filename)
+            path_and_filename = pathlib.PurePath(self._base_directory + "/" + filename)
 
             try:
                 file = open(path_and_filename, "wb")
@@ -105,7 +104,7 @@ class FileOutput:
                 file.close()
 
                 seconds = self._number_samples_written / self._sample_rate_sps
-                msg = f"Record: {path_and_filename}  {round(seconds,6)}s {self._number_samples_written} samples"
+                msg = f"Record: {path_and_filename}  {round(seconds, 6)}s {self._number_samples_written} samples"
                 logger.info(msg)
             except OSError as e:
                 logger.error(f"failed to write snapshot to file, {e}")
@@ -118,6 +117,7 @@ class FileOutput:
 
         :param trigger: Boolean that indicates we have to start writing to file
         :param data: To write, complex floating point values
+        :param time_rx_nsec: time of this data block
         :return: None
         """
         end = False

@@ -46,9 +46,9 @@ def audio_callback(incoming_samples: np.ndarray, frames: int, time_1, status) ->
         if status.input_overflow:
             logger.error("audio input overflow")
         else:
-            msg = f"Error: {module_type} had a problem, {status}"
-            logger.error(msg)
-            raise ValueError(msg)
+            err = f"Error: {module_type} had a problem, {status}"
+            logger.error(err)
+            raise ValueError(err)
 
     # make complex array with left/right as real/imaginary
     # you should be feeding the audio LR with a complex source
@@ -132,11 +132,11 @@ class Input(DataSource.DataSource):
 
         try:
             self._audio_stream = sd.InputStream(samplerate=self._sample_rate_sps,
-                                            device=self._device_number,
-                                            channels=self._channels,
-                                            callback=audio_callback,
-                                            blocksize=self._number_complex_samples,  # NOTE the size, not zero
-                                            dtype="float32")
+                                                device=self._device_number,
+                                                channels=self._channels,
+                                                callback=audio_callback,
+                                                blocksize=self._number_complex_samples,  # NOTE the size, not zero
+                                                dtype="float32")
             self._audio_stream.start()  # required as we are not using 'with'
 
         except sd.PortAudioError as err_msg:
