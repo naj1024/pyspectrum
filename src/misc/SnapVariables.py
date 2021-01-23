@@ -23,7 +23,8 @@ class SnapVariables:
         self.cf = 0
         self.sps = 0
 
-        self.baseDirectory = ".\\snapshots"  # constant, we don't expect to change this
+        self.baseDirectory = "snapshots"  # constant, we don't expect to change this
+        self.max_file_size = 200000000
 
     def make_json(self):
         return json.dumps(self, default=lambda o: o.__dict__)

@@ -82,3 +82,10 @@ input[type=number] {
   text-overflow: ellipsis;
 }
 
+/* trigger status cell colour */
+.greenTrigger {
+    background: green;
+}
+.redTrigger {
+    background: red;
+}

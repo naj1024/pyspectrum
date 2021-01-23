@@ -134,7 +134,7 @@ def main() -> None:
         ######################
         try:
             data_samples_perf_time_start = time.perf_counter()
-            samples, time_rx = data_source.read_cplx_samples()
+            samples, time_rx_nsec = data_source.read_cplx_samples()
             data_samples_perf_time_end = time.perf_counter()
 
             _ = sample_get_time.average(data_samples_perf_time_end - data_samples_perf_time_start)
@@ -165,7 +165,7 @@ def main() -> None:
                                                                   configuration.sample_rate,
                                                                   configuration.fft_size)
                     _ = plugin_manager.call_plugin_method(method="report",
-                                                          args={"data_samples_time": time_rx,
+                                                          args={"data_samples_time": time_rx_nsec,
                                                                 "frequencies": freqs,
                                                                 "centre_frequency_hz":
                                                                     configuration.centre_frequency_hz})
@@ -174,9 +174,9 @@ def main() -> None:
                 # Handle snapshots
                 # -- this may alter sample values
                 #################
-                if data_sink.write(snap_configuration.triggered, samples):
+                if data_sink.write(snap_configuration.triggered, samples, time_rx_nsec):
                     snap_configuration.triggered = False
-                    snap_configuration.triggerState =  "wait"
+                    snap_configuration.triggerState = "wait"
                     snap_configuration.snapState = "stop"
 
                 ##########################
@@ -189,7 +189,7 @@ def main() -> None:
                               peak_powers_since_last_display,
                               current_peak_count,
                               max_peak_count,
-                              time_rx)
+                              time_rx_nsec)
 
                 # average of number of count of spectrums between UI updates
                 peak_average.average(max_peak_count)
@@ -411,7 +411,7 @@ def update_source(configuration: Variables, source_factory) -> DataSource:
 
 
 def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
-                        new_config: Dict, cf: float, sps: float) -> DataSink_file:
+                        new_config: Dict, sdr_config: Variables) -> DataSink_file:
     """
     messages from UI
     We may change the snap object here, data_sink, due to changes in cf, sps or configuration
@@ -419,8 +419,7 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
     :param data_sink: where snap data will go, may change
     :param snap_config: current snap state etc
     :param new_config: dictionary from a json string with new configuration for snap
-    :param cf: the centre frequency this snap is happening at
-    :param sps: The sample rate this snap is happening at
+    :param sdr_config: sdr config so we can get cf, sps etc
     :return: None
     """
     changed = False
@@ -454,15 +453,18 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
         snap_config.triggerType = new_config['triggerType']
         changed = True
 
-    # has non-snap setting changed
-    if cf != snap_config.cf or sps != snap_config.sps:
+    # has any non-snap setting changed
+    if sdr_config.centre_frequency_hz != snap_config.cf or sdr_config.sample_rate != snap_config.sps:
         changed = True
 
     if changed:
-        data_sink = DataSink_file.FileOutput(snap_config, cf, sps)
+        data_sink = DataSink_file.FileOutput(snap_config, sdr_config.centre_frequency_hz, sdr_config.sample_rate)
         # following may of been changed by the sink
-        snap_config.postTriggerMilliSec = data_sink.get_post_trigger_milli_seconds()
-        snap_config.preTriggerMilliSec = data_sink.get_pre_trigger_milli_seconds()
+        if data_sink.get_post_trigger_milli_seconds() != snap_config.postTriggerMilliSec or \
+                data_sink.get_pre_trigger_milli_seconds() != snap_config.preTriggerMilliSec:
+            snap_config.postTriggerMilliSec = data_sink.get_post_trigger_milli_seconds()
+            snap_config.preTriggerMilliSec = data_sink.get_pre_trigger_milli_seconds()
+            sdr_config.error += f"Snap time limited to max file size {snap_config.max_file_size / 1e6}MBytes"
 
     return data_sink
 
@@ -582,8 +584,7 @@ def handle_from_ui_queue(configuration: Variables,
                 snap_sink = handle_snap_message(snap_sink,
                                                 snap_configuration,
                                                 new_config,
-                                                configuration.centre_frequency_hz,
-                                                configuration.sample_rate)
+                                                configuration)
             elif new_config['type'] == "sdrUpdate":
                 # we may be directed to change the source
                 data_source = handle_sdr_message(configuration, new_config, data_source, source_factory)

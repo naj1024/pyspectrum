@@ -304,6 +304,15 @@ function updateSnapTableCurrent() {
     $('#currentSnapBaseName').empty().append(name);
     $('#currentSnapTriggerType').empty().append(snapState.getTriggerType());
     $('#currentSnapTriggerState').empty().append(snapState.getTriggerState());
+    console.log(snapState.getTriggerState())
+    if (snapState.getTriggerState() == "triggered") {
+        $('#currentSnapTriggerState').addClass('redTrigger');
+        $('#currentSnapTriggerState').removeClass('greenTrigger');
+    } else {
+        $('#currentSnapTriggerState').addClass('greenTrigger');
+        $('#currentSnapTriggerState').removeClass('redTrigger');
+    }
+
     $('#currentSnapPreTrigger').empty().append(snapState.getPreTriggerMilliSec());
     $('#currentSnapPostTrigger').empty().append(snapState.getPostTriggerMilliSec());
 }
