@@ -90,8 +90,9 @@ def main() -> None:
     # configure us
     data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, plugin_manager, source_factory = initialise(
         configuration)
-    data_sink = DataSink_file.FileOutput(snap_configuration,
-                                         configuration.centre_frequency_hz, configuration.sample_rate)
+    snap_configuration.cf = configuration.centre_frequency_hz
+    snap_configuration.sps = configuration.sample_rate
+    data_sink = DataSink_file.FileOutput(snap_configuration)
 
     # allowed sample types for base source converter
     configuration.sample_types = data_source.get_sample_types()
@@ -173,11 +174,22 @@ def main() -> None:
                 ##########################
                 # Handle snapshots
                 # -- this may alter sample values
+                # due to pre-trigger we need to always give the samples
                 #################
                 if data_sink.write(snap_configuration.triggered, samples, time_rx_nsec):
                     snap_configuration.triggered = False
                     snap_configuration.triggerState = "wait"
                     snap_configuration.snapState = "stop"
+
+                # has underlying sps or cf changed for the snap
+                if snap_configuration.cf != configuration.centre_frequency_hz or \
+                        snap_configuration.sps != configuration.sample_rate:
+                    snap_configuration.cf = configuration.centre_frequency_hz
+                    snap_configuration.sps = configuration.sample_rate
+                    snap_configuration.triggered = False
+                    snap_configuration.triggerState = "wait"
+                    snap_configuration.snapState = "stop"
+                    data_sink = DataSink_file.FileOutput(snap_configuration)
 
                 ##########################
                 # Update the UI
@@ -455,10 +467,12 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
 
     # has any non-snap setting changed
     if sdr_config.centre_frequency_hz != snap_config.cf or sdr_config.sample_rate != snap_config.sps:
+        snap_config.cf = sdr_config.centre_frequency_hz
+        snap_config.sps = sdr_config.sample_rate
         changed = True
 
     if changed:
-        data_sink = DataSink_file.FileOutput(snap_config, sdr_config.centre_frequency_hz, sdr_config.sample_rate)
+        data_sink = DataSink_file.FileOutput(snap_config)
         # following may of been changed by the sink
         if data_sink.get_post_trigger_milli_seconds() != snap_config.postTriggerMilliSec or \
                 data_sink.get_pre_trigger_milli_seconds() != snap_config.preTriggerMilliSec:

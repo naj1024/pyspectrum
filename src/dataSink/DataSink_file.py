@@ -26,7 +26,7 @@ class FileOutput:
     Simple wrapper class for writing binary data to file
     """
 
-    def __init__(self, config: SnapVariables, centre_frequency_hz: float, sample_rate_sps: float):
+    def __init__(self, config: SnapVariables):
         """
         Configure the snapshot
 
@@ -36,10 +36,10 @@ class FileOutput:
         """
         self._base_filename = config.baseFilename
         self._base_directory = config.baseDirectory
-        self._centre_freq_hz = centre_frequency_hz
-        self._sample_rate_sps = sample_rate_sps
+        self._centre_freq_hz = config.cf
+        self._sample_rate_sps = config.sps
         self._post_milliseconds = config.postTriggerMilliSec
-        self._pre_milliseconds = 0  # config.preTriggerMilliSec not implemented
+        self._pre_milliseconds = config.preTriggerMilliSec
         max_file_size = config.max_file_size
 
         self._max_total_samples = self._sample_rate_sps * ((self._pre_milliseconds + self._post_milliseconds) / 1000)
@@ -48,9 +48,9 @@ class FileOutput:
         if (self._max_total_samples * 8) > max_file_size:
             self._max_total_samples = max_file_size / 8
             secs = self._max_total_samples / self._sample_rate_sps
-            # TODO: handle pre as well
             self._post_milliseconds = secs * 1000
-            logger.error(f"Max file size of {max_file_size}MBytes exceeded, limiting to {secs}seconds")
+            self._pre_milliseconds = 0  # curtail all pre-trigger samples
+            logger.error(f"Max file size of {max_file_size}MBytes exceeded, limiting to post {secs}seconds")
 
         self._number_samples_written = 0
         self._triggered = False
@@ -58,7 +58,13 @@ class FileOutput:
         self._start_time_nsec = 0
 
         self._complex_post_data = []
-        self._complex_pre_data = None
+        self._complex_pre_data = []
+        self._pre_data_samples = 0
+        self._required_pre_data_samples = (self._pre_milliseconds / 1000) * self._sample_rate_sps
+
+    def __del__(self):
+        if self._triggered:
+            self._end()
 
     def get_pre_trigger_milli_seconds(self) -> float:
         return self._pre_milliseconds
@@ -79,7 +85,6 @@ class FileOutput:
             self._triggered = True
 
             self._complex_post_data = []
-            self._post_index = 0
             logger.info("Snap started")
         except OSError as e:
             logger.error(e)
@@ -99,6 +104,8 @@ class FileOutput:
 
             try:
                 file = open(path_and_filename, "wb")
+                for buff in self._complex_pre_data:
+                    file.write(buff)
                 for buff in self._complex_post_data:
                     file.write(buff)
                 file.close()
@@ -111,9 +118,19 @@ class FileOutput:
 
             self._complex_post_data = []
 
+    def _limit_pre_samples(self) -> None:
+        """
+        keep the number of samples pre-trigger to the required number (slightly more due to blocks)
+        :return: None
+        """
+        while self._pre_data_samples > self._required_pre_data_samples:
+            self._pre_data_samples -= self._complex_pre_data[0].shape[0]
+            del self._complex_pre_data[0]
+
     def write(self, trigger: bool, data: np.array, time_rx_nsec: float) -> bool:
         """
-        Write the data for the snapshot
+        Write the data for the snapshot.
+        Keep a record of samples we will write to file at the end
 
         :param trigger: Boolean that indicates we have to start writing to file
         :param data: To write, complex floating point values
@@ -124,13 +141,17 @@ class FileOutput:
 
         if not self._triggered:
             if trigger:
-                self._start(time_rx_nsec)
+                self._start(time_rx_nsec)  # sets self._triggered
+            else:
+                if self._pre_milliseconds > 0:
+                    copied = np.array(data)
+                    self._pre_data_samples += data.shape[0]
+                    self._complex_pre_data.append(copied)
+                    self._limit_pre_samples()
 
         if self._triggered:
             if (self._max_total_samples - self._number_samples_written) >= 0:
-                # take a copy of the data for now
                 copied = np.array(data)
-                # add it to the list of buffers
                 self._complex_post_data.append(copied)
                 self._number_samples_written += data.shape[0]
 
