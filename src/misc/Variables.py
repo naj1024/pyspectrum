@@ -36,7 +36,6 @@ class Variables:
         # where the data comes from
         self.input_source = "null"  # the source type e.g. file, socket, pluto, soapy, rtlsdr, audio ....
         self.input_params = ""  # the parameters for the source, e.g. filename or ip address ...
-        self.source_sleep = 0.0  # only used in file input for now, slows things down
         self.time_first_spectrum: float = 0
         self.source_connected = False
 

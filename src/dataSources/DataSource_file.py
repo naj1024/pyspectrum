@@ -252,9 +252,10 @@ class Input(DataSource.DataSource):
                         else:
                             raise ValueError("end-of-file")
 
-                    # wait how long these samples would of taken to arrive
+                    # wait how long these samples would of taken to arrive, but not too long
                     sleep = self._number_complex_samples / self._sample_rate_sps
-                    time.sleep(sleep)
+                    if sleep < 1.0:
+                        time.sleep(sleep)
 
                 except OSError as msg:
                     msgs = f'OSError, {msg}'

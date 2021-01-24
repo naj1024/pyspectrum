@@ -34,9 +34,6 @@ def parse_command_line(configuration: Variables, logger: logging.Logger) -> None
     # Input options
     ##########
     input_opts = parser.add_argument_group('Input')
-    input_opts.add_argument('-W', '--wait', type=float, help="millisecond wait between reads for file "
-                                                             f"input (default: {configuration.source_sleep})",
-                            default=configuration.source_sleep, required=False)
     input_opts.add_argument('-i', '--input', type=str, help="Input, '?' for list", required=False)
 
     ######################
@@ -98,8 +95,6 @@ def parse_command_line(configuration: Variables, logger: logging.Logger) -> None
     if args['type'] is not None:
         configuration.sample_type = args['type']
 
-    if args['wait']:
-        configuration.source_sleep = float(args['wait']) / 1000.0
     if args['input'] is not None:
         full_source_name = args['input']
         if full_source_name == "?":

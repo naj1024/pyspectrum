@@ -53,6 +53,8 @@ class DataSource:
         self._display_name = source
         self._number_complex_samples = number_complex_samples
         self._sample_rate_sps = sample_rate
+        if self._sample_rate_sps <= 0:
+            self._sample_rate_sps = 1.0
         self._bandwidth_hz = input_bw
         self._centre_frequency_hz = centre_frequency
 
@@ -98,6 +100,8 @@ class DataSource:
         return err
 
     def set_sample_rate_sps(self, sr: float) -> None:
+        if sr <= 0:
+            sr = 1.0
         self._sample_rate_sps = sr
 
     def get_sample_rate_sps(self) -> float:
