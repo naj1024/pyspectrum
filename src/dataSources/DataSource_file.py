@@ -120,7 +120,6 @@ class Input(DataSource.DataSource):
 
         super().__init__(file_name, number_complex_samples, data_type, sample_rate, centre_frequency, input_bw)
 
-        self._sleep_time = 0.0  # Time in seconds between reads, i.e. pause by this amount after each read
         self._wav_file = None
         self._file = None
         self._rewind = True  # true if we will rewind the file each time it ends
@@ -202,9 +201,6 @@ class Input(DataSource.DataSource):
             self._file.close()
         self._connected = False
 
-    def set_sleep_on_read(self, sleep_time: float) -> None:
-        self._sleep_time = sleep_time
-
     def rewind(self) -> bool:
         """
         Rewind the input file
@@ -256,7 +252,10 @@ class Input(DataSource.DataSource):
                         else:
                             raise ValueError("end-of-file")
 
-                    time.sleep(self._sleep_time)
+                    # wait how long these samples would of taken to arrive
+                    sleep = self._number_complex_samples / self._sample_rate_sps
+                    time.sleep(sleep)
+
                 except OSError as msg:
                     msgs = f'OSError, {msg}'
                     self._error = str(msgs)
