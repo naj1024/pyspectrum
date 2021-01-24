@@ -2,13 +2,10 @@
 For saving samples to file
 
 We save the raw float data to file:
-    * converting to 16bit ints takes to long, either we drop samples each buffer or at then end when we write
-      all the buffers
+    * converting to 16bit ints takes to long
     * we don't write buffers immediately so that we won't stall the input samples
 
-TODO: implement the wrap round buffer for pre-trigger samples
 TODO: maybe add .wav output type
-TODO: maybe have another process that converts samples to 16bit?, or wav
 """
 import datetime
 import logging
