@@ -358,10 +358,6 @@ def open_source(configuration: Variables, data_source: DataSource) -> None:
     # few other things to configure first before the open()
     data_source.set_gain_mode(configuration.gain_mode)
     data_source.set_gain(configuration.gain)
-    try:
-        data_source.set_sleep_on_read(configuration.source_sleep)  # will fail on most sources, see file source
-    except AttributeError:
-        pass
 
     if data_source.open():
         # may have updated various things
