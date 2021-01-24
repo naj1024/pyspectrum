@@ -36,7 +36,8 @@ def parse_filename(filename: str) -> Tuple[bool, str, bool, float, float]:
     xyz.cf1234.23.cplx.10000.8be
     xyz.cf1234.cplx.10000.8be     - no digits after decimal point
 
-
+    TODO: On file input can we set the time accoriding to the files meta or filename data
+    
     :param filename:
     :return: A tuple with an ok flag, and the type [8t,16tbe,16tle...], complex flag and sample rate in Hz
     """
@@ -124,7 +125,9 @@ class Input(DataSource.DataSource):
         self._file = None
         self._rewind = True  # true if we will rewind the file each time it ends
         self._connected = False
-        self._file_time = 0  # for timing the samples from the file, increment according to sample rate
+
+        self._create_time = time.time_ns()
+        self._file_time = self._create_time  # for timing the samples from the file, increment according to sample rate
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 
@@ -214,7 +217,7 @@ class Input(DataSource.DataSource):
                 self._wav_file.rewind()
             elif self._file:
                 self._file.seek(0, 0)
-            self._file_time = 0.0  # start again
+            self._file_time = self._file_time = self._create_time  # start again
         except OSError as msg:
             msgs = f'Failed to rewind {self._source}, {msg}'
             self._error = str(msgs)
