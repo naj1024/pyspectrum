@@ -84,8 +84,8 @@ class FileOutput:
         :return: None
         """
         try:
-            # TODO: account for the pre-trigger, not simple as data comes in blocks
-            self._start_time_nsec = time_rx_nsec  # - (self._pre_milliseconds * 1000)
+            secs_pre = self._pre_data_samples / self._sample_rate_sps
+            self._start_time_nsec = time_rx_nsec  - secs_pre * 1e9
             self._triggered = True
 
             self._complex_post_data = []
@@ -101,8 +101,11 @@ class FileOutput:
         """
         if len(self._complex_post_data):
             then = int(self._start_time_nsec / 1e9)
+            fract_sec = (self._start_time_nsec / 1e9) - then
             date_time = datetime.datetime.utcfromtimestamp(then).strftime('%Y-%m-%d_%H-%M-%S')
-            filename = self._base_filename + f".{date_time}.cf{self._centre_freq_hz / 1e6:.6f}" \
+            fract_sec = str(round(fract_sec,3)).lstrip('0')
+            filename = self._base_filename + f".{date_time}{fract_sec}" \
+                                             f".cf{self._centre_freq_hz / 1e6:.6f}" \
                                              f".cplx.{self._sample_rate_sps:.0f}.32fle"
             path_and_filename = pathlib.PurePath(self._base_directory + "/" + filename)
 
