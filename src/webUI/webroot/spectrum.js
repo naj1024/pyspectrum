@@ -551,7 +551,7 @@ Spectrum.prototype.setMaxHold = function(maxhold) {
 }
 
 Spectrum.prototype.setDiff = function() {
-    // TODO: Remove? not sure if it is worth the effort
+    // TODO: Remove? not sure if it is worth the effort for a difference button
     this.diffTrace1 = !this.diffTrace1;
 }
 
