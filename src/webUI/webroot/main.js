@@ -304,7 +304,6 @@ function updateSnapTableCurrent() {
     $('#currentSnapBaseName').empty().append(name);
     $('#currentSnapTriggerType').empty().append(snapState.getTriggerType());
     $('#currentSnapTriggerState').empty().append(snapState.getTriggerState());
-    console.log(snapState.getTriggerState())
     if (snapState.getTriggerState() == "triggered") {
         $('#currentSnapTriggerState').addClass('redTrigger');
         $('#currentSnapTriggerState').removeClass('greenTrigger');
@@ -315,6 +314,8 @@ function updateSnapTableCurrent() {
 
     $('#currentSnapPreTrigger').empty().append(snapState.getPreTriggerMilliSec());
     $('#currentSnapPostTrigger').empty().append(snapState.getPostTriggerMilliSec());
+
+    $('#currentSnapSize').empty().append(snapState.getCurrentSize().toFixed(2)+" MBytes");
 }
 
 function updateSnapTableNew() {
@@ -356,7 +357,7 @@ function updateSnapTableNew() {
     new_html += ' onfocusin="snapTableFocusIn()" onfocusout="snapTableFocusOut()" ';
     new_html += 'action="javascript:handleSnapPreTriggerChange(snapPreTrigMilliSec.value)">';
     // as we remove the number inc/dec arrows in css the size parameter does work
-    new_html += '<input type="number" size="5" min="0" max="10000" " value="';
+    new_html += '<input type="number" size="5" min="0" value="';
     new_html += snapState.getPreTriggerMilliSec();
     new_html += '" id="snapPreTrigMilliSec" name="snapPreTrigMilliSec">';
     new_html += '&nbsp msec</form>';
@@ -366,11 +367,13 @@ function updateSnapTableNew() {
     new_html += ' onfocusin="snapTableFocusIn()" onfocusout="snapTableFocusOut()" ';
     new_html += 'action="javascript:handleSnapPostTriggerChange(snapPostTrigMilliSec.value)">';
     // as we remove the number inc/dec arrows in css the size parameter does work
-    new_html += '<input type="number" size="6" min="0" max="1000000" " value="';
+    new_html += '<input type="number" size="6" min="0" value="';
     new_html += snapState.getPostTriggerMilliSec();
     new_html += '" id="snapPostTrigMilliSec" name="snapPostTrigMilliSec">';
     new_html += '&nbsp msec</form>';
     $('#newSnapPostTrigger').empty().append(new_html);
+
+    $('#newSnapSize').empty().append(snapState.getExpectedSize().toFixed(2)+" MBytes");
 }
 
 function snapTableFocusIn(){

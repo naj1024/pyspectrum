@@ -72,6 +72,13 @@ class FileOutput:
     def get_post_trigger_milli_seconds(self) -> float:
         return self._post_milliseconds
 
+    def get_current_size_mbytes(self) -> float:
+        # 8bytes per sample
+        return (8*self._number_samples_written) / (1024*1024)
+
+    def get_size_mbytes(self) -> float:
+        return (8 * self._max_total_samples) / (1024 * 1024)
+
     def _start(self, time_rx_nsec: float) -> None:
         """
         initialise the start

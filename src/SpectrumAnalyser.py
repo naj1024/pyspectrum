@@ -180,6 +180,8 @@ def main() -> None:
                     snap_configuration.triggered = False
                     snap_configuration.triggerState = "wait"
                     snap_configuration.snapState = "stop"
+                snap_configuration.currentSizeMbytes = data_sink.get_current_size_mbytes()
+                snap_configuration.expectedSizeMbytes = data_sink.get_size_mbytes()
 
                 # has underlying sps or cf changed for the snap
                 if snap_configuration.cf != configuration.centre_frequency_hz or \
@@ -190,6 +192,8 @@ def main() -> None:
                     snap_configuration.triggerState = "wait"
                     snap_configuration.snapState = "stop"
                     data_sink = DataSink_file.FileOutput(snap_configuration)
+                    snap_configuration.currentSizeMbytes = 0
+                    snap_configuration.expectedSizeMbytes = data_sink.get_size_mbytes()
 
                 ##########################
                 # Update the UI

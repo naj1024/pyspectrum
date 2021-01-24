@@ -26,6 +26,12 @@ snapState.prototype.setPostTriggerMilliSec = function(postMilliSec) {
 snapState.prototype.setSnapState = function(state) {
     this.snapState = state;
 }
+snapState.prototype.setCurrentSize = function(size) {
+    this.snapCurrentSize = size;
+}
+snapState.prototype.setExpectedSize = function(size) {
+    this.snapExpectedSize = size;
+}
 
 
 snapState.prototype.getBaseName = function() {
@@ -49,8 +55,15 @@ snapState.prototype.getPostTriggerMilliSec = function() {
 snapState.prototype.getSnapState = function() {
     return this.snapState;
 }
+snapState.prototype.getCurrentSize = function() {
+    return this.snapCurrentSize;
+}
+snapState.prototype.getExpectedSize = function() {
+    return this.snapExpectedSize;
+}
 
 snapState.prototype.setSnapFromJason = function(jsonConfig) {
+    console.log(jsonConfig)
     let updateSnapTable = false;
     if (jsonConfig.baseFilename != snapState.getBaseName()) {
         snapState.setBaseName(jsonConfig.baseFilename);
@@ -77,6 +90,14 @@ snapState.prototype.setSnapFromJason = function(jsonConfig) {
     }
     if (jsonConfig.triggerState != snapState.getTriggerState()) {
         snapState.setTriggerState(jsonConfig.triggerState);
+        updateSnapTable = true;
+    }
+    if (jsonConfig.currentSizeMbytes != snapState.getCurrentSize()) {
+        snapState.setCurrentSize(jsonConfig.currentSizeMbytes);
+        updateSnapTable = true;
+    }
+    if (jsonConfig.expectedSizeMbytes != snapState.getExpectedSize()) {
+        snapState.setExpectedSize(jsonConfig.expectedSizeMbytes);
         updateSnapTable = true;
     }
     return updateSnapTable;
@@ -129,4 +150,6 @@ function snapState() {
     this.triggerState = "wait";
     this.triggerType = "manual";
     this.triggers = ["manual","test"];
+    this.snapCurrentSize = 0;
+    this.snapExpectedSize = 0;
 }

@@ -20,6 +20,9 @@ class SnapVariables:
         self.triggers = ["manual", "off"]  # available trigger sources
         self.triggerType = "off"  # current trigger source
 
+        self.currentSizeMbytes = 0
+        self.expectedSizeMbytes = 0
+
         self.cf = 0
         self.sps = 0
 
