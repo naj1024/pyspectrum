@@ -36,8 +36,8 @@ def parse_filename(filename: str) -> Tuple[bool, str, bool, float, float]:
     xyz.cf1234.23.cplx.10000.8be
     xyz.cf1234.cplx.10000.8be     - no digits after decimal point
 
-    TODO: On file input can we set the time accoriding to the files meta or filename data
-    
+    TODO: On file input can we set the time according to the files meta or filename data
+
     :param filename:
     :return: A tuple with an ok flag, and the type [8t,16tbe,16tle...], complex flag and sample rate in Hz
     """

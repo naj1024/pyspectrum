@@ -664,7 +664,6 @@ function connectWebSocket(spec) {
             }
         }
 
-        // TODO: put this on timer instead of here
         // control back to server
         if (sdrState.getResetSdrStateUpdated()) {
             let jsonString= JSON.stringify(sdrState);
@@ -672,7 +671,6 @@ function connectWebSocket(spec) {
             websocket.send(jsonString);
         }
 
-        // TODO: put this on timer instead of here
         // snapshot back to server
         if (snapState.getResetSnapStateUpdated()) {
             let jsonString= JSON.stringify(snapState);
@@ -841,7 +839,7 @@ function Main() {
     // Connect to websocket
     connectWebSocket(spectrum);
 
-//  TODO: these don't work in that things get overwritten before being acted on, race condition ?
+//  TODO: these interval functions don't work in that things get overwritten before being acted on, race condition ?
 //    // checking if config has changed in the UI to send to the server
 //    setInterval(function() {
 //        if (sdrState.getResetSdrStateUpdated()) {

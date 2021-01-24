@@ -2,6 +2,14 @@
 """
 Provide a basic spectrum analyser for digitised complex samples
 
+
+## TODOs
+    * TODO: Convert inputs to streaming interfaces.
+    * TODO: Drop receivers?
+    * TODO: Markers on spectrogram during snapshot, for pre/post limits
+    * TODO: Snapshot file list with replay and delete options
+    * TODO: Plugin for triggering snapshot on fft bin power, with masks
+
 """
 import os
 import time

@@ -145,13 +145,3 @@ The following was done on a not very clean V4.2 image from https://github.com/lu
           
     NOTE: 'apt' will install python-fftw but that is not pyfftw, but there is python-pyfftw-doc !?
           There appears to be no support for fftw through pyfftw for python3 on this Linux distro
-
-## TODO
- 
-    * Convert inputs to streaming interfaces.
-    * Drop receivers
-    * Record button for raw samples at the server with web interface to recorded files
-    * More control of front ends - gain etc
-    * Marker to cf
-    * Peak marker
-    * Errors to web UI

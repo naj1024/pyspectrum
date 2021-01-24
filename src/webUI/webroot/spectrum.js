@@ -208,7 +208,7 @@ Spectrum.prototype.updateAxes = function() {
         this.ctx_axes.beginPath();
         this.ctx_axes.moveTo(10, y);
         this.ctx_axes.lineTo(width, y);
-        this.ctx_axes.strokeStyle = "rgba(200, 200, 200, 0.40)"; // TODO: with specified colour/intensity
+        this.ctx_axes.strokeStyle = "rgba(200, 200, 200, 0.40)";
         this.ctx.lineWidth = 1;
         this.ctx_axes.stroke();
     }
@@ -573,7 +573,6 @@ Spectrum.prototype.clrTrace1 = function() {
 }
 
 Spectrum.prototype.toggleFullscreen = function() {
-    // TODO: Exit from full screen does not put the size back correctly
     // This is full screen just for the spectrum & spectrogram
     if (!this.fullscreen) {
         if (this.canvas.requestFullscreen) {
