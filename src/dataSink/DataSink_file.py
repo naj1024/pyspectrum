@@ -4,6 +4,7 @@ For saving samples to file
 We save the raw float data to file:
     * converting to 16bit ints takes to long
     * we don't write buffers immediately so that we won't stall the input samples
+    * if we are triggered before we have accumulated sufficient pre-trigger samples we just go with what we have
 
 TODO: maybe add .wav output type
 """
@@ -28,8 +29,6 @@ class FileOutput:
         Configure the snapshot
 
         :param config: How the snap is configured
-        :param centre_frequency_hz: Where we are currently tuned to
-        :param sample_rate_sps: What the current sample rate is
         """
         self._base_filename = config.baseFilename
         self._base_directory = config.baseDirectory
@@ -50,14 +49,18 @@ class FileOutput:
             logger.error(f"Max file size of {max_file_size}MBytes exceeded, limiting to post {secs}seconds")
 
         self._number_samples_written = 0
-        self._triggered = False
-        self._file = None
-        self._start_time_nsec = 0
 
         self._complex_post_data = []
+        self._post_data_samples = 0
+        self._required_post_data_samples = (self._post_milliseconds / 1000) * self._sample_rate_sps
+
         self._complex_pre_data = []
         self._pre_data_samples = 0
         self._required_pre_data_samples = (self._pre_milliseconds / 1000) * self._sample_rate_sps
+
+        self._triggered = False
+        self._file = None
+        self._start_time_nsec = 0
 
     def __del__(self):
         if self._triggered:
@@ -71,7 +74,7 @@ class FileOutput:
 
     def get_current_size_mbytes(self) -> float:
         # 8bytes per sample
-        return (8*self._number_samples_written) / (1024*1024)
+        return (8*(self._post_data_samples + self._pre_data_samples)) / (1024*1024)
 
     def get_size_mbytes(self) -> float:
         return (8 * self._max_total_samples) / (1024 * 1024)
@@ -85,7 +88,7 @@ class FileOutput:
         """
         try:
             secs_pre = self._pre_data_samples / self._sample_rate_sps
-            self._start_time_nsec = time_rx_nsec  - secs_pre * 1e9
+            self._start_time_nsec = time_rx_nsec - secs_pre * 1e9
             self._triggered = True
 
             self._complex_post_data = []
@@ -103,7 +106,7 @@ class FileOutput:
             then = int(self._start_time_nsec / 1e9)
             fract_sec = (self._start_time_nsec / 1e9) - then
             date_time = datetime.datetime.utcfromtimestamp(then).strftime('%Y-%m-%d_%H-%M-%S')
-            fract_sec = str(round(fract_sec,3)).lstrip('0')
+            fract_sec = str(round(fract_sec, 3)).lstrip('0')
             filename = self._base_filename + f".{date_time}{fract_sec}" \
                                              f".cf{self._centre_freq_hz / 1e6:.6f}" \
                                              f".cplx.{self._sample_rate_sps:.0f}.32fle"
@@ -117,9 +120,23 @@ class FileOutput:
                     file.write(buff)
                 file.close()
 
-                seconds = self._number_samples_written / self._sample_rate_sps
-                msg = f"Record: {path_and_filename}  {round(seconds, 6)}s {self._number_samples_written} samples"
+                written = self._post_data_samples + self._pre_data_samples
+                seconds = written / self._sample_rate_sps
+                msg = f"Record: {path_and_filename} {round(seconds, 6)}s, {written} samples"
                 logger.info(msg)
+
+                # reset, Use post samples to fill pre for another trigger event
+                # extra pre sampes will get dropped on depth check
+                if self._required_pre_data_samples > 0:
+                    self._complex_pre_data = self._complex_post_data
+                    self._pre_data_samples = self._post_data_samples
+                else:
+                    self._complex_pre_data = []
+                    self._pre_data_samples = 0
+                self._complex_post_data = []
+                self._post_data_samples = 0
+                self._triggered = False
+
             except OSError as e:
                 logger.error(f"failed to write snapshot to file, {e}")
 
@@ -150,6 +167,7 @@ class FileOutput:
             if trigger:
                 self._start(time_rx_nsec)  # sets self._triggered
             else:
+                # add to pre-trigger samples
                 if self._pre_milliseconds > 0:
                     copied = np.array(data)
                     self._pre_data_samples += data.shape[0]
@@ -157,13 +175,14 @@ class FileOutput:
                     self._limit_pre_samples()
 
         if self._triggered:
-            if (self._max_total_samples - self._number_samples_written) >= 0:
+            if (self._required_post_data_samples - self._post_data_samples) >= 0:
                 copied = np.array(data)
                 self._complex_post_data.append(copied)
-                self._number_samples_written += data.shape[0]
+                self._post_data_samples += data.shape[0]
 
-                if (self._max_total_samples - self._number_samples_written) <= 0:
-                    self._end()
-                    end = True
+            # are we finished, may not have sufficient pre-samples but can't do much about that
+            if (self._required_post_data_samples - self._post_data_samples) <= 0:
+                self._end()
+                end = True
 
         return end

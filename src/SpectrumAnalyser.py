@@ -449,6 +449,7 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
 
     if new_config['snapState'] != snap_config.snapState:
         # only 'manual' type can change state here
+        # don't set changed
         if snap_config.triggerType == "manual":
             snap_config.snapState = new_config['snapState']
             if snap_config.snapState == "start":
@@ -458,10 +459,8 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
                 snap_config.triggered = False
                 snap_config.triggerState = "wait"
                 snap_config.snapState = "stop"
-            changed = True
 
     if new_config['preTriggerMilliSec'] != snap_config.preTriggerMilliSec:
-        logger.error(f"Ignoring request pre-trigger snap of {new_config['preTriggerMilliSec']}msec, not implemented")
         snap_config.preTriggerMilliSec = new_config['preTriggerMilliSec']
         changed = True
 
@@ -470,8 +469,7 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
         changed = True
 
     if new_config['triggerType'] != snap_config.triggerType:
-        snap_config.triggerType = new_config['triggerType']
-        changed = True
+        snap_config.triggerType = new_config['triggerType']  # don't set changed
 
     # has any non-snap setting changed
     if sdr_config.centre_frequency_hz != snap_config.cf or sdr_config.sample_rate != snap_config.sps:

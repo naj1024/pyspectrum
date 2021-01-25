@@ -693,7 +693,7 @@ function check_for_support(){
     let test_canvas = document.createElement("canvas");
     let canvas_ok = (test_canvas.getContext)? true:false;
     if (!canvas_ok){
-        ok += ", No canvas";
+        ok += ", Missing canvas support";
     }
     let test_blob = new Blob(["hello"], {type: 'text/html'});
     let blob_ok = (test_blob)? true:false;
@@ -706,11 +706,18 @@ function check_for_support(){
                 let data_bytes = new Uint8Array(test_blob_arrayBuffer);
                 let dataView = new DataView(data_bytes.buffer);
             } catch (err){
-                ok += ", No blob DataView";
+                ok += ", Missing blob DataView support";
             }
         }catch (err){
-            ok += ", No blob arrayBuffer";
+            ok += ", Missing blob arrayBuffer support";
         }
+    }
+    if (!window.jQuery) {
+        ok += ", Missing jQuery";
+    }
+    let bootstrap = (typeof $().emulateTransitionEnd == 'function');
+    if (!bootstrap) {
+        ok += ", Missing Bootstrap3";
     }
     return(ok);
 }
