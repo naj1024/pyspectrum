@@ -157,7 +157,7 @@
                                     <button type="button" id="peakTrackBut" data-toggle="button" title="follow the peak" class="specbuttons btn btn-outline-dark mx-1 my-1">Trck</button>
                                 </div>
                                 <div id="theMarkerTable">
-                                    <table id="markerTable" class="table-condensed table-hover table-striped table-bordered table-sm">
+                                    <table id="markerTable" class="marker-table-condensed table-hover table-striped table-bordered table-sm">
                                         <thead class="thead-dark">
                                             <tr>
                                                 <th scope="col">#</th>
@@ -195,6 +195,20 @@
                                     <tr><td><b>PostTrigger</b></td><td><div id="currentSnapPostTrigger"></div></td><td><div id="newSnapPostTrigger"></div></td></tr>
                                 </tbody>
                             </table>
+
+                            <div id="theSnapFileTable">
+                                <table id="snapFileTable" class="table table-hover table-striped table-bordered table-sm">
+                                    <thead class="thead-dark">
+                                        <tr>
+                                            <th scope="Snapshot">Snapshot</th>
+                                            <th scope="Mbytes">MBytes</th>
+                                            <th scope="Play">P</th>
+                                            <th scope="Delete">D</th>
+                                        </tr>
+                                    </thead>
+                                 <tbody><!--- dynamically created marker data will go here ---></tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -9,9 +9,13 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: Markers on spectrogram during snapshot, for pre/post limits
     * TODO: Snapshot file list with replay and delete options
     * TODO: Plugin for triggering snapshot on fft bin power, with masks
-
+    * TODO: Add a seconds marker to the bottom (left) of the spectrogram
+    * TODO: Add a file list to the snapshot tab, with delete and play buttons
+    * TODO: Change stream of spectrograms, again, to always put out 1inN, constant time between spectrums
 """
+import datetime
 import os
+import pathlib
 import time
 import multiprocessing
 import queue
@@ -85,6 +89,7 @@ def main() -> None:
     snap_configuration = SnapVariables.SnapVariables()
     if not os.path.isdir(snap_configuration.baseDirectory):
         os.mkdir(snap_configuration.baseDirectory)
+    list_snapshot_directory(snap_configuration)
 
     # check we have a valid input sample type
     if configuration.sample_type not in DataSource.supported_data_types:
@@ -188,6 +193,7 @@ def main() -> None:
                     snap_configuration.triggered = False
                     snap_configuration.triggerState = "wait"
                     snap_configuration.snapState = "stop"
+                    list_snapshot_directory(snap_configuration)  # update the list
                 snap_configuration.currentSizeMbytes = data_sink.get_current_size_mbytes()
                 snap_configuration.expectedSizeMbytes = data_sink.get_size_mbytes()
 
@@ -341,6 +347,20 @@ def initialise(configuration: Variables):
         raise msg
 
 
+def list_snapshot_directory(snap_config: SnapVariables) -> None:
+    dir = pathlib.PurePath(snap_config.baseDirectory)
+    snap_config.directory_list = []
+    for path in pathlib.Path(dir).iterdir():
+        # We will not match the time in the filename as it is recording the trigger time
+        # getctime() may also return the last modification time not creation time (dependent on OS)
+        timestamp = int(os.path.getctime(path))
+        date_time = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d_%H-%M-%S')
+        snap_config.directory_list.append((os.path.basename(path),
+                                           str(round(os.path.getsize(path)/(1024*1024),3)),
+                                           date_time))
+    # sort so that most recent is first
+    snap_config.directory_list.sort(reverse=True, key=lambda a: a[2])
+
 def create_source(configuration: Variables, factory) -> DataSource:
     """
     Create the source of samples, cannot exception or fail. Does not open the source.
@@ -477,6 +497,9 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
         snap_config.sps = sdr_config.sample_rate
         changed = True
 
+    if new_config['deleteFileName'] != "":
+        delete_file(new_config['deleteFileName'], snap_config, sdr_config)
+
     if changed:
         data_sink = DataSink_file.FileOutput(snap_config)
         # following may of been changed by the sink
@@ -484,9 +507,20 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
                 data_sink.get_pre_trigger_milli_seconds() != snap_config.preTriggerMilliSec:
             snap_config.postTriggerMilliSec = data_sink.get_post_trigger_milli_seconds()
             snap_config.preTriggerMilliSec = data_sink.get_pre_trigger_milli_seconds()
-            sdr_config.error += f"Snap time limited to max file size {snap_config.max_file_size / 1e6}MBytes"
+            sdr_config.error += f"Snap modified to maximum file size of {snap_config.max_file_size / 1e6}MBytes"
 
     return data_sink
+
+
+def delete_file(filename: str, snap_config: SnapVariables, sdr_config: Variables) -> None:
+    file = pathlib.PurePath(snap_config.baseDirectory+"/"+filename)
+    try:
+        os.remove(file)
+        list_snapshot_directory(snap_config)
+    except OSError as msg:
+        err = f"Problem with delete of {filename}, {msg}"
+        logger.error(err)
+        sdr_config.error = err
 
 
 def handle_sdr_message(configuration: Variables, new_config: Dict, data_source, source_factory) -> DataSource:

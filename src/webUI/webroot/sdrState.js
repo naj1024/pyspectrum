@@ -143,6 +143,7 @@ sdrState.prototype.getResetSdrStateUpdated = function() {
 }
 
 sdrState.prototype.setConfigFromJason = function(jsonConfig) {
+    // console.log(jsonConfig)
     let updateCfgTable = false;
     if (jsonConfig.centre_frequency_hz != sdrState.getCentreFrequencyHz()) {
         sdrState.setCentreFrequencyHz(jsonConfig.centre_frequency_hz);

@@ -295,12 +295,45 @@ function handlePauseToggle() {
 function updateSnapTable() {
     updateSnapTableCurrent();
     updateSnapTableNew();
+    if(snapState.directoryListChanged) {
+        updateSnapFileList();
+    }
+}
+
+function updateSnapFileList() {
+    console.log("updateSnapFileList()");
+    $("#snapFileTable tbody tr").remove();
+    let row_count = 0;
+    for (const file of snapState.getDirectoryList()) {
+        let new_row='<tr>';
+        let fname = '<div title="'+file[0]+'" class="CropLongTexts180">'+file[0]+'</div>';
+        new_row += '<td>'+fname+'</td>';
+        new_row += '<td>'+file[1]+'</td>';
+        let id = row_count;
+        new_row += '<td><input type="image" title="play" id="play_'+id+'" src="./icons/play.png"></td>';
+        new_row += '<td><input type="image" title="delete" id="delete_'+id+'" src="./icons/bin.png"></td>';
+        new_row += "</tr>";
+        $('#snapFileTable').append(new_row);
+
+        // handle icon buttons for play and delete
+        $('#play_'+id).click(function() {
+            // force input change, command goes by sdrState
+            handleInputChange("file", snapState.getSnapDirectory()+"/"+file[0]);
+        } );
+        $('#delete_'+id).click(function() {
+            // command goes by snapState
+            snapState.setDeleteFilename(file[0]);
+            snapState.setSnapStateUpdated();
+        } );
+        row_count += 1;
+    }
+    snapState.directoryListChanged = false;
 }
 
 function updateSnapTableCurrent() {
     $('#currentSnapState').empty().append(snapState.getSnapState());
     // shorten long names
-    let name = '<div title="'+snapState.getBaseName()+'" class="CropLongTexts">'+snapState.getBaseName()+'</div>'
+    let name = '<div title="'+snapState.getBaseName()+'" class="CropLongTexts100">'+snapState.getBaseName()+'</div>'
     $('#currentSnapBaseName').empty().append(name);
     $('#currentSnapTriggerType').empty().append(snapState.getTriggerType());
     $('#currentSnapTriggerState').empty().append(snapState.getTriggerState());
@@ -390,7 +423,7 @@ function updateConfigTable(spec) {
 
 function updateConfigTableCurrent(spec) {
     let src = '<div>'+sdrState.getInputSource()+'</div>';
-    src += '<div title="'+sdrState.getInputSourceParams()+'" class="CropLongTexts">'+sdrState.getInputSourceParams()+'</div>'
+    src += '<div title="'+sdrState.getInputSourceParams()+'" class="CropLongTexts100">'+sdrState.getInputSourceParams()+'</div>'
     src += '<div>'+(sdrState.getSourceConnected()?'Connected':'Not Connected')+'</div>';
     $('#currentSource').empty().append(src);
 

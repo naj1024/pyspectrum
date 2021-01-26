@@ -32,6 +32,15 @@ snapState.prototype.setCurrentSize = function(size) {
 snapState.prototype.setExpectedSize = function(size) {
     this.snapExpectedSize = size;
 }
+snapState.prototype.setDirectoryList = function(dirList) {
+    this.directoryList = dirList;
+}
+snapState.prototype.setDeleteFilename = function(name) {
+    this.deleteFileName = name;
+}
+snapState.prototype.setSnapDirectory = function(dir) {
+    this.snapDirectory = dir;
+}
 
 
 snapState.prototype.getBaseName = function() {
@@ -61,9 +70,20 @@ snapState.prototype.getCurrentSize = function() {
 snapState.prototype.getExpectedSize = function() {
     return this.snapExpectedSize;
 }
+snapState.prototype.getDirectoryList = function() {
+    return this.directoryList;
+}
+snapState.prototype.getDeleteFilename = function() {
+    return this.deleteFileName;
+}
+snapState.prototype.getSnapDirectory = function() {
+    return this.snapDirectory;
+}
 
 snapState.prototype.setSnapFromJason = function(jsonConfig) {
-    console.log(jsonConfig)
+    snapState.setDeleteFilename("");
+
+    // console.log(jsonConfig)
     let updateSnapTable = false;
     if (jsonConfig.baseFilename != snapState.getBaseName()) {
         snapState.setBaseName(jsonConfig.baseFilename);
@@ -99,6 +119,15 @@ snapState.prototype.setSnapFromJason = function(jsonConfig) {
     if (jsonConfig.expectedSizeMbytes != snapState.getExpectedSize()) {
         snapState.setExpectedSize(jsonConfig.expectedSizeMbytes);
         updateSnapTable = true;
+    }
+    if (jsonConfig.baseDirectory != snapState.getSnapDirectory()) {
+        snapState.setSnapDirectory(jsonConfig.baseDirectory);
+    }
+
+    // TODO: update how we compare the two directory lists, just looking for size difference for now
+    if(!(jsonConfig.directory_list.length === snapState.directoryList.length)) {
+        snapState.setDirectoryList(jsonConfig.directory_list)
+        snapState.directoryListChanged = true;
     }
     return updateSnapTable;
 }
@@ -142,14 +171,19 @@ function handleSnapPostTriggerChange(millisec) {
 
 function snapState() {
     this.type = "snapUpdate";
-    this.baseFilename = "snapp";
     this.snapStateUpdated = false;
-    this.snapState = "stop"; // start to trigger
-    this.preTriggerMilliSec = 1000;
-    this.postTriggerMilliSec = 2000;
-    this.triggerState = "wait";
-    this.triggerType = "manual";
-    this.triggers = ["manual","test"];
+
+    this.baseFilename = "";
+    this.snapState = ""; // start to trigger
+    this.preTriggerMilliSec = 0;
+    this.postTriggerMilliSec = 0;
+    this.triggerState = "0";
+    this.triggerType = "0";
+    this.triggers = [];
     this.snapCurrentSize = 0;
     this.snapExpectedSize = 0;
+    this.snapDirectory = "";
+    this.directoryList = [];
+    this.directoryListChanged = false;
+    this.deleteFileName = "";
 }
