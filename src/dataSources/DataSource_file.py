@@ -217,7 +217,10 @@ class Input(DataSource.DataSource):
                 self._wav_file.rewind()
             elif self._file:
                 self._file.seek(0, 0)
-            self._file_time = self._file_time = self._create_time  # start again
+
+            # could reset to create_time but time must always increase
+            # otherwise the acks coming back will allow huge tcp buffer storage
+            # self._file_time = self._create_time  # start again
         except OSError as msg:
             msgs = f'Failed to rewind {self._source}, {msg}'
             self._error = str(msgs)
