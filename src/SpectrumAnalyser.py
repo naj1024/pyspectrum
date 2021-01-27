@@ -7,12 +7,9 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: Convert inputs to streaming interfaces.
     * TODO: Drop receivers?
     * TODO: Markers on spectrogram during snapshot, for pre/post limits
-    * TODO: Snapshot file list with replay and delete options
     * TODO: Plugin for triggering snapshot on fft bin power, with masks
     * TODO: Add a seconds marker to the bottom (left) of the spectrogram
-    * TODO: Add a file list to the snapshot tab, with delete and play buttons
     * TODO: Change stream of spectrograms, again, to always put out 1inN, constant time between spectrums
-    * TODO: Scroll on table for long lists of snapshot files
     * TODO: png of each snapshot file?
 """
 
