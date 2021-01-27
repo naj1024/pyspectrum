@@ -126,10 +126,17 @@ class Input(DataSource.DataSource):
         self._rewind = True  # true if we will rewind the file each time it ends
         self._connected = False
 
-        self._create_time = time.time_ns()
+        try:
+            self._create_time = time.time_ns()
+        except AttributeError as msg:
+            self._create_time = time.time()
+
         self._file_time = self._create_time  # for timing the samples from the file, increment according to sample rate
         super().set_help(help_string)
         super().set_web_help(web_help_string)
+
+    def __del__(self):
+        self.close()
 
     def open(self) -> bool:
         try:
@@ -200,8 +207,10 @@ class Input(DataSource.DataSource):
     def close(self) -> None:
         if self._wav_file:
             self._wav_file.close()
+            self._wav_file = None
         elif self._file:
             self._file.close()
+            self._file = None
         self._connected = False
 
     def rewind(self) -> bool:

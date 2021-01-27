@@ -12,7 +12,10 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: Add a seconds marker to the bottom (left) of the spectrogram
     * TODO: Add a file list to the snapshot tab, with delete and play buttons
     * TODO: Change stream of spectrograms, again, to always put out 1inN, constant time between spectrums
+    * TODO: Scroll on table for long lists of snapshot files
+    * TODO: png of each snapshot file?
 """
+
 import datetime
 import os
 import pathlib
@@ -348,18 +351,21 @@ def initialise(configuration: Variables):
 
 
 def list_snapshot_directory(snap_config: SnapVariables) -> None:
-    dir = pathlib.PurePath(snap_config.baseDirectory)
+    directory = pathlib.PurePath(snap_config.baseDirectory)
     snap_config.directory_list = []
-    for path in pathlib.Path(dir).iterdir():
-        # We will not match the time in the filename as it is recording the trigger time
-        # getctime() may also return the last modification time not creation time (dependent on OS)
-        timestamp = int(os.path.getctime(path))
-        date_time = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d_%H-%M-%S')
-        snap_config.directory_list.append((os.path.basename(path),
-                                           str(round(os.path.getsize(path)/(1024*1024),3)),
-                                           date_time))
+    for path in pathlib.Path(directory).iterdir():
+        filename = os.path.basename(path)
+        if not filename.startswith("."):
+            # We will not match the time in the filename as it is recording the trigger time
+            # getctime() may also return the last modification time not creation time (dependent on OS)
+            timestamp = int(os.path.getctime(path))
+            date_time = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d_%H-%M-%S')
+            snap_config.directory_list.append((filename,
+                                               str(round(os.path.getsize(path) / (1024 * 1024), 3)),
+                                               date_time))
     # sort so that most recent is first
     snap_config.directory_list.sort(reverse=True, key=lambda a: a[2])
+
 
 def create_source(configuration: Variables, factory) -> DataSource:
     """
@@ -513,14 +519,15 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
 
 
 def delete_file(filename: str, snap_config: SnapVariables, sdr_config: Variables) -> None:
-    file = pathlib.PurePath(snap_config.baseDirectory+"/"+filename)
+    file = pathlib.PurePath(snap_config.baseDirectory + "/" + filename)
     try:
         os.remove(file)
-        list_snapshot_directory(snap_config)
     except OSError as msg:
         err = f"Problem with delete of {filename}, {msg}"
         logger.error(err)
         sdr_config.error = err
+
+    list_snapshot_directory(snap_config)
 
 
 def handle_sdr_message(configuration: Variables, new_config: Dict, data_source, source_factory) -> DataSource:
