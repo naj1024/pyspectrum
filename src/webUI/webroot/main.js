@@ -301,14 +301,15 @@ function updateSnapTable() {
 }
 
 function updateSnapFileList() {
-    console.log("updateSnapFileList()");
-    $("#snapFileTable tbody tr").remove();
+    $("#snapFileTable tbody tr").remove(); // delete all the current rows
     let row_count = 0;
     for (const file of snapState.getDirectoryList()) {
         let new_row='<tr>';
         let fname = '<div title="'+file[0]+'" class="CropLongTexts180">'+file[0]+'</div>';
         new_row += '<td>'+fname+'</td>';
-        new_row += '<td>'+file[1]+'</td>';
+        // size with a hover over of a png showing a spectrum image
+        new_row += '<td><span>'+file[1]+'</span><img src="./'+snapState.getSnapDirectory()+'/'+file[0]+'.png"></td>';
+
         let id = row_count;
         new_row += '<td><input type="image" title="play" id="play_'+id+'" src="./icons/play.png"></td>';
         new_row += '<td><input type="image" title="delete" id="delete_'+id+'" src="./icons/bin.png"></td>';

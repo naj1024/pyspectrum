@@ -102,3 +102,11 @@ input[type=number] {
 .redTrigger {
     background: red;
 }
+
+/* for hover spectrum image on snapshot file table */
+img{
+   display: none
+}
+span:hover + img{
+   display: block;
+}

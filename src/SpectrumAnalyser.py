@@ -11,6 +11,8 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: Add a seconds marker to the bottom (left) of the spectrogram
     * TODO: Change stream of spectrograms, again, to always put out 1inN, constant time between spectrums
     * TODO: png of each snapshot file?
+    * TODO: On file input can we set the time according to the files meta or filename data
+
 """
 
 import datetime
@@ -101,8 +103,9 @@ def main() -> None:
     configuration.input_sources_web_helps = DataSourceFactory.DataSourceFactory().web_help_strings()
 
     # configure us
-    data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, plugin_manager, source_factory = initialise(
-        configuration)
+    data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, \
+        plugin_manager, source_factory = initialise(configuration)
+
     snap_configuration.cf = configuration.centre_frequency_hz
     snap_configuration.sps = configuration.sample_rate
     data_sink = DataSink_file.FileOutput(snap_configuration)
@@ -517,8 +520,13 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
 
 def delete_file(filename: str, snap_config: SnapVariables, sdr_config: Variables) -> None:
     file = pathlib.PurePath(snap_config.baseDirectory + "/" + filename)
+    file_png = pathlib.PurePath(snap_config.baseDirectory + "/" + filename + ".png")
     try:
         os.remove(file)
+        try:
+            os.remove(file_png)
+        except OSError:
+            pass  # Don't care
     except OSError as msg:
         err = f"Problem with delete of {filename}, {msg}"
         logger.error(err)
