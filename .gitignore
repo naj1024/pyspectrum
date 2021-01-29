@@ -11,6 +11,10 @@ venv/
 # logs
 *.log
 
+# snapshots, spectrum pics and thumbnails
+src/snapshots/*
+src/webUI/webroot/thumbnails/*
+
 # digitised sample files
 *.8t
 *.8o

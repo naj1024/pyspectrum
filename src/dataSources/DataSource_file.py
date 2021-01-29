@@ -82,6 +82,9 @@ class Input(DataSource.DataSource):
         self._connected = True
         return self._connected
 
+    def set_rewind(self, allow: bool):
+        self._rewind = allow
+
     def close(self) -> None:
         self._file.close()
         self._file = None
@@ -152,10 +155,13 @@ class Input(DataSource.DataSource):
                     logger.error(msgs)
                     raise ValueError(msgs)
                 except ValueError as msg:
-                    msgs = f'file exception, {msg}'
-                    self._error = str(msgs)
-                    logger.error(msgs)
-                    raise ValueError(msgs)
+                    if self._rewind:
+                        msgs = f'file exception, {msg}'
+                        self._error = str(msgs)
+                        logger.error(msgs)
+                        raise ValueError(msgs)
+                    else:
+                        raise ValueError("eof")
 
             if raw_bytes:
                 complex_data = self.unpack_data(raw_bytes)

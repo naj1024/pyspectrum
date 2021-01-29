@@ -308,7 +308,8 @@ function updateSnapFileList() {
         let fname = '<div title="'+file[0]+'" class="CropLongTexts180">'+file[0]+'</div>';
         new_row += '<td>'+fname+'</td>';
         // size with a hover over of a png showing a spectrum image
-        new_row += '<td><span>'+file[1]+'</span><img src="./'+snapState.getSnapDirectory()+'/'+file[0]+'.png"></td>';
+        // new_row += '<td><span>'+file[1]+'</span><img src="./thumbnails/'+file[0]+'.png"></td>';
+        new_row += '<td><span>'+file[1]+'</span><img src="./thumbnails/'+file[0]+'.png"></td>';
 
         let id = row_count;
         new_row += '<td><input type="image" title="play" id="play_'+id+'" src="./icons/play.png"></td>';

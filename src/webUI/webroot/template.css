@@ -104,9 +104,11 @@ input[type=number] {
 }
 
 /* for hover spectrum image on snapshot file table */
+/*
 img{
    display: none
 }
 span:hover + img{
    display: block;
 }
+*/

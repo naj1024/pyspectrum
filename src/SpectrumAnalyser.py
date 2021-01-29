@@ -12,7 +12,7 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: Change stream of spectrograms, again, to always put out 1inN, constant time between spectrums
     * TODO: png of each snapshot file?
     * TODO: On file input can we set the time according to the files meta or filename data
-
+    * TODO: File playback should only allow certain paths
 """
 
 import datetime
@@ -40,6 +40,7 @@ from misc import PluginManager
 from misc import Variables
 from misc import SnapVariables
 from misc import commandLine
+from misc import PicGenerator
 from webUI import WebServer
 
 processing = True  # global to be set to False from ctrl-c
@@ -93,6 +94,16 @@ def main() -> None:
         os.mkdir(snap_configuration.baseDirectory)
     list_snapshot_directory(snap_configuration)
 
+    # web thumbnail directory
+    thumbs_dir = pathlib.PurePath("WebUI/webroot/thumbnails")
+    if not os.path.isdir(thumbs_dir):
+        os.mkdir(thumbs_dir)
+
+    # thumbnail and pic generator process
+    pic_generator = PicGenerator.PicGenerator(snap_configuration.baseDirectory, thumbs_dir, logger.level)
+    pic_generator.start()
+    logger.debug(f"Started PicGenerator")
+
     # check we have a valid input sample type
     if configuration.sample_type not in DataSource.supported_data_types:
         logger.critical(f'Illegal sample type of {configuration.sample_type} selected')
@@ -144,7 +155,8 @@ def main() -> None:
         # if there is a control message then it may change whats happening
         data_source, data_sink = handle_from_ui_queue(configuration, snap_configuration,
                                                       to_ui_control_queue, from_ui_queue,
-                                                      data_source, source_factory, data_sink)
+                                                      data_source, source_factory, data_sink,
+                                                      str(thumbs_dir))
 
         ###########################################
         # Get and process the complex samples we will work on
@@ -281,13 +293,15 @@ def main() -> None:
         logger.debug("SpectrumAnalyser data_source close")
         data_source.close()
 
-    if display:
-        logger.debug(f"Shutting down children, {multiprocessing.active_children()}")
-        if multiprocessing.active_children():
-            # belt and braces
-            display.terminate()
-            display.shutdown()
-            display.join()
+    if multiprocessing.active_children():
+        logger.debug(f"Shutting down child processes, {multiprocessing.active_children()}")
+        # belt and braces
+        display.terminate()
+        display.shutdown()
+        display.join()
+        pic_generator.terminate()
+        pic_generator.shutdown()
+        pic_generator.join()
 
     if to_ui_queue:
         while not to_ui_queue.empty():
@@ -354,13 +368,12 @@ def list_snapshot_directory(snap_config: SnapVariables) -> None:
     directory = pathlib.PurePath(snap_config.baseDirectory)
     snap_config.directory_list = []
     for path in pathlib.Path(directory).iterdir():
-        filename = os.path.basename(path)
-        if not filename.startswith("."):
+        if not path.name.startswith(".") and not path.name.endswith("png"):
             # We will not match the time in the filename as it is recording the trigger time
             # getctime() may also return the last modification time not creation time (dependent on OS)
             timestamp = int(os.path.getctime(path))
             date_time = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d_%H-%M-%S')
-            snap_config.directory_list.append((filename,
+            snap_config.directory_list.append((path.name,
                                                str(round(os.path.getsize(path) / (1024 * 1024), 3)),
                                                date_time))
     # sort so that most recent is first
@@ -457,7 +470,7 @@ def update_source(configuration: Variables, source_factory) -> DataSource:
 
 
 def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
-                        new_config: Dict, sdr_config: Variables) -> DataSink_file:
+                        new_config: Dict, sdr_config: Variables, thumb_dir: str) -> DataSink_file:
     """
     messages from UI
     We may change the snap object here, data_sink, due to changes in cf, sps or configuration
@@ -466,6 +479,7 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
     :param snap_config: current snap state etc
     :param new_config: dictionary from a json string with new configuration for snap
     :param sdr_config: sdr config so we can get cf, sps etc
+    :param thumb_dir: where thumbnails ended up for the web UI
     :return: None
     """
     changed = False
@@ -504,7 +518,7 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
         changed = True
 
     if new_config['deleteFileName'] != "":
-        delete_file(new_config['deleteFileName'], snap_config, sdr_config)
+        delete_file(new_config['deleteFileName'], snap_config, sdr_config, thumb_dir)
 
     if changed:
         data_sink = DataSink_file.FileOutput(snap_config)
@@ -518,13 +532,15 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
     return data_sink
 
 
-def delete_file(filename: str, snap_config: SnapVariables, sdr_config: Variables) -> None:
+def delete_file(filename: str, snap_config: SnapVariables, sdr_config: Variables, thumb_dir: str) -> None:
     file = pathlib.PurePath(snap_config.baseDirectory + "/" + filename)
     file_png = pathlib.PurePath(snap_config.baseDirectory + "/" + filename + ".png")
+    thumb_png = pathlib.PurePath(thumb_dir + "/" + filename + ".png")
     try:
         os.remove(file)
         try:
             os.remove(file_png)
+            os.remove(thumb_png)
         except OSError:
             pass  # Don't care
     except OSError as msg:
@@ -604,7 +620,8 @@ def handle_from_ui_queue(configuration: Variables,
                          from_ui_queue: multiprocessing.Queue,
                          data_source,
                          source_factory,
-                         snap_sink) -> Tuple[Any, Any]:
+                         snap_sink,
+                         thumb_dir: str) -> Tuple[Any, Any]:
     """
     Check the control queue for messages and handle them
 
@@ -615,6 +632,7 @@ def handle_from_ui_queue(configuration: Variables,
     :param data_source:
     :param source_factory:
     :param snap_sink:
+    :param thumb_dir
     :return: DataSource and snapSink, either of which may of changed
     """
     config = None
@@ -650,7 +668,8 @@ def handle_from_ui_queue(configuration: Variables,
                 snap_sink = handle_snap_message(snap_sink,
                                                 snap_configuration,
                                                 new_config,
-                                                configuration)
+                                                configuration,
+                                                thumb_dir)
             elif new_config['type'] == "sdrUpdate":
                 # we may be directed to change the source
                 data_source = handle_sdr_message(configuration, new_config, data_source, source_factory)

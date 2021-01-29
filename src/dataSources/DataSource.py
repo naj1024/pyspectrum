@@ -165,7 +165,7 @@ class DataSource:
         elif data_type == '8o':
             self._bytes_per_snap = self._number_complex_samples * 2
         else:
-            msgs = f'Unsupported data type {data_type}'
+            msgs = f'Unsupported data type "{data_type}"'
             logger.error(msgs)
             raise ValueError(msgs)
         self._data_type = data_type
