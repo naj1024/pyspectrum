@@ -551,7 +551,6 @@ Spectrum.prototype.setMaxHold = function(maxhold) {
 }
 
 Spectrum.prototype.setDiff = function() {
-    // TODO: Remove? not sure if it is worth the effort for a difference button
     this.diffTrace1 = !this.diffTrace1;
 }
 
@@ -707,7 +706,7 @@ Spectrum.prototype.addMarker = function(frequencyHz, magdB, time_start, inputCou
     new_row += "</tr>";
     $('#markerTable').append(new_row);
 
-    // TODO: had to make spectrum global, can't work out how to get hold of this'
+    // Had to make spectrum global, can't work out how to get hold of this'
     $('#'+marker_id).click(function() {spectrum.markerCheckBox(number);});
     $('#'+bin_id).click(function() {spectrum.deleteMarker(number);});
 

@@ -420,7 +420,7 @@ function snapTableFocusOut(){
 
 function updateConfigTable(spec) {
     updateConfigTableCurrent(spec);
-    updateConfigTableNew(spec);  // TODO: maybe just the ones that have altered ?
+    updateConfigTableNew(spec);
 }
 
 function updateConfigTableCurrent(spec) {
@@ -471,7 +471,6 @@ function updateConfigTableNew(spec) {
         });
 
         // the parameters for the source
-        // TODO: when the source changes update the help, but it is already built here by then - so how?
         let help = source+' '+sourceParams+'\n'+sdrState.getInputSourceParamHelp(source);
         new_html += '<input data-toggle="tooltip" title="'+help+'" type="text" size="10"';
         new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
@@ -881,7 +880,6 @@ function Main() {
     // Connect to websocket
     connectWebSocket(spectrum);
 
-//  TODO: these interval functions don't work in that things get overwritten before being acted on, race condition ?
 //    // checking if config has changed in the UI to send to the server
 //    setInterval(function() {
 //        if (sdrState.getResetSdrStateUpdated()) {

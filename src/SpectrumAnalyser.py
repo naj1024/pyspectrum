@@ -2,17 +2,23 @@
 """
 Provide a basic spectrum analyser for digitised complex samples
 
-
 ## TODOs
     * TODO: Convert inputs to streaming interfaces.
     * TODO: Drop receivers?
     * TODO: Markers on spectrogram during snapshot, for pre/post limits
-    * TODO: Plugin for triggering snapshot on fft bin power, with masks
     * TODO: Add a seconds marker to the bottom (left) of the spectrogram
+    * TODO: Plugin for triggering snapshot on fft bin power, with masks
     * TODO: Change stream of spectrograms, again, to always put out 1inN, constant time between spectrums
-    * TODO: png of each snapshot file?
     * TODO: On file input can we set the time according to the files meta or filename data
     * TODO: File playback should only allow certain paths
+    * TODO: Add wav output format for snapshots
+    * TODO: On audio source find max sample rate and set that as the limit
+    * TODO: On web interface update just the rows that changed on the configuration table
+    * TODO: On web interface config and snap tables only update the current not the new cells
+    * TODO: On web interface is there a way to update the help when a different source is selected
+    * TODO: On web interface why don't the interval functions for updating things work
+    * TODO: On web interface we update the snapshot table purely on number of entries not values
+
 """
 
 import datetime

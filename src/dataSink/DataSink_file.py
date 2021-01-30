@@ -6,7 +6,6 @@ We save the raw float data to file:
     * we don't write buffers immediately so that we won't stall the input samples
     * if we are triggered before we have accumulated sufficient pre-trigger samples we just go with what we have
 
-TODO: maybe add .wav output type
 """
 import datetime
 import logging

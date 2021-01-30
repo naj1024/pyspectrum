@@ -179,7 +179,6 @@ class Input(DataSource.DataSource):
             self._error = str(msgs)
 
     def bound_sample_rate(self) -> None:
-        # TODO: find max sample rate and set that as the limit
         if self._sample_rate_sps > 250.0e3:
             self._sample_rate_sps = 250000.0
             self._error = "Audio source sample rate too high, setting 250kHz"

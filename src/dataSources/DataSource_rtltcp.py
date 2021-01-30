@@ -159,7 +159,7 @@ class Input(DataSource.DataSource):
             # not found a description of gain_mode / agc_mode ...
             self.set_tuner_gain_mode(1)
 
-            # TODO: what's the difference between set_tuner_gain_by_index() and set_tuner_gain() ?
+            # What's the difference between set_tuner_gain_by_index() and set_tuner_gain() ?
             self.set_tuner_gain_by_index(17)  # ignored unless set_tuner_gain_mode is 1
             self.set_agc_mode(0)
         except Exception as msg:

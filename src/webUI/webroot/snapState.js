@@ -124,7 +124,7 @@ snapState.prototype.setSnapFromJason = function(jsonConfig) {
         snapState.setSnapDirectory(jsonConfig.baseDirectory);
     }
 
-    // TODO: update how we compare the two directory lists, just looking for size difference for now
+    // just on size discrepancy for now
     if(!(jsonConfig.directory_list.length === snapState.directoryList.length)) {
         snapState.setDirectoryList(jsonConfig.directory_list)
         snapState.directoryListChanged = true;

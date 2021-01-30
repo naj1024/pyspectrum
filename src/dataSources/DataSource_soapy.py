@@ -139,7 +139,7 @@ class Input(DataSource.DataSource):
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
         rx_time = 0
-        # TODO: soapy uses self._complex_data why ?
+        # Soapy uses self._complex_data why ?
 
         if not self._connected:
             return None, 0
