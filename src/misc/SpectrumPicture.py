@@ -44,6 +44,8 @@ class SpectrumPicture:
                 except OSError:
                     ok = False  # end of file
 
+            source.close()
+
             if count > 0:
                 scale = 10 * np.log10(self._fft_size)  # dB and normalise to fft size
                 powers = 10 * np.log10(peaks) - scale

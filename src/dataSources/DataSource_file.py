@@ -86,7 +86,8 @@ class Input(DataSource.DataSource):
         self._rewind = allow
 
     def close(self) -> None:
-        self._file.close()
+        if self._file:
+            self._file.close()
         self._file = None
         self._connected = False
 
