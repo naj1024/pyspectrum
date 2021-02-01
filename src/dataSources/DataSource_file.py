@@ -135,6 +135,7 @@ class Input(DataSource.DataSource):
                         # get just the number of bytes we needs
                         raw_bytes = self._file.read(self._bytes_per_snap)
                     rx_time = self._file_time  # mark start of buffer as current distance into file
+
                     # update time into the file by the sample rate
                     self._file_time += (1.0e9 * self._number_complex_samples / self._sample_rate_sps)
 

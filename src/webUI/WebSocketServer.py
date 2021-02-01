@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import asyncio
-import json
 import multiprocessing
 import queue
 import struct
@@ -14,8 +13,6 @@ from websockets import WebSocketServerProtocol
 
 # for logging in the webSocket
 logger = logging.getLogger('web_socket_logger')
-
-DEFAULT_FPS = 20.0
 
 
 class WebSocketServer(multiprocessing.Process):
@@ -44,7 +41,6 @@ class WebSocketServer(multiprocessing.Process):
         self._from_ui_queue = from_ui_queue
         self._port = websocket_port
         self._exit_now = False
-        self._fps = DEFAULT_FPS
         self._log_level = log_level
 
     def exit_loop(self) -> None:
@@ -120,14 +116,6 @@ class WebSocketServer(multiprocessing.Process):
         logger.info(f"web socket Rx for client {client}")
         try:
             async for message in web_socket:
-                # message are json e.g.
-                # {"name":"unknown","centreFrequencyHz":433799987.79296875,"sps":1500000,"bw":1500000,
-                #                   "fftSize":"8192","sdrStateUpdated":false}
-                # {"type":"fps","updated":true,"value":"10"}
-                mess = json.loads(message)
-                if mess['type'] == "fps":
-                    self._fps = int(mess['value'] * 2)  # read twice as fast as data being put in, stops stuttering
-
                 try:
                     self._from_ui_queue.put(message, timeout=0.1)
                 except queue.Full:
@@ -191,17 +179,11 @@ class WebSocketServer(multiprocessing.Process):
 
                     await web_socket.send(message)
 
-                    # wait 1/fps before proceeding
-                    # we use acks every second from the ui client to the main process, not this
-                    # websocket process. If we see acks >4 (say) seconds ago then we have a fps that is
-                    # too high the main process can drop the fps.
-                    end_time = time.time() + (1 / self._fps)  # can be same as time
-                    while (end_time - time.time()) > 0:
-                        await asyncio.sleep(1 / self._fps)  # we will not sleep this long
-
                 except queue.Empty:
                     # no data for us yet
-                    await asyncio.sleep(0.01)
+                    pass
+
+                await asyncio.sleep(0.001)  # max 1000fps !
 
         except Exception as msg:
             logger.error(f"WebSocket socket Tx exception for {client}, {msg}")

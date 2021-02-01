@@ -101,7 +101,7 @@ def main() -> None:
     list_snapshot_directory(snap_configuration)
 
     # web thumbnail directory
-    thumbs_dir = pathlib.PurePath("WebUI/webroot/thumbnails")
+    thumbs_dir = pathlib.PurePath("webUI/webroot/thumbnails")
     if not os.path.isdir(thumbs_dir):
         os.mkdir(thumbs_dir)
 
@@ -260,21 +260,19 @@ def main() -> None:
 
         now = time.time()
         if now > fps_update_time:
-            configuration.measured_fps = measure_fps(expected_samples_receive_time,
-                                                     process_time,
-                                                     sample_get_time,
-                                                     peak_average.get_ewma())
+            configuration.measured_fps = int(configuration.sent_count / (now - configuration.time_measure_fps))
             fps_update_time = now + 2
+            configuration.time_measure_fps = now
+            configuration.sent_count = 0
 
-        # Debug print on how long things are taking
+            # Debug print on how long things are taking
         if now > debug_time:
             debug_print(expected_samples_receive_time,
                         configuration.fft_size, process_time,
                         sample_get_time,
                         peak_average.get_ewma(),
                         configuration.fps,
-                        configuration.measured_fps,
-                        configuration.oneInN)
+                        configuration.measured_fps)
             debug_time = now + 6
 
         if now > config_time:
@@ -363,6 +361,8 @@ def initialise(configuration: Variables):
         # The main processor for producing ffts etc
         processor = ProcessSamples.ProcessSamples(configuration)
 
+        configuration.time_measure_fps = time.time()
+
         return data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, plugin_manager, factory
 
     except Exception as msg:
@@ -425,10 +425,6 @@ def open_source(configuration: Variables, data_source: DataSource) -> None:
         configuration.gain_modes = data_source.get_gain_modes()
         configuration.gain_mode = data_source.get_gain_mode()
         configuration.input_bw_hz = data_source.get_bandwidth_hz()
-
-        # patch up fps things
-        configuration.oneInN = int(configuration.sample_rate /
-                                   (configuration.fps * configuration.fft_size))
 
         # state any errors or warning
         configuration.source_connected = data_source.connected()
@@ -595,13 +591,9 @@ def handle_sdr_message(configuration: Variables, new_config: Dict, data_source, 
             data_source.set_sample_rate_sps(new_sps)
             configuration.error += data_source.get_and_reset_error()
             configuration.sample_rate = data_source.get_sample_rate_sps()
-            configuration.oneInN = int(configuration.sample_rate /
-                                       (configuration.fps * configuration.fft_size))
 
         if new_config['fftSize'] != configuration.fft_size:
             configuration.fft_size = new_config['fftSize']
-            configuration.oneInN = int(configuration.sample_rate /
-                                       (configuration.fps * configuration.fft_size))
             data_source.close()
             data_source = update_source(configuration, source_factory)
 
@@ -662,9 +654,6 @@ def handle_from_ui_queue(configuration: Variables,
                 pass
             elif new_config['type'] == "fps":
                 configuration.fps = int(new_config['value'])
-                if configuration.fps > 0:
-                    configuration.oneInN = int(configuration.sample_rate /
-                                               (configuration.fps * configuration.fft_size))
             elif new_config['type'] == "ack":
                 # time of last UI processed data
                 configuration.ack = int(new_config['value'])
@@ -719,9 +708,10 @@ def update_ui(configuration: Variables,
         configuration.measured_fps = 0  # not doing anything yet
     else:
         configuration.update_count += 1
+        one_in_n = int(configuration.sample_rate / (configuration.fps * configuration.fft_size))
 
         # should we try and add to the ui queue
-        if configuration.update_count >= configuration.oneInN:
+        if configuration.update_count >= one_in_n:
             configuration.update_count = 0
             # timings need to be altered
             if current_peak_count == 1:
@@ -740,6 +730,7 @@ def update_ui(configuration: Variables,
                 current_peak_count = 0
                 peak_powers_since_last_display = powers
                 configuration.time_first_spectrum = time_spectrum
+                configuration.sent_count += 1
             except queue.Full:
                 peak_detect = True  # UI can't keep up
         else:
@@ -761,8 +752,6 @@ def update_ui(configuration: Variables,
             configuration.fps = 20  # something safe and sensible
             configuration.ack = seconds
             configuration.error += f"FPS too fast, UI behind by {diff}seconds. Defaulting to 20fps"
-            configuration.oneInN = int(configuration.sample_rate /
-                                       (configuration.fps * configuration.fft_size))
             peak_detect = True  # UI can't keep up
 
     if peak_detect:
@@ -775,38 +764,13 @@ def update_ui(configuration: Variables,
     return peak_powers_since_last_display, current_peak_count, max_peak_count
 
 
-def measure_fps(expect_samples_receive_time: float,
-                process_time: Ewma,
-                sample_get_time: Ewma,
-                peak_count: float) -> int:
-    """
-    Approx measured fps
-
-    :param expect_samples_receive_time: How long the samples would of taken to digitise
-    :param process_time: How long we have spent processing the samples
-    :param sample_get_time: How long it took as to receive the digitised samples
-    :param peak_count: Count of how many spectrums we are peak detecting on for the UI
-    :return: approx fps
-    """
-    fps = -1
-    total_time = sample_get_time.get_ewma() + process_time.get_ewma()
-    if peak_count > 0:
-        if total_time > 0:
-            fps = 1 / (total_time * peak_count)
-    else:
-        # running real time
-        fps = 1 / expect_samples_receive_time
-    return int(fps)
-
-
 def debug_print(expect_samples_receive_time: float,
                 fft_size: int,
                 process_time: Ewma,
                 sample_get_time: Ewma,
                 peak_count: float,
                 fps: int,
-                mfps: int,
-                one_in_n: int):
+                mfps: int):
     """
     Various useful profiling prints
 
@@ -817,7 +781,6 @@ def debug_print(expect_samples_receive_time: float,
     :param peak_count: Count of how many spectrums we are peak detecting on for the UI
     :param fps: requested fps
     :param mfps: measured fps
-    :param one_in_n: One in N sent to UI
 
     :return: None
     """
@@ -829,8 +792,7 @@ def debug_print(expect_samples_receive_time: float,
                  f'total:{1e6 * total_time:.0f}usec, '
                  f'pc:{peak_count:0.1f}, '
                  f'fps:{fps}, '
-                 f'mfps:{mfps}, '
-                 f'1inN:{one_in_n} ')
+                 f'mfps:{mfps}, ')
 
 
 if __name__ == '__main__':

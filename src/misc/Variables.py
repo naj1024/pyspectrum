@@ -26,9 +26,10 @@ class Variables:
 
         # display
         self.fps = 20
-        self.measured_fps = 20
-        self.oneInN = int(self.sample_rate / (self.fps * self.fft_size))
         self.update_count = 0
+        self.measured_fps = 20
+        self.time_measure_fps = 0
+        self.sent_count = 0
         self.stop = True
         self.web_port = 8080
         self.ack = 0  # time in seconds of the last data displayed by the UI, updated by UI
