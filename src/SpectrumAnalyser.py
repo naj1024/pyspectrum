@@ -8,9 +8,8 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: Markers on spectrogram during snapshot, for pre/post limits
     * TODO: Add a seconds marker to the bottom (left) of the spectrogram
     * TODO: Plugin for triggering snapshot on fft bin power, with masks
-    * TODO: On file input can we set the time according to the files meta or filename data
-    * TODO: File playback should only allow certain paths
-    * TODO: Add wav output format for snapshots
+    * TODO: File playback should only allow certain paths?
+    * TODO: The wav snapshot format does not set the type as float32. wav module has no support for types
     * TODO: On web interface update just the rows that changed on the configuration table
     * TODO: On web interface config and snap tables only update the current not the new cells
     * TODO: On web interface is there a way to update the help when a different source is selected
@@ -487,6 +486,10 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
     changed = False
     if new_config['baseFilename'] != snap_config.baseFilename:
         snap_config.baseFilename = new_config['baseFilename']
+        changed = True
+
+    if new_config['wavFlag'] != snap_config.wav_flag:
+        snap_config.wav_flag = new_config['wavFlag']
         changed = True
 
     if new_config['snapState'] != snap_config.snapState:

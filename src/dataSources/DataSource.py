@@ -54,7 +54,7 @@ class DataSource:
         self._number_complex_samples = number_complex_samples
         self._sample_rate_sps = sample_rate
         if self._sample_rate_sps <= 0:
-            self._sample_rate_sps = 1.0
+            self._sample_rate_sps = 10000.0  # don't make default to small as things may take a long time
         self._bandwidth_hz = input_bw
         self._centre_frequency_hz = centre_frequency
 
@@ -101,7 +101,7 @@ class DataSource:
 
     def set_sample_rate_sps(self, sr: float) -> None:
         if sr <= 0:
-            sr = 1.0
+            sr = 10000.0  # small default, but not too small
         self._sample_rate_sps = sr
 
     def get_sample_rate_sps(self) -> float:

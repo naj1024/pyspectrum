@@ -338,6 +338,7 @@ function updateSnapTableCurrent() {
     // shorten long names
     let name = '<div title="'+snapState.getBaseName()+'" class="CropLongTexts100">'+snapState.getBaseName()+'</div>'
     $('#currentSnapBaseName').empty().append(name);
+    $('#currentWavFlag').empty().append(snapState.getWavFlag()?"true":"false");
     $('#currentSnapTriggerType').empty().append(snapState.getTriggerType());
     $('#currentSnapTriggerState').empty().append(snapState.getTriggerState());
     if (snapState.getTriggerState() == "triggered") {
@@ -371,6 +372,18 @@ function updateSnapTableNew() {
     new_html += '" id="snapBaseName" name="snapBaseName">';
     new_html += '</form>';
     $('#newSnapBaseName').empty().append(new_html);
+
+    let wavFlags = [true, false]
+    let wavFlag = snapState.getWavFlag();
+    new_html = '<form';
+    new_html += ' onfocusin="snapTableFocusIn()" onfocusout="snapTableFocusOut()" ';
+    new_html += ' action="javascript:handleSnapWavFlagModeChange(snapWavFlag.value)">';
+    new_html += '<select id="snapWavFlag" name="snapWavFlag" onchange="this.form.submit()">';
+    wavFlags.forEach(function(type) {
+        new_html += '<option value="'+type+'"'+((type==wavFlag)?"selected":"")+'>'+type+'</option>';
+    });
+    new_html += '</select></form>';
+    $('#newWavFlag').empty().append(new_html);
 
     let triggerTypes = snapState.getTriggers();
     let triggerType = snapState.getTriggerType();

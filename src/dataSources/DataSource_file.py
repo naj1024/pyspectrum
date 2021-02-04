@@ -74,6 +74,8 @@ class Input(DataSource.DataSource):
                 self._centre_frequency_hz = cf
                 self._sample_rate_sps = sps
 
+                print(f"sps {sps} cf {cf}")
+
         except ValueError as msg:
             self._error = msg
             logger.error(msg)

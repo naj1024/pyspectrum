@@ -85,7 +85,7 @@ def parse_filename(filename: str) -> Tuple[bool, str, bool, float, float]:
     return ok, data_type, complex_flag, sample_rate_hz, centre_frequency
 
 
-class FileInput:
+class FileOpen:
 
     def __init__(self, file_name: str):
         """
@@ -115,18 +115,19 @@ class FileInput:
             if sample_width == 2:
                 data_type = "16tle"  # wav files are little endian
             elif sample_width == 4:
+                # assume we wrote the file so it will be 32fle
+                # wav module has no support for determining the format
                 data_type = "32fle"  # wav files are little endian
-
-                msgs = "wav does not have 2 bytes per i,q sample, 4 bytes complex"
+            else:
+                msgs = f"wav sample width not supported, {sample_width}"
                 logger.error(msgs)
                 raise ValueError(msgs)
 
-            data_type = "16tle"  # wav files are little endian
             sps = file.getframerate()
             ok = True
             wav_file = True
 
-        except wave.Error:
+        except wave.Error as wav_error:
             # try again as a binary file
             try:
                 file = open(self._filename, "rb")
@@ -135,13 +136,15 @@ class FileInput:
                 ok, data_type, complex_flag, sps, cf = parse_filename(self._filename)
                 if ok:
                     if not complex_flag:
-                        msgs = f"Error: Unsupported input of type real from {self._filename}"
+                        msgs = f"Unsupported input of type real from {self._filename}"
                         logger.error(msgs)
                         raise ValueError(msgs)
                 else:
                     cf = 0.0  # default
-                    sps = 1.0  # default
+                    sps = 10000.0  # default
                     data_type = "16tle"  # default
+                    msgs = f"No meta data on file, wav error was {wav_error}"
+                    logger.error(msgs)
 
             except OSError as e:
                 msgs = f"Failed to open file {self._filename}, {e}"

@@ -10,6 +10,7 @@ We save the raw float data to file:
 import datetime
 import logging
 import pathlib
+import wave
 
 import numpy as np
 
@@ -36,6 +37,7 @@ class FileOutput:
         self._post_milliseconds = config.postTriggerMilliSec
         self._pre_milliseconds = config.preTriggerMilliSec
         max_file_size = config.max_file_size
+        self._wav_flag = config.wav_flag
 
         self._max_total_samples = self._sample_rate_sps * ((self._pre_milliseconds + self._post_milliseconds) / 1000)
 
@@ -109,14 +111,30 @@ class FileOutput:
             filename = self._base_filename + f".{date_time}{fract_sec}" \
                                              f".cf{self._centre_freq_hz / 1e6:.6f}" \
                                              f".cplx.{self._sample_rate_sps:.0f}.32fle"
+            if self._wav_flag:
+                filename += ".wav"
+
             path_and_filename = pathlib.PurePath(self._base_directory + "/" + filename)
 
             try:
-                file = open(path_and_filename, "wb")
-                for buff in self._complex_pre_data:
-                    file.write(buff)
-                for buff in self._complex_post_data:
-                    file.write(buff)
+                if self._wav_flag:
+                    file = wave.open(str(path_and_filename), "wb")
+                    file.setframerate(self._sample_rate_sps)
+                    file.setnchannels(2)  # iq
+                    file.setsampwidth(4)  # 32bit floats
+                    # the wav module has no support for changing the format to float32
+                    for buff in self._complex_pre_data:
+                        file.writeframes(buff)
+                    for buff in self._complex_post_data:
+                        file.writeframes(buff)
+                else:
+                    file = open(path_and_filename, "wb")
+
+                    for buff in self._complex_pre_data:
+                        file.write(buff)
+                    for buff in self._complex_post_data:
+                        file.write(buff)
+
                 file.close()
 
                 written = self._post_data_samples + self._pre_data_samples
@@ -125,7 +143,7 @@ class FileOutput:
                 logger.info(msg)
 
                 # reset, Use post samples to fill pre for another trigger event
-                # extra pre sampes will get dropped on depth check
+                # extra pre samples will get dropped on depth check
                 if self._required_pre_data_samples > 0:
                     self._complex_pre_data = self._complex_post_data
                     self._pre_data_samples = self._post_data_samples
@@ -138,6 +156,8 @@ class FileOutput:
 
             except OSError as e:
                 logger.error(f"failed to write snapshot to file, {e}")
+            except wave.Error as e:
+                logger.error(f"failed to write snapshot to wav file, {e}")
 
             self._complex_post_data = []
 
