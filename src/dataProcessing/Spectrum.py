@@ -89,7 +89,7 @@ def get_powers(mag_squared: np.ndarray) -> np.ndarray:
     :return: dB array of the magnitudes squared
     """
     # convert to dB, 5 as we have mag^2 not mag so 1/2 of 10
-    scale = 5 * np.log10(mag_squared.size)  # dB and normalise to fft size
+    scale = 10 * np.log10(mag_squared.size)  # dB and normalise to fft size
     powers = 5 * np.log10(mag_squared) - scale
     return powers
 

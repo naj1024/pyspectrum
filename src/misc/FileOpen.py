@@ -85,7 +85,7 @@ def parse_filename(filename: str) -> Tuple[bool, str, bool, float, float]:
     return ok, data_type, complex_flag, sample_rate_hz, centre_frequency
 
 
-class FileOpen:
+class FileInput:
 
     def __init__(self, file_name: str):
         """
@@ -111,7 +111,12 @@ class FileOpen:
                 logger.error(msgs)
                 raise ValueError(msgs)
 
-            if file.getsampwidth() != 2:
+            sample_width = file.getsampwidth()
+            if sample_width == 2:
+                data_type = "16tle"  # wav files are little endian
+            elif sample_width == 4:
+                data_type = "32fle"  # wav files are little endian
+
                 msgs = "wav does not have 2 bytes per i,q sample, 4 bytes complex"
                 logger.error(msgs)
                 raise ValueError(msgs)
