@@ -90,17 +90,17 @@ class Input(DataSource.DataSource):
         self._constant_data_type = "16tle"
         super().__init__(source, number_complex_samples, self._constant_data_type, sample_rate,
                          centre_frequency, input_bw)
-        self.bound_sample_rate()
 
         self._connected = False
-        self._device_number = int(self._source)
         self._channels = 2  # we are really expecting stereo
+        self._device_number = 0  # will be set in open
         self._audio_stream = None
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 
-        # sounddevice seems to require a reboot quite often before it works
-        # so count number of queue emtpy events, along with sleep to get an idea if
+        # sounddevice seems to require a reboot quite often before it works on windows,
+        # probably driver problems after an OS sleep
+        # Count number of queue emtpy events, along with sleep to get an idea if
         # something is broken
         self._empty_count = 0
 
@@ -120,6 +120,13 @@ class Input(DataSource.DataSource):
             return False
 
         try:
+            self._device_number = int(self._source)
+        except ValueError:
+            self._error += f"Illegal audio source number {self._source}"
+            logger.error(self._error)
+            raise ValueError(self._error)
+
+        try:
             capabilities = sd.query_devices(device=self._device_number)
             if capabilities['max_input_channels'] < 2:
                 self._channels = 1
@@ -127,8 +134,9 @@ class Input(DataSource.DataSource):
             msgs = f"{module_type} query error: {err_msg}"
             self._error = str(msgs)
             logger.error(msgs)
-            raise ValueError(msgs)  # from None
+            raise ValueError(msgs)
 
+        self.bound_sample_rate()
         try:
             self._audio_stream = sd.InputStream(samplerate=self._sample_rate_sps,
                                                 device=self._device_number,
@@ -180,9 +188,9 @@ class Input(DataSource.DataSource):
     def bound_sample_rate(self) -> None:
         try:
             # can't find min/max sample rate allowed so just catch the exception
-            sd.check_input_settings(device=int(self._source), samplerate=self._sample_rate_sps)
+            sd.check_input_settings(device=self._device_number, samplerate=self._sample_rate_sps)
         except sd.PortAudioError:
-            self._error = f"Unsupported audio source sample rate {self._sample_rate_sps/1e6}Msps, setting 0.048Msps"
+            self._error += f"Unsupported audio source sample rate {self._sample_rate_sps/1e6}Msps, setting 0.048Msps"
             logger.error(self._error)
             self._sample_rate_sps = 48000.0
 
