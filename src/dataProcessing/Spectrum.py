@@ -81,6 +81,19 @@ def convert_to_frequencies(bins: List[int], sample_rate: float, fft_size: int) -
     return freqs
 
 
+def get_powers(mag_squared: np.ndarray) -> np.ndarray:
+    """
+    Return the dB powers of a magnitude squared fft output
+
+    :param mag_squared:
+    :return: dB array of the magnitudes squared
+    """
+    # convert to dB, 5 as we have mag^2 not mag so 1/2 of 10
+    scale = 5 * np.log10(mag_squared.size)  # dB and normalise to fft size
+    powers = 5 * np.log10(mag_squared) - scale
+    return powers
+
+
 class Spectrum:
     def __init__(self, fft_size: int):
         """
@@ -93,10 +106,17 @@ class Spectrum:
         self._use_fftw_fft = False
         self.set_fft()
 
-    def set_fft(self):
+    def set_fft(self) -> None:
+        """
+        Decide which fft to use for the required fft length
+        Implementations are very specific to how the underlying libraries are compiled and implemented
+
+        :return: None
+        """
         self._win = np.hamming(self._fft_size)
 
-        # which fft to use, even though there is a difference it does not always carry through to exec times
+        # which fft to use
+        # # although even though there is a difference it does not always carry through to exec times
         scipy_fft = test_scipy_fft_speed(self._fft_size, 500)
         numpy_fft = test_numpy_fft_speed(self._fft_size, 500)
         fftw_fft = test_fftw_fft_speed(self._fft_size, 500, self._fftw_threads)
@@ -145,9 +165,8 @@ class Spectrum:
             # signals_fft = pyfftw.interfaces.numpy_fft.fftshift(signals_fft)
 
         # profiled and timed to find fastest way to get magnitude
-        # there is a difference between abs() and conj - maybe 32/64bit floats ?
-        # magnitudes = abs(np.fft.fftshift(signals_fft))  # not this updates signals_fft as well
-        # magnitudes = abs(signals_fft)  # not this updates signals_fft as well
-        magnitudes = (signals_fft * signals_fft.conj()).real
+        # magnitudes = abs(np.fft.fftshift(signals_fft))  # note this updates signals_fft as well
+        # magnitudes = abs(signals_fft)  # note this updates signals_fft as well
+        magnitudes_squared = (signals_fft * signals_fft.conj()).real
 
-        return magnitudes
+        return magnitudes_squared

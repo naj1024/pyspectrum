@@ -49,9 +49,8 @@ class ProcessSamples:
         #     self._fft_size = samples.size
         #     self._spec = Spectrum.Spectrum(self._fft_size)
 
-        magnitudes = self._spec.mag_spectrum(samples, False)
-        scale = 10 * np.log10(samples.size)  # dB and normalise to fft size
-        self._powers = 10 * np.log10(magnitudes) - scale
+        magnitudes_squared = self._spec.mag_spectrum(samples, False)
+        self._powers = Spectrum.get_powers(magnitudes_squared)
 
         # check that the size of the arrays have not changed, i.e. FFT size changed
         if samples.size != self._long_average.size:

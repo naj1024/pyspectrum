@@ -37,8 +37,8 @@ class SpectrumPicture:
                 try:
                     samples, _ = source.read_cplx_samples()
                     count += 1
-                    mags = spec.mag_spectrum(samples, True)
-                    peaks = np.maximum.reduce([mags, peaks])
+                    mags_squared = spec.mag_spectrum(samples, True)
+                    peaks_squared = np.maximum.reduce([mags_squared, peaks])
                 except ValueError:
                     ok = False  # end of file
                 except OSError:
@@ -47,13 +47,12 @@ class SpectrumPicture:
             source.close()
 
             if count > 0:
-                scale = 10 * np.log10(self._fft_size)  # dB and normalise to fft size
-                powers = 10 * np.log10(peaks) - scale
-                f = np.arange(0, self._fft_size, 1)
+                powers = Spectrum.get_powers(peaks_squared)
 
                 plt.clf()
                 pic_name = filename+".png"
                 fig, ax = plt.subplots()
+                f = np.arange(0, self._fft_size, 1)
                 ax.plot(f, powers)
                 ax.set_xticks([])
                 ax.set_yticks([])
