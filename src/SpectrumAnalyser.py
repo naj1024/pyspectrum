@@ -11,7 +11,6 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: On file input can we set the time according to the files meta or filename data
     * TODO: File playback should only allow certain paths
     * TODO: Add wav output format for snapshots
-    * TODO: On audio source find max sample rate and set that as the limit
     * TODO: On web interface update just the rows that changed on the configuration table
     * TODO: On web interface config and snap tables only update the current not the new cells
     * TODO: On web interface is there a way to update the help when a different source is selected

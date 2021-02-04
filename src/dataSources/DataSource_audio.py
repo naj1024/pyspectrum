@@ -93,7 +93,7 @@ class Input(DataSource.DataSource):
         self.bound_sample_rate()
 
         self._connected = False
-        self._device_number = 0
+        self._device_number = int(self._source)
         self._channels = 2  # we are really expecting stereo
         self._audio_stream = None
         super().set_help(help_string)
@@ -119,7 +119,6 @@ class Input(DataSource.DataSource):
             self._error = str(sd.query_devices())
             return False
 
-        self._device_number = int(self._source)
         try:
             capabilities = sd.query_devices(device=self._device_number)
             if capabilities['max_input_channels'] < 2:
@@ -179,14 +178,13 @@ class Input(DataSource.DataSource):
             self._error = str(msgs)
 
     def bound_sample_rate(self) -> None:
-        if self._sample_rate_sps > 250.0e3:
-            self._sample_rate_sps = 250000.0
-            self._error = "Audio source sample rate too high, setting 250kHz"
-            logger.error("Audio source sample rate too high, setting 250kHz")
-        elif self._sample_rate_sps < 1.0e3:
-            self._sample_rate_sps = 1000.0
-            self._error = "Audio source sample rate too low, setting 1kHz"
-            logger.error("Audio source sample rate too low, setting 1kHz")
+        try:
+            # can't find min/max sample rate allowed so just catch the exception
+            sd.check_input_settings(device=int(self._source), samplerate=self._sample_rate_sps)
+        except sd.PortAudioError:
+            self._error = f"Unsupported audio source sample rate {self._sample_rate_sps/1e6}Msps, setting 0.048Msps"
+            logger.error(self._error)
+            self._sample_rate_sps = 48000.0
 
     def set_sample_type(self, data_type: str) -> None:
         # we can't set a different sample type on this source
