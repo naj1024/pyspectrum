@@ -63,9 +63,9 @@ class WebSocketServer(multiprocessing.Process):
         logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
         logger.setLevel(self._log_level)
 
+        logger.info(f"WebSocket starting on port {self._port}")
         while not self._exit_now:
             try:
-                logger.info(f"WebSocket starting on port {self._port}")
                 start_server = websockets.serve(self.handler, "0.0.0.0", self._port)
 
                 asyncio.get_event_loop().run_until_complete(start_server)

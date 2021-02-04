@@ -8,7 +8,6 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: Markers on spectrogram during snapshot, for pre/post limits
     * TODO: Add a seconds marker to the bottom (left) of the spectrogram
     * TODO: Plugin for triggering snapshot on fft bin power, with masks
-    * TODO: Change stream of spectrograms, again, to always put out 1inN, constant time between spectrums
     * TODO: On file input can we set the time according to the files meta or filename data
     * TODO: File playback should only allow certain paths
     * TODO: Add wav output format for snapshots
@@ -58,6 +57,7 @@ logger = logging.getLogger('spectrum_logger')
 MAX_TO_UI_QUEUE_DEPTH = 10  # low for low latency, a high value will give a burst of contiguous spectrums at the start
 MAX_FROM_UI_QUEUE_DEPTH = 10  # stop things backing up when no UI connected
 
+last_one_in_n = 0
 
 def signal_handler(sig, __):
     global processing
