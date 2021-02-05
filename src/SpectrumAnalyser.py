@@ -483,6 +483,7 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
     :param thumb_dir: where thumbnails ended up for the web UI
     :return: None
     """
+    #print(new_config)
     changed = False
     if new_config['baseFilename'] != snap_config.baseFilename:
         snap_config.baseFilename = new_config['baseFilename']

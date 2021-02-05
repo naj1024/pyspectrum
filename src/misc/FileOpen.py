@@ -98,7 +98,11 @@ class FileOpen:
     def open(self) -> Tuple[bool, TextIOWrapper, bool, str, float, float]:
         """
         Open the file
-        :return: A boolean to say we are successful, file_handle, bool for wav file, data_type, sps, centre_frequency
+        :return: A
+                    boolean for successful recovery of sps,cf and type
+                    file_handle of an open file
+                    bool indicating a wav file
+                    data_type, sps, centre_frequency
         """
         cf = 0.0  # default
         wav_file = False
@@ -145,6 +149,8 @@ class FileOpen:
                     data_type = "16tle"  # default
                     msgs = f"No meta data on file, wav error was {wav_error}"
                     logger.error(msgs)
+                    # don't set ok as these values were not recovered
+                    # by not setting ok they can be overridden
 
             except OSError as e:
                 msgs = f"Failed to open file {self._filename}, {e}"

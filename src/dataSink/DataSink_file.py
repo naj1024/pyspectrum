@@ -37,7 +37,9 @@ class FileOutput:
         self._post_milliseconds = config.postTriggerMilliSec
         self._pre_milliseconds = config.preTriggerMilliSec
         max_file_size = config.max_file_size
-        self._wav_flag = config.wav_flag
+        self._wav_flag = False
+        if self._wav_flag == "On":
+            self._wav_flag = True
 
         self._max_total_samples = self._sample_rate_sps * ((self._pre_milliseconds + self._post_milliseconds) / 1000)
 
@@ -111,6 +113,7 @@ class FileOutput:
             filename = self._base_filename + f".{date_time}{fract_sec}" \
                                              f".cf{self._centre_freq_hz / 1e6:.6f}" \
                                              f".cplx.{self._sample_rate_sps:.0f}.32fle"
+
             if self._wav_flag:
                 filename += ".wav"
 

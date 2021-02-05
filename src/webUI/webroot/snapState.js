@@ -198,5 +198,5 @@ function snapState() {
     this.directoryList = [];
     this.directoryListChanged = false;
     this.deleteFileName = "";
-    this.wavFlag = false;
+    this.wavFlag = "Off";  // On/Off as getting True/False/true/false to work through json&web was impossible
 }

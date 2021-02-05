@@ -338,7 +338,7 @@ function updateSnapTableCurrent() {
     // shorten long names
     let name = '<div title="'+snapState.getBaseName()+'" class="CropLongTexts100">'+snapState.getBaseName()+'</div>'
     $('#currentSnapBaseName').empty().append(name);
-    $('#currentWavFlag').empty().append(snapState.getWavFlag()?"true":"false");
+    $('#currentWavFlag').empty().append(snapState.getWavFlag());
     $('#currentSnapTriggerType').empty().append(snapState.getTriggerType());
     $('#currentSnapTriggerState').empty().append(snapState.getTriggerState());
     if (snapState.getTriggerState() == "triggered") {
@@ -373,7 +373,7 @@ function updateSnapTableNew() {
     new_html += '</form>';
     $('#newSnapBaseName').empty().append(new_html);
 
-    let wavFlags = [true, false]
+    let wavFlags = ["On", "Off"]
     let wavFlag = snapState.getWavFlag();
     new_html = '<form';
     new_html += ' onfocusin="snapTableFocusIn()" onfocusout="snapTableFocusOut()" ';
