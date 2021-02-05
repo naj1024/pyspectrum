@@ -38,7 +38,7 @@ class FileOutput:
         self._pre_milliseconds = config.preTriggerMilliSec
         max_file_size = config.max_file_size
         self._wav_flag = False
-        if self._wav_flag == "On":
+        if config.wav_flag == "On":
             self._wav_flag = True
 
         self._max_total_samples = self._sample_rate_sps * ((self._pre_milliseconds + self._post_milliseconds) / 1000)
@@ -126,6 +126,7 @@ class FileOutput:
                     file.setnchannels(2)  # iq
                     file.setsampwidth(4)  # 32bit floats
                     # the wav module has no support for changing the format to float32
+                    # we will write complex float32 and the wave file will be set to int32
                     for buff in self._complex_pre_data:
                         file.writeframes(buff)
                     for buff in self._complex_post_data:
