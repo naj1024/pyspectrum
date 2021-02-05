@@ -9,7 +9,6 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: Add a seconds marker to the bottom (left) of the spectrogram
     * TODO: Plugin for triggering snapshot on fft bin power, with masks
     * TODO: File playback should only allow certain paths?
-    * TODO: The wave module has no support for read&write of float32
     * TODO: On web interface update just the rows that changed on the configuration table
     * TODO: On web interface config and snap tables change to just update the current not the new cells
     * TODO: On web interface is there a way to update the help when a different source is selected
