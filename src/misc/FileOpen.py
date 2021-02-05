@@ -5,10 +5,11 @@ Handles binary and wav files
 Returns the open file and the associated metadata
 
 """
-import wave
 import logging
 from typing import Tuple
 from io import TextIOWrapper
+
+from misc import wave_b as wave
 
 logger = logging.getLogger('spectrum_logger')
 
@@ -116,14 +117,15 @@ class FileOpen:
                 raise ValueError(msgs)
 
             sample_width = file.getsampwidth()
-            if sample_width == 2:
+            data_type = file.getwformat()
+            if sample_width == 2 and data_type == wave.WAVE_FORMAT_PCM:
                 data_type = "16tle"  # wav files are little endian
-            elif sample_width == 4:
+            elif sample_width == 4 and data_type == wave.WAVE_FORMAT_IEEE_FLOAT:
                 # assume we wrote the file so it will be 32fle
                 # wav module has no support for determining the format
                 data_type = "32fle"  # wav files are little endian
             else:
-                msgs = f"wav sample width not supported, {sample_width}"
+                msgs = f"wav not supported, width {sample_width}, type {data_type}"
                 logger.error(msgs)
                 raise ValueError(msgs)
 
@@ -147,7 +149,7 @@ class FileOpen:
                     cf = 0.0  # default
                     sps = 10000.0  # default
                     data_type = "16tle"  # default
-                    msgs = f"No meta data on file, wav error was {wav_error}"
+                    msgs = f"No meta data on file raw binary file {self._filename}"
                     logger.error(msgs)
                     # don't set ok as these values were not recovered
                     # by not setting ok they can be overridden

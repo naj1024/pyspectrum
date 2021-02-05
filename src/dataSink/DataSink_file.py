@@ -10,11 +10,11 @@ We save the raw float data to file:
 import datetime
 import logging
 import pathlib
-import wave
 
 import numpy as np
 
 from misc import SnapVariables
+from misc import wave_b as wave
 
 logger = logging.getLogger('spectrum_logger')
 
@@ -125,6 +125,7 @@ class FileOutput:
                     file.setframerate(self._sample_rate_sps)
                     file.setnchannels(2)  # iq
                     file.setsampwidth(4)  # 32bit floats
+                    file.setwformat(wave.WAVE_FORMAT_IEEE_FLOAT)
                     # the wav module has no support for changing the format to float32
                     # we will write complex float32 and the wave file will be set to int32
                     for buff in self._complex_pre_data:

@@ -27,7 +27,7 @@ class SpectrumPicture:
 
     def create_picture(self, filename: str):
         spec = Spectrum.Spectrum(self._fft_size)
-        peaks = np.full(self._fft_size, -200)
+        peaks_squared = np.full(self._fft_size, -200)
         try:
             source = DataSource_file.Input(filename, self._fft_size, "16tle", 1.0, 0.0, 1.0)
             source.set_rewind(False)
@@ -38,7 +38,7 @@ class SpectrumPicture:
                     samples, _ = source.read_cplx_samples()
                     count += 1
                     mags_squared = spec.mag_spectrum(samples, True)
-                    peaks_squared = np.maximum.reduce([mags_squared, peaks])
+                    peaks_squared = np.maximum.reduce([mags_squared, peaks_squared])
                 except ValueError:
                     ok = False  # end of file
                 except OSError:
@@ -48,6 +48,10 @@ class SpectrumPicture:
 
             if count > 0:
                 powers = Spectrum.get_powers(peaks_squared)
+                average = np.average(powers)
+                max = np.max(powers)
+                # set everything below average to the average
+                np.clip(powers, average, max, out=powers)
 
                 plt.clf()
                 pic_name = filename+".png"

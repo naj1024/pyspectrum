@@ -52,7 +52,7 @@ processing = True  # global to be set to False from ctrl-c
 # Perceived wisdom is to use a logging server in multiprocessing environments, maybe in the future
 logger = logging.getLogger('spectrum_logger')
 
-MAX_TO_UI_QUEUE_DEPTH = 10  # low for low latency, a high value will give a burst of contiguous spectrums at the start
+MAX_TO_UI_QUEUE_DEPTH = 10  # low for low latency
 MAX_FROM_UI_QUEUE_DEPTH = 10  # stop things backing up when no UI connected
 
 last_one_in_n = 0

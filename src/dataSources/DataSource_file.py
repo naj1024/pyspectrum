@@ -73,6 +73,8 @@ class Input(DataSource.DataSource):
                 self.set_sample_type(data_type)
                 self._centre_frequency_hz = cf
                 self._sample_rate_sps = sps
+            else:
+                print("error")
 
         except ValueError as msg:
             self._error = msg
