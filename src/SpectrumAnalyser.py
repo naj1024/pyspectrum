@@ -14,7 +14,6 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: On web interface is there a way to update the help when a different source is selected
     * TODO: On web interface why don't the interval functions for updating things work
     * TODO: On web interface we update the snapshot table purely on number of entries not values
-
 """
 
 import datetime
@@ -49,7 +48,7 @@ processing = True  # global to be set to False from ctrl-c
 
 # We will use separate log files for each process, main/webserver/websocket
 # Perceived wisdom is to use a logging server in multiprocessing environments, maybe in the future
-logger = logging.getLogger('spectrum_logger')
+logger = logging.getLogger(__name__)
 
 MAX_TO_UI_QUEUE_DEPTH = 10  # low for low latency
 MAX_FROM_UI_QUEUE_DEPTH = 10  # stop things backing up when no UI connected
@@ -71,11 +70,12 @@ def main() -> None:
     """
     # logging to our own logger, not the base one - we will not see log messages for imported modules
     global logger
+    log_file = pathlib.PurePath(os.path.dirname(__file__), "logs", "SpectrumAnalyser.log")
     # don't use %Z for timezone as some say 'GMT' or 'GMT standard time'
     logging.basicConfig(format='%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
                         datefmt="%Y-%m-%d %H:%M:%S UTC",
                         filemode='w',
-                        filename="spec.log")
+                        filename=log_file)
     logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
     logger.setLevel(logging.INFO)
 

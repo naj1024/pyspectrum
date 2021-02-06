@@ -2,6 +2,8 @@
 
 import asyncio
 import multiprocessing
+import os
+import pathlib
 import queue
 import struct
 import logging
@@ -12,7 +14,7 @@ import websockets
 from websockets import WebSocketServerProtocol
 
 # for logging in the webSocket
-logger = logging.getLogger('web_socket_logger')
+logger = logging.getLogger(__name__)
 
 
 class WebSocketServer(multiprocessing.Process):
@@ -55,11 +57,14 @@ class WebSocketServer(multiprocessing.Process):
         """
         # logging to our own logger, not the base one - we will not see log messages for imported modules
         global logger
+        log_file = pathlib.PurePath(os.path.dirname(__file__), "..", "logs", __name__+".log")
+        # define file handler and set formatter
+        file_handler = logging.FileHandler(log_file)
+        formatter = logging.Formatter('%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
+                                      datefmt="%Y-%m-%d %H:%M:%S UTC")
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
         # don't use %Z for timezone as some say 'GMT' or 'GMT standard time'
-        logging.basicConfig(format='%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
-                            datefmt="%Y-%m-%d %H:%M:%S UTC",
-                            filemode='w',
-                            filename="websocket.log")
         logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
         logger.setLevel(self._log_level)
 

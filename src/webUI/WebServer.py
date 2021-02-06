@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import http.server
+import pathlib
 import socketserver
 import os
 import multiprocessing
@@ -14,7 +15,7 @@ from webUI import WebSocketServer
 web_root = f"{os.path.dirname(__file__)}/webroot/"
 
 # for logging in the webserver
-logger = logging.getLogger('web_server_logger')
+logger = logging.getLogger(__name__)
 
 
 class _Handler(http.server.SimpleHTTPRequestHandler):
@@ -94,11 +95,15 @@ class WebServer(multiprocessing.Process):
         :return: None
         """
         global logger
+        log_file = pathlib.PurePath(os.path.dirname(__file__), "..", "logs", __name__+".log")
+
+        # define file handler and set formatter
+        file_handler = logging.FileHandler(log_file)
+        formatter = logging.Formatter('%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
+                                      datefmt="%Y-%m-%d %H:%M:%S UTC")
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
         # don't use %Z for timezone as some say 'GMT' or 'GMT standard time'
-        logging.basicConfig(format='%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
-                            datefmt="%Y-%m-%d %H:%M:%S UTC",
-                            filemode='w',
-                            filename="webserver.log")
         logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
         logger.setLevel(self._log_level)
 
