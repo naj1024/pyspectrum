@@ -25,12 +25,14 @@ class SpectrumPicture:
         self._thumbnail_dir = thumbnail_dir
         matplotlib.use('Agg')
 
-    def create_picture(self, filename: str):
+    def create_picture(self, filename: pathlib.PurePath):
         spec = Spectrum.Spectrum(self._fft_size)
         peaks_squared = np.full(self._fft_size, -200)
         try:
-            source = DataSource_file.Input(filename, self._fft_size, "16tle", 1.0, 0.0, 1.0)
+            file_str = str(filename)
+            source = DataSource_file.Input(file_str, self._fft_size, "16tle", 1.0, 0.0, 1.0)
             source.set_rewind(False)
+            source.set_sleep(False)
             ok = source.open()
             count = 0
             while ok:
@@ -49,12 +51,12 @@ class SpectrumPicture:
             if count > 0:
                 powers = Spectrum.get_powers(peaks_squared)
                 average = np.average(powers)
-                max = np.max(powers)
+                maximum = np.max(powers)
                 # set everything below average to the average
-                np.clip(powers, average, max, out=powers)
+                np.clip(powers, average, maximum, out=powers)
 
                 plt.clf()
-                pic_name = filename+".png"
+                pic_name = pathlib.PurePath(file_str + ".png")
                 fig, ax = plt.subplots()
                 f = np.arange(0, self._fft_size, 1)
                 ax.plot(f, powers)
@@ -62,8 +64,9 @@ class SpectrumPicture:
                 ax.set_yticks([])
                 fig.savefig(pic_name)
                 # create a thumbnail for the web
-                thumb_name = pathlib.PurePath(self._thumbnail_dir + "/" + os.path.basename(filename) + ".png")
-                image.thumbnail(pic_name, thumb_name, scale=0.10)
+                thumb_name = pathlib.PurePath(self._thumbnail_dir, os.path.basename(filename) + ".png")
+                print(f"{pic_name} -> {thumb_name}")
+                image.thumbnail(str(pic_name), str(thumb_name), scale=0.10)  # unix won't take pathlib for this
 
         except ValueError as msg:
             raise ValueError(msg)

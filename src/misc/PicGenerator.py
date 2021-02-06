@@ -21,7 +21,7 @@ logger = logging.getLogger('pic_generator_logger')
 
 class PicGenerator(multiprocessing.Process):
 
-    def __init__(self, snap_dir: str, web_thumb_dir: str, log_level: int):
+    def __init__(self, snap_dir: pathlib.PurePath, web_thumb_dir: pathlib.PurePath, log_level: int):
         """
         Generate pictures, png, of each snapshot file
 
@@ -57,22 +57,23 @@ class PicGenerator(multiprocessing.Process):
         # but it can send us a signal, then we can shutdown our self
         signal.signal(signal.SIGINT, self.signal_handler)
 
-        logger.info(f"Pic generator started")
+        logger.info(f"Pic generator started, paths '{self._snap_dir}' and '{self._thumb_dir}'")
+        logger.info(f"paths '{self._snap_dir}'")
+        logger.info(f"thumbs '{self._thumb_dir}'")
 
         gen = SpectrumPicture.SpectrumPicture(str(self._thumb_dir))
         while not self._shutdown:
             try:
                 # get all the non hidden and non png files in snapshot dir
-                directory = pathlib.PurePath(self._snap_dir)
-                for path in pathlib.Path(directory).iterdir():
+                for path in pathlib.Path(self._snap_dir).iterdir():
                     filename = os.path.basename(path)
                     if not filename.startswith(".") and not filename.endswith("png"):
                         # if png does not exist then create one
-                        png_filename = pathlib.PurePath(path.parent.name+"/"+path.name+".png")
+                        png_filename = pathlib.PurePath(path.parent, path.name+".png")
                         if not os.path.isfile(png_filename):
                             try:
-                                cap_filename = path.parent.name+"/"+path.name
-                                gen.create_picture(cap_filename)
+                                logger.info(f"pic for {path}")
+                                gen.create_picture(path)
                             except ValueError as msg:
                                 logger.error(f"PicGenerator {msg}")
 

@@ -24,14 +24,15 @@ class FileOutput:
     Simple wrapper class for writing binary data to file
     """
 
-    def __init__(self, config: SnapVariables):
+    def __init__(self, config: SnapVariables, snap_dir: pathlib.PurePath):
         """
         Configure the snapshot
 
         :param config: How the snap is configured
+        :param snap_dir: where the snaps go
         """
         self._base_filename = config.baseFilename
-        self._base_directory = config.baseDirectory
+        self._base_directory = snap_dir
         self._centre_freq_hz = config.cf
         self._sample_rate_sps = config.sps
         self._post_milliseconds = config.postTriggerMilliSec
@@ -117,7 +118,7 @@ class FileOutput:
             if self._wav_flag:
                 filename += ".wav"
 
-            path_and_filename = pathlib.PurePath(self._base_directory + "/" + filename)
+            path_and_filename = pathlib.PurePath(self._base_directory, filename)
 
             try:
                 if self._wav_flag:

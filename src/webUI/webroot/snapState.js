@@ -38,9 +38,6 @@ snapState.prototype.setDirectoryList = function(dirList) {
 snapState.prototype.setDeleteFilename = function(name) {
     this.deleteFileName = name;
 }
-snapState.prototype.setSnapDirectory = function(dir) {
-    this.snapDirectory = dir;
-}
 snapState.prototype.setWavFlag = function(wavFlag) {
     this.wavFlag = wavFlag;
 }
@@ -78,9 +75,6 @@ snapState.prototype.getDirectoryList = function() {
 }
 snapState.prototype.getDeleteFilename = function() {
     return this.deleteFileName;
-}
-snapState.prototype.getSnapDirectory = function() {
-    return this.snapDirectory;
 }
 snapState.prototype.getWavFlag = function() {
     return this.wavFlag;
@@ -125,9 +119,6 @@ snapState.prototype.setSnapFromJason = function(jsonConfig) {
     if (jsonConfig.expectedSizeMbytes != snapState.getExpectedSize()) {
         snapState.setExpectedSize(jsonConfig.expectedSizeMbytes);
         updateSnapTable = true;
-    }
-    if (jsonConfig.baseDirectory != snapState.getSnapDirectory()) {
-        snapState.setSnapDirectory(jsonConfig.baseDirectory);
     }
     if (jsonConfig.wav_flag != snapState.getWavFlag()) {
         snapState.setWavFlag(jsonConfig.wav_flag);
@@ -194,7 +185,6 @@ function snapState() {
     this.triggers = [];
     this.snapCurrentSize = 0;
     this.snapExpectedSize = 0;
-    this.snapDirectory = "";
     this.directoryList = [];
     this.directoryListChanged = false;
     this.deleteFileName = "";

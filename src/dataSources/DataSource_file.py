@@ -51,6 +51,8 @@ class Input(DataSource.DataSource):
         self._rewind = True  # true if we will rewind the file each time it ends
         self._connected = False
 
+        self._sleep = True  # may want to read file as fast as possible
+
         try:
             self._create_time = time.time_ns()
         except AttributeError:
@@ -64,6 +66,9 @@ class Input(DataSource.DataSource):
         if self._file:
             self._file.close()
 
+    def set_sleep(self, sleep: bool):
+        self._sleep = sleep
+
     def open(self) -> bool:
         try:
             file = FileOpen.FileOpen(self._source)
@@ -73,8 +78,6 @@ class Input(DataSource.DataSource):
                 self.set_sample_type(data_type)
                 self._centre_frequency_hz = cf
                 self._sample_rate_sps = sps
-            else:
-                print("error")
 
         except ValueError as msg:
             self._error = msg
@@ -148,10 +151,11 @@ class Input(DataSource.DataSource):
                         else:
                             raise ValueError("end-of-file")
 
-                    # wait how long these samples would of taken to arrive, but not too long
-                    sleep = self._number_complex_samples / self._sample_rate_sps
-                    if sleep < 1.0:
-                        time.sleep(sleep)
+                    if self._sleep:
+                        # wait how long these samples would of taken to arrive, but not too long
+                        sleep = self._number_complex_samples / self._sample_rate_sps
+                        if sleep < 1.0:
+                            time.sleep(sleep)
 
                 except OSError as msg:
                     msgs = f'OSError, {msg}'

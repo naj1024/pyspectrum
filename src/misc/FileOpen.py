@@ -133,7 +133,7 @@ class FileOpen:
             ok = True
             wav_file = True
 
-        except wave.Error as wav_error:
+        except wave.Error:
             # try again as a binary file
             try:
                 file = open(self._filename, "rb")

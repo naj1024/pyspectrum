@@ -321,7 +321,7 @@ function updateSnapFileList() {
         // handle icon buttons for play and delete
         $('#play_'+id).click(function() {
             // force input change, command goes by sdrState
-            handleInputChange("file", snapState.getSnapDirectory()+"/"+file[0]);
+            handleInputChange("file", file[0]);
         } );
         $('#delete_'+id).click(function() {
             // command goes by snapState
