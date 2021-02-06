@@ -5,6 +5,10 @@
 
 'use strict';
 
+function basename(path) {
+   return path.split(/[\\/]/).pop();
+}
+
 sdrState.prototype.setName = function(name) {
     this.name = name;
 }
@@ -21,7 +25,15 @@ sdrState.prototype.setInputSource = function(source) {
     this.source = source;
 }
 sdrState.prototype.setInputSourceParams = function(params) {
-    this.sourceParams = params;
+    if (this.source == "file")
+    {
+        this.sourceParams = basename(params);
+        console.log(params, this.sourceParams)
+    }
+    else
+    {
+        this.sourceParams = params;
+    }
 }
 sdrState.prototype.setInputSources = function(sources) {
     this.sources = sources;
