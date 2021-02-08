@@ -77,7 +77,7 @@ def main() -> None:
                         filemode='w',
                         filename=log_file)
     logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.WARN)
 
     logger.info("SpectrumAnalyser starting")
 
