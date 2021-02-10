@@ -37,8 +37,8 @@ There is soapy support for sdrplay, but i have failed to get this working again 
 ## Problems
 * Converting input data to complex float32 numpy arrays. This takes a lot of time, which would be a lot 
   simpler in C/C++.
-* Soapy support is not really tested anymore.
-* sdrplay support relies on soapy.
+* Soapy support is not really tested anymore (sdrplay support relies on soapy).
+* if the programme exceptions immediately, check the dependencies are met.
 
 ## Tested with the following:
     Windows: audio, file, pluto (IP), rtlsdr, rtltcp, socket
@@ -55,7 +55,7 @@ Some examples for running from command line
 
     python ./SpectrumAnalyser.py         - Then goto http://127.0.0.1:8080 and configure the source
 
-    python ./SpectrumAnalyser.py -H      - help
+    python ./SpectrumAnalyser.py -h      - help
 
     python ./SpectrumAnalyser.py -i?     - list input sources that are available
 
