@@ -92,9 +92,9 @@ def main() -> None:
 
     # snapshot config
     snap_configuration = SnapVariables.SnapVariables()
-    if not os.path.isdir(Variables.SNAPSHOT_DIRECTORY):
-        os.makedirs(Variables.SNAPSHOT_DIRECTORY)
-    list_snapshot_directory(snap_configuration, Variables.SNAPSHOT_DIRECTORY)
+    if not os.path.isdir(SnapVariables.SNAPSHOT_DIRECTORY):
+        os.makedirs(SnapVariables.SNAPSHOT_DIRECTORY)
+    list_snap_files.directory_list = list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
 
     # web thumbnail directory
     where = f"{os.path.dirname(__file__)}"
@@ -103,7 +103,7 @@ def main() -> None:
         os.makedirs(thumbs_dir)
 
     # thumbnail and pic generator process
-    pic_generator = PicGenerator.PicGenerator(Variables.SNAPSHOT_DIRECTORY, thumbs_dir, logger.level)
+    pic_generator = PicGenerator.PicGenerator(SnapVariables.SNAPSHOT_DIRECTORY, thumbs_dir, logger.level)
     pic_generator.start()
     logger.debug(f"Started PicGenerator")
 
@@ -127,9 +127,10 @@ def main() -> None:
     # allowed sample types for base source converter
     configuration.sample_types = data_source.get_sample_types()
 
+    # the snapshot config
     snap_configuration.cf = configuration.centre_frequency_hz
     snap_configuration.sps = configuration.sample_rate
-    data_sink = DataSink_file.FileOutput(snap_configuration, Variables.SNAPSHOT_DIRECTORY)
+    data_sink = DataSink_file.FileOutput(snap_configuration, SnapVariables.SNAPSHOT_DIRECTORY)
 
     # The amount of time to get samples
     expected_samples_receive_time = configuration.fft_size / configuration.sample_rate
@@ -163,7 +164,7 @@ def main() -> None:
         data_source, data_sink = handle_from_ui_queue(configuration, snap_configuration,
                                                       to_ui_control_queue, from_ui_queue,
                                                       data_source, source_factory, data_sink,
-                                                      Variables.SNAPSHOT_DIRECTORY, thumbs_dir, processor)
+                                                      thumbs_dir, processor)
 
         ###########################################
         # Get and process the complex samples we will work on
@@ -215,7 +216,8 @@ def main() -> None:
                     snap_configuration.triggered = False
                     snap_configuration.triggerState = "wait"
                     snap_configuration.snapState = "stop"
-                    list_snapshot_directory(snap_configuration, Variables.SNAPSHOT_DIRECTORY)  # update the list
+                    list_snap_files.directory_list = list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)  # update the list
+
                 snap_configuration.currentSizeMbytes = data_sink.get_current_size_mbytes()
                 snap_configuration.expectedSizeMbytes = data_sink.get_size_mbytes()
 
@@ -227,7 +229,7 @@ def main() -> None:
                     snap_configuration.triggered = False
                     snap_configuration.triggerState = "wait"
                     snap_configuration.snapState = "stop"
-                    data_sink = DataSink_file.FileOutput(snap_configuration, Variables.SNAPSHOT_DIRECTORY)
+                    data_sink = DataSink_file.FileOutput(snap_configuration, SnapVariables.SNAPSHOT_DIRECTORY)
                     snap_configuration.currentSizeMbytes = 0
                     snap_configuration.expectedSizeMbytes = data_sink.get_size_mbytes()
 
@@ -372,20 +374,24 @@ def initialise(configuration: Variables):
         raise msg
 
 
-def list_snapshot_directory(snap_config: SnapVariables, snap_dir: pathlib.PurePath) -> None:
-    snap_config.directory_list = []
-    for path in pathlib.Path(snap_dir).iterdir():
+def list_snap_files(directory: pathlib.PurePath) -> []:
+    """
+    List the files in the provided directory, exclude png and hidden files
+
+    :param dir:
+    :return: List of files
+    """
+    directory_list = []
+    for path in pathlib.Path(directory).iterdir():
         if not path.name.startswith(".") and not path.name.endswith("png"):
             # We will not match the time in the filename as it is recording the trigger time
             # getctime() may also return the last modification time not creation time (dependent on OS)
             timestamp = int(os.path.getctime(path))
             date_time = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d_%H-%M-%S')
-            snap_config.directory_list.append((path.name,
-                                               str(round(os.path.getsize(path) / (1024 * 1024), 3)),
-                                               date_time))
+            directory_list.append((path.name, str(round(os.path.getsize(path) / (1024 * 1024), 3)), date_time))
     # sort so that most recent is first
-    snap_config.directory_list.sort(reverse=True, key=lambda a: a[2])
-
+    directory_list.sort(reverse=True, key=lambda a: a[2])
+    return directory_list
 
 def create_source(configuration: Variables, factory) -> DataSource:
     """
@@ -476,7 +482,6 @@ def update_source(configuration: Variables, source_factory) -> DataSource:
 
 def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
                         new_config: Dict, sdr_config: Variables,
-                        snap_dir: pathlib.PurePath,
                         thumb_dir: pathlib.PurePath) -> DataSink_file:
     """
     messages from UI
@@ -486,7 +491,6 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
     :param snap_config: current snap state etc
     :param new_config: dictionary from a json string with new configuration for snap
     :param sdr_config: sdr config so we can get cf, sps etc
-    :param snap_dir: where snapshots are held
     :param thumb_dir: where thumbnails ended up for the web UI
     :return: None
     """
@@ -531,10 +535,10 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
         changed = True
 
     if new_config['deleteFileName'] != "":
-        delete_file(new_config['deleteFileName'], snap_config, snap_dir, thumb_dir)
+        delete_file(new_config['deleteFileName'], thumb_dir)
 
     if changed:
-        data_sink = DataSink_file.FileOutput(snap_config, snap_dir)
+        data_sink = DataSink_file.FileOutput(snap_config, SnapVariables.SNAPSHOT_DIRECTORY)
         # following may of been changed by the sink
         if data_sink.get_post_trigger_milli_seconds() != snap_config.postTriggerMilliSec or \
                 data_sink.get_pre_trigger_milli_seconds() != snap_config.preTriggerMilliSec:
@@ -545,12 +549,10 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
     return data_sink
 
 
-def delete_file(filename: str, snap_config: SnapVariables,
-                snap_dir: pathlib.PurePath,
-                thumb_dir: pathlib.PurePath) -> None:
+def delete_file(filename: str, thumb_dir: pathlib.PurePath) -> None:
     filename = os.path.basename(filename)
-    file = pathlib.PurePath(snap_dir, filename)
-    file_png = pathlib.PurePath(snap_dir, filename+".png")
+    file = pathlib.PurePath(SnapVariables.SNAPSHOT_DIRECTORY, filename)
+    file_png = pathlib.PurePath(SnapVariables.SNAPSHOT_DIRECTORY, filename+".png")
     thumb_png = pathlib.PurePath(thumb_dir, filename + ".png")
     try:
         os.remove(file)
@@ -563,7 +565,7 @@ def delete_file(filename: str, snap_config: SnapVariables,
         err = f"Problem with delete of {filename}, {msg}"
         logger.error(err)
 
-    list_snapshot_directory(snap_config, snap_dir)
+    list_snap_files.directory_list = list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
 
 
 def handle_sdr_message(configuration: Variables, new_config: Dict, data_source,
@@ -639,7 +641,6 @@ def handle_from_ui_queue(configuration: Variables,
                          data_source,
                          source_factory,
                          snap_sink,
-                         snap_dir: pathlib.PurePath,
                          thumb_dir: pathlib.PurePath,
                          processor: ProcessSamples) -> Tuple[Any, Any]:
     """
@@ -652,7 +653,6 @@ def handle_from_ui_queue(configuration: Variables,
     :param data_source:
     :param source_factory:
     :param snap_sink:
-    :param snap_dir:
     :param thumb_dir:
     :param processor:
     :return: DataSource and snapSink, either of which may of changed
@@ -688,7 +688,6 @@ def handle_from_ui_queue(configuration: Variables,
                                                 snap_configuration,
                                                 new_config,
                                                 configuration,
-                                                snap_dir,
                                                 thumb_dir)
             elif new_config['type'] == "sdrUpdate":
                 # we may be directed to change the source

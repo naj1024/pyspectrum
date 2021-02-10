@@ -7,10 +7,6 @@ Passed to the UI as a jason string every few seconds
 """
 
 import json
-import pathlib
-import os
-
-SNAPSHOT_DIRECTORY = pathlib.PurePath(f"{os.path.dirname(__file__)}/../snapshots")
 
 
 class Variables:

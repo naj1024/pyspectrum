@@ -5,6 +5,10 @@ Passed to the UI as a jason string when required
 """
 
 import json
+import pathlib
+import os
+
+SNAPSHOT_DIRECTORY = pathlib.PurePath(f"{os.path.dirname(__file__)}/../snapshots")
 
 
 class SnapVariables:
