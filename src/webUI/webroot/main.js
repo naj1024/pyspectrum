@@ -190,16 +190,9 @@ function setCfHz(newCfHz) {
     sdrState.setSdrStateUpdated();
 }
 
-function decrementCf() {
+function incrementCf(divisor) {
     let newCfHz = sdrState.getCentreFrequencyHz();
-    let step = (sdrState.getSps() / spectrum.zoom) / 4;
-    newCfHz -= step;
-    setCfHz(newCfHz);
-}
-
-function incrementCf() {
-    let newCfHz = sdrState.getCentreFrequencyHz();
-    let step = (sdrState.getSps() / spectrum.zoom) / 4;
+    let step = (sdrState.getSps() / spectrum.zoom) / divisor;
     newCfHz += step;
     setCfHz(newCfHz);
 }
@@ -875,8 +868,10 @@ function Main() {
     $('#markerButton').click(function() {showMarkers();});
 
     $('#stopBut').click(function() {handleStopToggle();});
-    $('#cfDwnBut').click(function() {decrementCf();});
-    $('#cfUpBut').click(function() {incrementCf();});
+    $('#cfDwnBut4').click(function() {incrementCf(-4);});
+    $('#cfDwnBut1').click(function() {incrementCf(-10);});
+    $('#cfUpBut1').click(function() {incrementCf(10);});
+    $('#cfUpBut4').click(function() {incrementCf(4);});
     $('#zoomToCfBut').click(function() {zoomedToCf();});
 
     $('#pauseBut').click(function() {handlePauseToggle();});
