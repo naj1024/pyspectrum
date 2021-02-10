@@ -3,7 +3,7 @@
 Takes raw IQ samples from some sdr source to give a live spectrum and spectrogram.
 
 This was an exercise in writing some python. There are speed penalties in keeping to python in this. 
-Getting the different SDR platforms to work is through libraries, some were tested on windows, some 
+Getting the different SDR platforms to work is through libraries, some were tested on Windows, some 
 were tested on Ubuntu Linux. Getting a driver to work can be challenging, gnu-radio even has support 
 that makes use outside gnu-radio almost impossible (iio). Overall it gave me an idea of what the various 
 sdr platforms have to do.
@@ -19,19 +19,19 @@ FFT results between screen updates and do peak holding so that no peak is missed
 
 How long the underlying FFT takes to compute will depend on how the underlying libraries are built
 and configured. Each time the fft size changes we test all the available fft options to see which is 
-the fastest. FFTW seems, on my Ubuntu VM, to be the slowest until you hit 8k - but then i have not 
-installed any of the fft libraries from source.
+the fastest. FFTW seems, on my Ubuntu VM, to be the slowest until you hit 8k - but I have not 
+installed any of the fft libraries from the source.
 
 The slowest parts are: converting bytes into floats, re-ordering the fft bins for display, and of
 course computing the fft. It would be good to have a faster way of converting raw byte arrays of 
-samples to complex 32 bit floats.
+samples to complex 32bit floats.
 
 The support for various input devices is a plugin architecture. If the python support for an input 
 device is not available it cannot be used.
 
 There is a separate plugin architecture for dealing with FFT results. With this you can add processing
-to look for spectral spikes etc on the FFT bin results. Currently it only finds peaks and sends results
-to stdout or an mqtt server.
+to look for spectral spikes etc on the FFT bin results. A plugin currently finds peaks and sends results
+to stdout or a mqtt server.
 
 ## Tested with the following:
 
