@@ -1,78 +1,79 @@
-# A Python spectrum analyser 
+# A Python RF spectrum analyser 
 
-Takes raw IQ samples from some sdr source to give a live spectrum and spectrogram.
-
-This was an exercise in writing some python. There are speed penalties in keeping to python in this. 
-Getting the different SDR platforms to work is through libraries, some were tested on Windows, some 
-were tested on Ubuntu Linux. Getting a driver to work can be challenging, gnu-radio even has support 
-that makes use outside gnu-radio almost impossible (iio). Overall it gave me an idea of what the various 
-sdr platforms have to do.
-                   
-A websocket is used to pass data from the python to the javascript in the browser. The web server and the websocket servers run as separate processes.
-        
 ![Screenshot](screenShot_web.png)
 
-Performance wise it will depend on your machine. I have certainly kept up with streams of data at over 2Msps.
-The display gets updated between 10 and 20fps. The idea is to run real time, i.e. we are going to 
-compute an FFT for the sample rate given and just update the display when we can. We remember all 
-FFT results between screen updates and do peak holding so that no peak is missed on the display. 
+* Takes digitised IQ samples from some source to give a live spectrum and spectrogram.
+* Has a plugin architecture for sources and analysis of spectrums.
+* Can snapshot IQ samples to file upon an event, currently a manual trigger.
+* Has a web based UI that can be used to take measurements on the spectrum.
 
-How long the underlying FFT takes to compute will depend on how the underlying libraries are built
-and configured. Each time the fft size changes we test all the available fft options to see which is 
-the fastest. FFTW seems, on my Ubuntu VM, to be the slowest until you hit 8k - but I have not 
-installed any of the fft libraries from the source.
+This was an exercise in writing some python which expanded into providing a web based UI. 
+The fft computations are done by libraries in Python, so not the fastest.
 
-The slowest parts are: converting bytes into floats, re-ordering the fft bins for display, and of
-course computing the fft. It would be good to have a faster way of converting raw byte arrays of 
-samples to complex 32bit floats.
+Performance depends on your machine and how the supporting fft libraries were compiled. 
+I have certainly kept up with streams of data at over 3Msps.
 
-The support for various input devices is a plugin architecture. If the python support for an input 
-device is not available it cannot be used.
+All the input sources are provided by python modules with the different SDR platforms are supported by
+corresponding Python libraries gleaned from Pypi.
 
-There is a separate plugin architecture for dealing with FFT results. With this you can add processing
-to look for spectral spikes etc on the FFT bin results. A plugin currently finds peaks and sends results
-to stdout or a mqtt server.
+## Input modules:
+* audio       - useful for testing
+* file        - wav and raw binary supported, all files must be in snapshot directory
+* pluto (IP)  - Analog devices pluto SDR on IP, 70Mhz to 6GHz but wide open
+* rtlsdr      - Direct connection via USB
+* rtltcp      - rtl over tcp
+* socket      - any stream of IQ samples
+
+There is soapy support for sdrplay, but i have failed to get this working again after an initial success.
+
+## Input data IQ types:
+* 8bit offset binary
+* 8bit 2's complement
+* 16bit 2's complement little endian (x86)
+* 16bit 2's complement big endian
+* 32bit ieee float little endian
+* 32bit ieee float big endian
+
+## Problems
+* Converting input data to complex float32 numpy arrays. This takes a lot of time, which would be a lot 
+  simpler in C/C++.
+* Soapy support is not really tested anymore.
+* sdrplay support relies on soapy.
 
 ## Tested with the following:
-
     Windows: audio, file, pluto (IP), rtlsdr, rtltcp, socket
     Linux  : audio, file, pluto (IP), rtlsdr, rtltcp, socket
              soapy(audio, rtlsdr, sdrplay)
     
-    On windows make sure to use the rlibrtlsdr.dll for your python 32bit/64bit
+    On windows make sure to use the correct rlibrtlsdr.dll for your python 32bit/64bit
     
     Since, once, getting soapy to work under Linux i have failed to replicate 
         this ever again - pity it was my only interface to an sdrplay device
         
 ## Examples
+Some examples for running from command line
 
-Some examples for running from command line.
+    python ./SpectrumAnalyser.py         - Then goto http://127.0.0.1:8080 and configure the source
 
-    python ./SpectrumAnalyser.py -H
+    python ./SpectrumAnalyser.py -H      - help
 
-    python ./SpectrumAnalyser.py -i?
+    python ./SpectrumAnalyser.py -i?     - list input sources that are available
 
-    python ./SpectrumAnalyser.py -ipluto:192.168.2.1 -c433.92e6 -s600e3 -E -F1024
+    python ./SpectrumAnalyser.py -ipluto:192.168.2.1 -c433.92e6 -s600e3   - pluto at 433MHz and 600ksps
 
-    python ./SpectrumAnalyser.py -ipluto:192.168.2.1 -c433.92e6 -s1e6 -E 
+    python ./SpectrumAnalyser.py -ipluto:192.168.2.1 -c433.92e6 -s1e6 
                             --plugin analysis:peak:threshold:12 
-                            --plugin report:mqtt:broker:192.168.0.101 
+                            --plugin report:mqtt:broker:192.168.0.101     - detect and log signals
 
-    python ./SpectrumAnalyser.py -ifile:test.wav -LE -W7.5 -c433.92e6
+    python ./SpectrumAnalyser.py -ifile:test.wav -c433.92e6    - a test wav file
 
-    python ./SpectrumAnalyser.py -ifile:test.cf433.92.cplx.600000.16le -LE -W7
+    python ./SpectrumAnalyser.py -iaudio:1 -s48e3 -iaudio:1    - audio input 
 
-    python ./SpectrumAnalyser.py -iaudio:1 -s48e3 -F1024 -DE -c0 -iaudio:1
+    python ./SpectrumAnalyser.py -irtlsdr:kk -c433.92e6 -s1e6   - rtlsdr
 
-    python ./SpectrumAnalyser.py -irtlsdr:kk -c433.92e6 -s1e6 -E
+    python ./src/SpectrumAnalyser.py -isoapy:audio -s48000 -c0  - soapy input
 
-    python ./src/SpectrumAnalyser.py -isoapy:audio -s48000 -c0 -E
-
-    python ./src/SpectrumAnalyser.py -isoapy:sdrplay -s2e6 c433.92e6 -F2048 -E
-    
-    python ./src/SpectrumAnalyser.py -isoapy:sdrplay -s2e6 c433.92e6 -F2048 -w8080  
-          
-          This last one is the WEB interface on 127.0.0.1:8080
+    python ./src/SpectrumAnalyser.py -isoapy:sdrplay -s2e6 c433.92e6 
 
 
 ## Dependencies
@@ -100,48 +101,3 @@ The following python modules should be installed. Optional ones provide specific
 ```
 pip3 install -r src/requirements.txt
 ```
-
-## Raspberry Pi
-
-This will run on a raspberry Pi, but **very** slowly. Much better solution is to run something like rtl_tcp 
-on the Pi and stream the samples to the machine running the python. See DataSource_rtltcp.py about making
-sure the Pi won't run out of memory if the python can not keep up.
-
-The following was done on a not very clean V4.2 image from https://github.com/luigifreitas/pisdr-image
-  
-    uname -a 
-    Linux pisdr 4.19.75-v7+ #1270 SMP Tue Sep 24 18:45:11 BST 2019 armv7l GNU/Linux
-    
-    cat /etc/debian_version 
-    10.2
-    
-    cat /proc/device-tree/model
-    Raspberry Pi 3 Model B Rev 1.2
-
-    sudo apt install pipenv python-dev libatlas-base-dev python3-tk 
-
-    cd
-    tar -zxvf SpectrumAnalyser.tgz
-    cd SpectrumAnalyser
-    pipenv shell
-    pipenv install scipy pyrtlsdr sounddevice paho-mqtt
-
-    # Assuming libiio is installed find a copy of iio.py and copy to your environment 
-    cp ./libiio/build/bindings/python/iio.py ~/.local/share/virtualenvs/SpectrumAnalyser-cRKFuvKh/lib/python3.7/    
-    pipenv install pyadi-iio
-
-    python3 ./src/SpectrumAnalyser.py -i?
-    Available sources: ['file', 'pluto', 'rtlsdr', 'socket', 'audio']
-    file:Filename 	- Filename, binary or wave, e.g. file:./xyz.cf123.4.cplx.200000.16tbe
-    pluto:IP        - The Ip or resolvable name of the Pluto device, e.g. pluto:192.168.2.1
-    rtlsdr:Name 	- Name is anything, e.g. rtlsdr:abc
-    socket:IP@port 	- The Ip or resolvable name and port on a server, e.g. socket:192.168.2.1@12345
-    audio:Number 	- number of the input device e.g. audio:1, '?' for list
-
-    NOTE: pipenv failed to install:
-          pyfftw   - Breaks during install, compile problems?
-          soapysdr - No matching distribution
-          gooey    - Attempts to compile wx and fails
-          
-    NOTE: 'apt' will install python-fftw but that is not pyfftw, but there is python-pyfftw-doc !?
-          There appears to be no support for fftw through pyfftw for python3 on this Linux distro
