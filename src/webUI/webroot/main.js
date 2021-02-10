@@ -231,6 +231,12 @@ function handleFftChange(newFft) {
     sdrState.setSdrStateUpdated();
 }
 
+function handleFftWindowChange(newWindow) {
+    sdrState.setFftWindow(newWindow);
+    configTableFocusOut();
+    sdrState.setSdrStateUpdated();
+}
+
 function handleInputChange(newSource, newParams) {
     sdrState.setInputSource(newSource);
     sdrState.setInputSourceParams(newParams);
@@ -449,6 +455,7 @@ function updateConfigTableCurrent(spec) {
     $('#currentSps').empty().append((sps/1e6).toFixed(6)+' Msps');
     $('#currentSdrBw').empty().append((sdrState.getSdrBwHz()/1e6).toFixed(2)+' MHz');
     $('#currentFft').empty().append(sdrState.getFftSize());
+    $('#currentFftWindow').empty().append(sdrState.getFftWindow());
     $('#currentGmode').empty().append(sdrState.getGainMode());
     $('#currentGain').empty().append(sdrState.getGain()+' dB');
     $('#currentFPS').empty().append(sdrState.getMeasuredFps());
@@ -585,6 +592,25 @@ function updateConfigTableNew(spec) {
     new_html += '<option value="256" '+((fftSize==256)?"selected":"")+'>256</option>';
     new_html += '</select></form>';
     $('#newFft').empty().append(new_html);
+
+    /////////////
+    // fft windows
+    ///////
+    let fftWindow = sdrState.getFftWindow();
+    let fftWindows = sdrState.getFftWindows();
+    if (fftWindows.length > 0) {
+        new_html = '<form ';
+        new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+        new_html += 'action="javascript:handleFftWindowChange(fftWindowInput.value)">';
+        new_html += '<select id="fftWindowInput" name="fftWindowInput" onchange="this.form.submit()">';
+        fftWindows.forEach(function(win) {
+                new_html += '<option value="'+win+'"'+((win==fftWindow)?"selected":"")+'>'+win+'</option>';
+            });
+        new_html += '</select></form>';
+    } else {
+        new_html = fftWindow;
+    }
+    $('#newFftWindow').empty().append(new_html);
 
     /////////////
     // gain mode

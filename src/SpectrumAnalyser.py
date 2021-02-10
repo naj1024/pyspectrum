@@ -45,16 +45,14 @@ from misc import PicGenerator
 from webUI import WebServer
 
 processing = True  # global to be set to False from ctrl-c
+#old_one_in_n = 0  # for debugging fps
 
 # We will use separate log files for each process, main/webserver/websocket
 # Perceived wisdom is to use a logging server in multiprocessing environments, maybe in the future
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("spectrum_logger")  # a name we use to find this logger
 
 MAX_TO_UI_QUEUE_DEPTH = 10  # low for low latency
 MAX_FROM_UI_QUEUE_DEPTH = 10  # stop things backing up when no UI connected
-
-SNAPSHOT_DIRECTORY = pathlib.PurePath(f"{os.path.dirname(__file__)}/snapshots")
-
 
 def signal_handler(sig, __):
     global processing
@@ -94,9 +92,9 @@ def main() -> None:
 
     # snapshot config
     snap_configuration = SnapVariables.SnapVariables()
-    if not os.path.isdir(SNAPSHOT_DIRECTORY):
-        os.makedirs(SNAPSHOT_DIRECTORY)
-    list_snapshot_directory(snap_configuration, SNAPSHOT_DIRECTORY)
+    if not os.path.isdir(Variables.SNAPSHOT_DIRECTORY):
+        os.makedirs(Variables.SNAPSHOT_DIRECTORY)
+    list_snapshot_directory(snap_configuration, Variables.SNAPSHOT_DIRECTORY)
 
     # web thumbnail directory
     where = f"{os.path.dirname(__file__)}"
@@ -105,7 +103,7 @@ def main() -> None:
         os.makedirs(thumbs_dir)
 
     # thumbnail and pic generator process
-    pic_generator = PicGenerator.PicGenerator(SNAPSHOT_DIRECTORY, thumbs_dir, logger.level)
+    pic_generator = PicGenerator.PicGenerator(Variables.SNAPSHOT_DIRECTORY, thumbs_dir, logger.level)
     pic_generator.start()
     logger.debug(f"Started PicGenerator")
 
@@ -118,16 +116,20 @@ def main() -> None:
     configuration.input_sources = DataSourceFactory.DataSourceFactory().sources()
     configuration.input_sources_web_helps = DataSourceFactory.DataSourceFactory().web_help_strings()
 
+    # windowing
+    configuration.window_types = ProcessSamples.get_windows()
+    configuration.window = configuration.window_types[0]
+
     # configure us
     data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, \
         plugin_manager, source_factory = initialise(configuration)
 
-    snap_configuration.cf = configuration.centre_frequency_hz
-    snap_configuration.sps = configuration.sample_rate
-    data_sink = DataSink_file.FileOutput(snap_configuration, SNAPSHOT_DIRECTORY)
-
     # allowed sample types for base source converter
     configuration.sample_types = data_source.get_sample_types()
+
+    snap_configuration.cf = configuration.centre_frequency_hz
+    snap_configuration.sps = configuration.sample_rate
+    data_sink = DataSink_file.FileOutput(snap_configuration, Variables.SNAPSHOT_DIRECTORY)
 
     # The amount of time to get samples
     expected_samples_receive_time = configuration.fft_size / configuration.sample_rate
@@ -161,7 +163,7 @@ def main() -> None:
         data_source, data_sink = handle_from_ui_queue(configuration, snap_configuration,
                                                       to_ui_control_queue, from_ui_queue,
                                                       data_source, source_factory, data_sink,
-                                                      SNAPSHOT_DIRECTORY, thumbs_dir)
+                                                      Variables.SNAPSHOT_DIRECTORY, thumbs_dir, processor)
 
         ###########################################
         # Get and process the complex samples we will work on
@@ -213,7 +215,7 @@ def main() -> None:
                     snap_configuration.triggered = False
                     snap_configuration.triggerState = "wait"
                     snap_configuration.snapState = "stop"
-                    list_snapshot_directory(snap_configuration, SNAPSHOT_DIRECTORY)  # update the list
+                    list_snapshot_directory(snap_configuration, Variables.SNAPSHOT_DIRECTORY)  # update the list
                 snap_configuration.currentSizeMbytes = data_sink.get_current_size_mbytes()
                 snap_configuration.expectedSizeMbytes = data_sink.get_size_mbytes()
 
@@ -225,7 +227,7 @@ def main() -> None:
                     snap_configuration.triggered = False
                     snap_configuration.triggerState = "wait"
                     snap_configuration.snapState = "stop"
-                    data_sink = DataSink_file.FileOutput(snap_configuration, SNAPSHOT_DIRECTORY)
+                    data_sink = DataSink_file.FileOutput(snap_configuration, Variables.SNAPSHOT_DIRECTORY)
                     snap_configuration.currentSizeMbytes = 0
                     snap_configuration.expectedSizeMbytes = data_sink.get_size_mbytes()
 
@@ -440,7 +442,9 @@ def update_source_state(configuration: Variables, data_source: DataSource) -> No
     :return: None
     """
     if data_source:
-        configuration.gain = data_source.get_gain()
+        configuration.gain = data_source.get_gain()  # front end may have an auto mode
+        configuration.sample_rate = data_source.get_sample_rate_sps()  # sps may have some resolution
+        configuration.centre_frequency_hz = data_source.get_centre_frequency_hz()  # front end may have some resolution
 
 
 def update_source(configuration: Variables, source_factory) -> DataSource:
@@ -562,26 +566,22 @@ def delete_file(filename: str, snap_config: SnapVariables,
     list_snapshot_directory(snap_config, snap_dir)
 
 
-def handle_sdr_message(configuration: Variables, new_config: Dict, data_source, source_factory) -> DataSource:
+def handle_sdr_message(configuration: Variables, new_config: Dict, data_source,
+                       source_factory, processor: ProcessSamples) -> DataSource:
     """
     Handle specific sdr related control messages
     :param configuration: current config
     :param new_config: dictionary from a json string with possible new config
     :param data_source: where we get data from currently
     :param source_factory:
+    :param processor:
     :return: DataSource
     """
     if (new_config['source'] != configuration.input_source) \
             or (new_config['sourceParams'] != configuration.input_params) \
             or (new_config['dataFormat'] != configuration.sample_type):
         configuration.input_source = new_config['source']
-        if new_config['source'] == 'file':
-            # patch up correct filename
-            fn = os.path.basename(new_config['sourceParams'])
-            full = pathlib.PurePath(SNAPSHOT_DIRECTORY, fn)
-            configuration.input_params = str(full)
-        else:
-            configuration.input_params = new_config['sourceParams']
+        configuration.input_params = new_config['sourceParams']
         configuration.sample_type = new_config['dataFormat']
         configuration.centre_frequency_hz = new_config['centreFrequencyHz']
         logger.info(f"changing source to '{configuration.input_source}' "
@@ -601,6 +601,11 @@ def handle_sdr_message(configuration: Variables, new_config: Dict, data_source, 
             configuration.error += data_source.get_and_reset_error()
             configuration.input_bw_hz = data_source.get_bandwidth_hz()
 
+        if new_config['window'] != configuration.window:
+            new_window = new_config['window']
+            processor.set_window(new_window)
+            configuration.window = processor.get_window()
+
         if new_config['sps'] != configuration.sample_rate:
             new_sps = new_config['sps']
             data_source.set_sample_rate_sps(new_sps)
@@ -609,7 +614,7 @@ def handle_sdr_message(configuration: Variables, new_config: Dict, data_source, 
 
         if new_config['fftSize'] != configuration.fft_size:
             configuration.fft_size = new_config['fftSize']
-            data_source.close()
+            data_source.close()  # can't change the block size without opening again
             data_source = update_source(configuration, source_factory)
 
         if new_config['gain'] != configuration.gain:
@@ -635,7 +640,8 @@ def handle_from_ui_queue(configuration: Variables,
                          source_factory,
                          snap_sink,
                          snap_dir: pathlib.PurePath,
-                         thumb_dir: pathlib.PurePath) -> Tuple[Any, Any]:
+                         thumb_dir: pathlib.PurePath,
+                         processor: ProcessSamples) -> Tuple[Any, Any]:
     """
     Check the control queue for messages and handle them
 
@@ -647,7 +653,8 @@ def handle_from_ui_queue(configuration: Variables,
     :param source_factory:
     :param snap_sink:
     :param snap_dir:
-    :param thumb_dir
+    :param thumb_dir:
+    :param processor:
     :return: DataSource and snapSink, either of which may of changed
     """
     config = None
@@ -685,7 +692,7 @@ def handle_from_ui_queue(configuration: Variables,
                                                 thumb_dir)
             elif new_config['type'] == "sdrUpdate":
                 # we may be directed to change the source
-                data_source = handle_sdr_message(configuration, new_config, data_source, source_factory)
+                data_source = handle_sdr_message(configuration, new_config, data_source, source_factory, processor)
             else:
                 logger.error(f"Unknown control json from client {new_config}")
                 print(f"Unknown control json from client {new_config}")
@@ -727,6 +734,10 @@ def update_ui(configuration: Variables,
     else:
         configuration.update_count += 1
         one_in_n = int(configuration.sample_rate / (configuration.fps * configuration.fft_size))
+        # global old_one_in_n
+        # if one_in_n != old_one_in_n:
+        #     print(f"old {old_one_in_n}, new {one_in_n}, fps {configuration.fps}, fft {configuration.fft_size}, sps {configuration.sample_rate}")
+        #     old_one_in_n = one_in_n
 
         # should we try and add to the ui queue
         if configuration.update_count >= one_in_n:

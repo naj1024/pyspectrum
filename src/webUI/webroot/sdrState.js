@@ -21,6 +21,12 @@ sdrState.prototype.setSps = function(sps) {
 sdrState.prototype.setFftSize = function(fftSize) {
     this.fftSize = parseInt(fftSize);
 }
+sdrState.prototype.setFftWindow = function(window) {
+    this.window = window;
+}
+sdrState.prototype.setFftWindows = function(windows) {
+    this.windows = windows;
+}
 sdrState.prototype.setInputSource = function(source) {
     this.source = source;
 }
@@ -89,6 +95,12 @@ sdrState.prototype.getSps = function() {
 }
 sdrState.prototype.getFftSize = function() {
     return this.fftSize;
+}
+sdrState.prototype.getFftWindow = function() {
+    return this.window;
+}
+sdrState.prototype.getFftWindows = function() {
+    return this.windows;
 }
 sdrState.prototype.getInputSource = function() {
     return this.source;
@@ -180,6 +192,16 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         updateCfgTable = true;
     }
 
+    if (jsonConfig.window != sdrState.getFftWindow()) {
+        sdrState.setFftWindow(jsonConfig.window);
+        updateCfgTable = true;
+    }
+
+    if (jsonConfig.window_types != sdrState.getFftWindows()) {
+        sdrState.setFftWindows(jsonConfig.window_types);
+        updateCfgTable = true;
+    }
+
     if (jsonConfig.input_source != sdrState.getInputSource()) {
         sdrState.setInputSource(jsonConfig.input_source);
         updateCfgTable = true;
@@ -244,6 +266,8 @@ function sdrState() {
     this.centreFrequencyHz = 0.0;
     this.sps = 0;
     this.fftSize = 0;
+    this.window = "";
+    this.windows = [];
     this.source = "";
     this.sourceParams = "";
     this.sources = [];

@@ -88,14 +88,20 @@ def get_powers(mag_squared: np.ndarray) -> np.ndarray:
     :param mag_squared:
     :return: dB array of the magnitudes squared
     """
-    # convert to dB, 5 as we have mag^2 not mag so 1/2 of 10
-    scale = 10 * np.log10(mag_squared.size)  # dB and normalise to fft size
-    powers = 5 * np.log10(mag_squared) - scale
+    # convert to dB,
+    scale = 10 * np.log10(mag_squared.size)
+    # should be 5 not 10 on the power as we have mag^2 not mag so 1/2 of 10
+    # but that doesn't tie up with real spec analyser or other sdr ones
+    powers = 10 * np.log10(mag_squared) - scale  # dB and normalise to fft size
     return powers
 
 
+def get_windows() -> []:
+    return ['Hamming', 'Hanning', 'Blackman', 'Kaiser 0.8', 'Bartlett', 'rectangular']
+
+
 class Spectrum:
-    def __init__(self, fft_size: int):
+    def __init__(self, fft_size: int, window: str):
         """
         Initialisation with sensible defaults
         """
@@ -104,7 +110,34 @@ class Spectrum:
         self._fftw_threads = os.cpu_count() or 1
         self._use_scipy_fft = False
         self._use_fftw_fft = False
+        self._window_type = None
+        self.set_window(window)
         self.set_fft()
+
+    def set_window(self, window:str) -> None:
+        if window in get_windows():
+            self._window_type = window
+            if self._window_type == 'Hamming':
+                self._win = np.hamming(self._fft_size)
+            elif self._window_type == 'Hanning':
+                self._win = np.hanning(self._fft_size)
+            elif self._window_type == 'Blackman':
+                self._win = np.blackman(self._fft_size)
+            elif self._window_type == 'Kaiser 0.8':
+                self._win = np.kaiser(self._fft_size, 0.8)
+            elif self._window_type == 'Bartlett':
+                self._win = np.bartlett(self._fft_size)
+            elif self._window_type == 'rectangular':
+                self._win = np.kaiser(self._fft_size, 0.0)
+            else:
+                self._win = np.hamming(self._fft_size)  # silently just use hanning
+                self._window_type = "Hamming"
+        else:
+            self._window_type = "Hamming"
+            self._win = np.hamming(self._fft_size)  # silently just use hanning
+
+    def get_window(self) -> str:
+        return self._window_type
 
     def set_fft(self) -> None:
         """
@@ -113,7 +146,7 @@ class Spectrum:
 
         :return: None
         """
-        self._win = np.hamming(self._fft_size)
+        self.set_window(self._window_type)
 
         # which fft to use
         # # although even though there is a difference it does not always carry through to exec times

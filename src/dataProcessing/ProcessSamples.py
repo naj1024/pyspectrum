@@ -20,6 +20,10 @@ def convert_to_frequencies(bins: List[int], sample_rate: float, fft_size: int) -
     return Spectrum.convert_to_frequencies(bins, sample_rate, fft_size)
 
 
+def get_windows() -> []:
+    return Spectrum.get_windows()
+
+
 class ProcessSamples:
 
     def __init__(self, configuration: Variables):
@@ -27,8 +31,7 @@ class ProcessSamples:
         The main processor for digitised samples
         :param configuration: The configuration we want
         """
-        self._fft_size = configuration.fft_size
-        self._spec = Spectrum.Spectrum(self._fft_size)
+        self._spec = Spectrum.Spectrum(configuration.fft_size, configuration.window)
 
         self._long_average = np.zeros(configuration.fft_size)
         self._powers = np.zeros(configuration.fft_size)
@@ -44,11 +47,6 @@ class ProcessSamples:
         :param samples: An numpy array of complex samples - which is ALWAYS the FFT size
         :return: None
         """
-        # if the size of the fft has changed then we should find the new fastest algorithm
-        # if samples.size != self._fft_size:
-        #     self._fft_size = samples.size
-        #     self._spec = Spectrum.Spectrum(self._fft_size)
-
         magnitudes_squared = self._spec.mag_spectrum(samples, False)
         self._powers = Spectrum.get_powers(magnitudes_squared)
 
@@ -84,3 +82,8 @@ class ProcessSamples:
             return np.fft.fftshift(self._powers)
         return self._powers
 
+    def set_window(self, window:str) -> None:
+        self._spec.set_window(window)
+
+    def get_window(self) -> str:
+        return self._spec.get_window()

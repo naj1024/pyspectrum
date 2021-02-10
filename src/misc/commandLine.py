@@ -1,4 +1,5 @@
 import argparse
+import os
 import textwrap
 import logging
 
@@ -112,6 +113,8 @@ def parse_command_line(configuration: Variables, logger: logging.Logger) -> None
                         if len(configuration.input_params) > 0:
                             configuration.input_params += ":"
                         configuration.input_params += f"{part}"
+                if configuration.input_source == 'file':
+                    configuration.input_params = os.path.basename(configuration.input_params)
             else:
                 logger.critical(f"input parameter incorrect, {full_source_name}")
                 quit()

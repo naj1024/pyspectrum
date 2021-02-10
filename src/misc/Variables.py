@@ -7,6 +7,10 @@ Passed to the UI as a jason string every few seconds
 """
 
 import json
+import pathlib
+import os
+
+SNAPSHOT_DIRECTORY = pathlib.PurePath(f"{os.path.dirname(__file__)}/../snapshots")
 
 
 class Variables:
@@ -15,6 +19,9 @@ class Variables:
 
         # input data related
         self.fft_size = 2048  # default, but any integer allowed
+        self.window = ""
+        self.window_types = []
+
         self.sample_rate = 1e6  # default
         self.centre_frequency_hz = 433.92e6  # default
         self.sample_types = []

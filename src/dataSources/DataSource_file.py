@@ -2,6 +2,8 @@
 File input class
 
 """
+import os
+import pathlib
 import time
 import logging
 from typing import Tuple
@@ -10,6 +12,7 @@ import numpy as np
 
 from dataSources import DataSource
 from misc import FileOpen
+from misc import Variables
 
 logger = logging.getLogger('spectrum_logger')
 
@@ -52,6 +55,7 @@ class Input(DataSource.DataSource):
         self._connected = False
 
         self._sleep = True  # may want to read file as fast as possible
+        self._sleep_time = 1.0
 
         try:
             self._create_time = time.time_ns()
@@ -69,15 +73,34 @@ class Input(DataSource.DataSource):
     def set_sleep(self, sleep: bool):
         self._sleep = sleep
 
+    def set_sample_rate_sps(self, sr: float) -> None:
+        if sr <= 0:
+            sr = 10000.0  # small default, but not too small
+        self._sample_rate_sps = sr
+        self._set_sleep_time()
+
+    def _set_sleep_time(self):
+        self._sleep_time = self._number_complex_samples / self._sample_rate_sps
+        if self._sleep_time > 1.0:
+            self._sleep_time = 1.0
+        print(
+            f"sleep {self._sleep_time} {1 / self._sleep_time}, sps {self._sample_rate_sps}, n {self._number_complex_samples}")
+
     def open(self) -> bool:
         try:
-            file = FileOpen.FileOpen(self._source)
+            # patch up correct filename
+            fn = os.path.basename(self._source)
+            full = pathlib.PurePath(Variables.SNAPSHOT_DIRECTORY, fn)
+            full = str(full)
+            file = FileOpen.FileOpen(full)
             ok, self._file, self._is_wav_file, data_type, sps, cf = file.open()
             # only update the following if we managed to recover them on the open()
             if ok:
                 self.set_sample_type(data_type)
                 self._centre_frequency_hz = cf
                 self._sample_rate_sps = sps
+
+                self._set_sleep_time()
 
         except ValueError as msg:
             self._error = msg
@@ -153,9 +176,7 @@ class Input(DataSource.DataSource):
 
                     if self._sleep:
                         # wait how long these samples would of taken to arrive, but not too long
-                        sleep = self._number_complex_samples / self._sample_rate_sps
-                        if sleep < 1.0:
-                            time.sleep(sleep)
+                        time.sleep(self._sleep_time)
 
                 except OSError as msg:
                     msgs = f'OSError, {msg}'
