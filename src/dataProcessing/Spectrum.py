@@ -114,7 +114,7 @@ class Spectrum:
         self.set_window(window)
         self.set_fft()
 
-    def set_window(self, window:str) -> None:
+    def set_window(self, window: str) -> None:
         if window in get_windows():
             self._window_type = window
             if self._window_type == 'Hamming':
@@ -130,11 +130,11 @@ class Spectrum:
             elif self._window_type == 'rectangular':
                 self._win = np.kaiser(self._fft_size, 0.0)
             else:
-                self._win = np.hamming(self._fft_size)  # silently just use hanning
+                self._win = np.hamming(self._fft_size)  # silently use a default
                 self._window_type = "Hamming"
         else:
             self._window_type = "Hamming"
-            self._win = np.hamming(self._fft_size)  # silently just use hanning
+            self._win = np.hamming(self._fft_size)  # silently use a default
 
     def get_window(self) -> str:
         return self._window_type

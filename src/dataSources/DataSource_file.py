@@ -12,7 +12,7 @@ import numpy as np
 
 from dataSources import DataSource
 from misc import FileOpen
-from misc import Variables
+from misc import SnapVariables
 
 logger = logging.getLogger('spectrum_logger')
 
@@ -84,23 +84,26 @@ class Input(DataSource.DataSource):
         if self._sleep_time > 1.0:
             self._sleep_time = 1.0
         print(
-            f"sleep {self._sleep_time} {1 / self._sleep_time}, sps {self._sample_rate_sps}, n {self._number_complex_samples}")
+            f"sleep {self._sleep_time} {1 / self._sleep_time}, sps {self._sample_rate_sps}, "
+            f"n {self._number_complex_samples}")
 
     def open(self) -> bool:
         try:
             # patch up correct filename
             fn = os.path.basename(self._source)
-            full = pathlib.PurePath(Variables.SNAPSHOT_DIRECTORY, fn)
+            full = pathlib.PurePath(SnapVariables.SNAPSHOT_DIRECTORY, fn)
             full = str(full)
             file = FileOpen.FileOpen(full)
             ok, self._file, self._is_wav_file, data_type, sps, cf = file.open()
             # only update the following if we managed to recover them on the open()
             if ok:
                 self.set_sample_type(data_type)
-                self._centre_frequency_hz = cf
-                self._sample_rate_sps = sps
 
-                self._set_sleep_time()
+            # cf and sps can be overridden from ui
+            self._centre_frequency_hz = cf
+            self._sample_rate_sps = sps
+
+            self._set_sleep_time()
 
         except ValueError as msg:
             self._error = msg

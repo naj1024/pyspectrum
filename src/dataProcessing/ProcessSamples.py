@@ -82,7 +82,7 @@ class ProcessSamples:
             return np.fft.fftshift(self._powers)
         return self._powers
 
-    def set_window(self, window:str) -> None:
+    def set_window(self, window: str) -> None:
         self._spec.set_window(window)
 
     def get_window(self) -> str:

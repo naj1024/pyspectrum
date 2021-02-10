@@ -251,7 +251,7 @@ class Input(DataSource.DataSource):
                 else:
                     self._sdr.set_gain(float(gain))
             except Exception as err:
-                self._error = f"failed to set gain of '{gain}'"
+                self._error = f"failed to set gain of '{gain}', {err}"
 
     def set_gain_mode(self, mode: str) -> None:
         if mode in self._gain_modes:

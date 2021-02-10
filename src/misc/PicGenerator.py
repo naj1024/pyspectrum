@@ -47,7 +47,7 @@ class PicGenerator(multiprocessing.Process):
         global logger
         log_file = pathlib.PurePath(os.path.dirname(__file__), "..", "logs", __name__+".log")
         # define file handler and set formatter
-        file_handler = logging.FileHandler(log_file)
+        file_handler = logging.FileHandler(log_file, mode="w")
         formatter = logging.Formatter('%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
                                       datefmt="%Y-%m-%d %H:%M:%S UTC")
         file_handler.setFormatter(formatter)

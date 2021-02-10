@@ -26,7 +26,7 @@ class SpectrumPicture:
         matplotlib.use('Agg')
 
     def create_picture(self, filename: pathlib.PurePath):
-        spec = Spectrum.Spectrum(self._fft_size)
+        spec = Spectrum.Spectrum(self._fft_size, Spectrum.get_windows()[0])
         peaks_squared = np.full(self._fft_size, -200)
         try:
             file_str = str(filename)

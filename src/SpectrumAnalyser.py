@@ -45,7 +45,7 @@ from misc import PicGenerator
 from webUI import WebServer
 
 processing = True  # global to be set to False from ctrl-c
-#old_one_in_n = 0  # for debugging fps
+# old_one_in_n = 0  # for debugging fps
 
 # We will use separate log files for each process, main/webserver/websocket
 # Perceived wisdom is to use a logging server in multiprocessing environments, maybe in the future
@@ -53,6 +53,7 @@ logger = logging.getLogger("spectrum_logger")  # a name we use to find this logg
 
 MAX_TO_UI_QUEUE_DEPTH = 10  # low for low latency
 MAX_FROM_UI_QUEUE_DEPTH = 10  # stop things backing up when no UI connected
+
 
 def signal_handler(sig, __):
     global processing
@@ -94,7 +95,7 @@ def main() -> None:
     snap_configuration = SnapVariables.SnapVariables()
     if not os.path.isdir(SnapVariables.SNAPSHOT_DIRECTORY):
         os.makedirs(SnapVariables.SNAPSHOT_DIRECTORY)
-    list_snap_files.directory_list = list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
+    snap_configuration.directory_list = list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
 
     # web thumbnail directory
     where = f"{os.path.dirname(__file__)}"
@@ -216,7 +217,7 @@ def main() -> None:
                     snap_configuration.triggered = False
                     snap_configuration.triggerState = "wait"
                     snap_configuration.snapState = "stop"
-                    list_snap_files.directory_list = list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)  # update the list
+                    snap_configuration.directory_list = list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)  # update it
 
                 snap_configuration.currentSizeMbytes = data_sink.get_current_size_mbytes()
                 snap_configuration.expectedSizeMbytes = data_sink.get_size_mbytes()
@@ -378,7 +379,7 @@ def list_snap_files(directory: pathlib.PurePath) -> []:
     """
     List the files in the provided directory, exclude png and hidden files
 
-    :param dir:
+    :param directory:
     :return: List of files
     """
     directory_list = []
@@ -392,6 +393,7 @@ def list_snap_files(directory: pathlib.PurePath) -> []:
     # sort so that most recent is first
     directory_list.sort(reverse=True, key=lambda a: a[2])
     return directory_list
+
 
 def create_source(configuration: Variables, factory) -> DataSource:
     """
@@ -535,7 +537,7 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
         changed = True
 
     if new_config['deleteFileName'] != "":
-        delete_file(new_config['deleteFileName'], thumb_dir)
+        delete_file(new_config['deleteFileName'], snap_config, thumb_dir)
 
     if changed:
         data_sink = DataSink_file.FileOutput(snap_config, SnapVariables.SNAPSHOT_DIRECTORY)
@@ -549,7 +551,7 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
     return data_sink
 
 
-def delete_file(filename: str, thumb_dir: pathlib.PurePath) -> None:
+def delete_file(filename: str, snap_vars: SnapVariables, thumb_dir: pathlib.PurePath) -> None:
     filename = os.path.basename(filename)
     file = pathlib.PurePath(SnapVariables.SNAPSHOT_DIRECTORY, filename)
     file_png = pathlib.PurePath(SnapVariables.SNAPSHOT_DIRECTORY, filename+".png")
@@ -565,7 +567,7 @@ def delete_file(filename: str, thumb_dir: pathlib.PurePath) -> None:
         err = f"Problem with delete of {filename}, {msg}"
         logger.error(err)
 
-    list_snap_files.directory_list = list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
+    snap_vars.directory_list = list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
 
 
 def handle_sdr_message(configuration: Variables, new_config: Dict, data_source,
@@ -735,7 +737,8 @@ def update_ui(configuration: Variables,
         one_in_n = int(configuration.sample_rate / (configuration.fps * configuration.fft_size))
         # global old_one_in_n
         # if one_in_n != old_one_in_n:
-        #     print(f"old {old_one_in_n}, new {one_in_n}, fps {configuration.fps}, fft {configuration.fft_size}, sps {configuration.sample_rate}")
+        #     print(f"old {old_one_in_n}, new {one_in_n}, fps {configuration.fps}, "
+        #           f"fft {configuration.fft_size}, sps {configuration.sample_rate}")
         #     old_one_in_n = one_in_n
 
         # should we try and add to the ui queue
