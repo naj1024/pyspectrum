@@ -753,15 +753,9 @@ def update_ui(configuration: Variables,
     else:
         configuration.update_count += 1
         one_in_n = int(configuration.sample_rate / (configuration.fps * configuration.fft_size))
-        # global old_one_in_n
-        # if one_in_n != old_one_in_n:
-        #     print(f"old {old_one_in_n}, new {one_in_n}, fps {configuration.fps}, "
-        #           f"fft {configuration.fft_size}, sps {configuration.sample_rate}")
-        #     old_one_in_n = one_in_n
 
         # should we try and add to the ui queue
         if configuration.update_count >= one_in_n:
-            configuration.update_count = 0
             # timings need to be altered
             if current_peak_count == 1:
                 configuration.time_first_spectrum = time_spectrum
@@ -780,6 +774,8 @@ def update_ui(configuration: Variables,
                 peak_powers_since_last_display = powers
                 configuration.time_first_spectrum = time_spectrum
                 configuration.sent_count += 1
+
+                configuration.update_count = 0  # success on putting into queue
             except queue.Full:
                 peak_detect = True  # UI can't keep up
         else:
@@ -794,7 +790,10 @@ def update_ui(configuration: Variables,
         if ack == 0:
             ack = seconds
         diff = int(seconds - ack)
-        if diff > 3 and configuration.fps > 20:
+        # if we are more than 4 seconds behind then reset the fps
+        # NOTE on say the pluto which silently drops samples you may have a large gap between samples
+        # that gives a low fps and high delay, which if you increase the fps can look like not keeping up on the UI
+        if diff > 4 and configuration.fps > 20:
             logger.info(f"UI not keeping up last ack {ack}, current data {int(seconds)}, diff {int(seconds - ack)}")
             # As new fps is done here the webSocketServer process will be reading too fast and cause stuttering
             # take it as a feature that gives feedback, unless the UI updates the fps and feeds it back to us
@@ -802,6 +801,16 @@ def update_ui(configuration: Variables,
             configuration.ack = seconds
             configuration.error += f"FPS too fast, UI behind by {diff}seconds. Defaulting to 20fps"
             peak_detect = True  # UI can't keep up
+
+        # global old_one_in_n
+        # if one_in_n != old_one_in_n:
+        #     print(f"1inN {one_in_n}, "
+        #           f"reqFps {configuration.fps}, "
+        #           f"fft {configuration.fft_size}, "
+        #           f"sps {configuration.sample_rate}, "
+        #           f"realFps {int(configuration.sample_rate / configuration.fft_size)}, "
+        #           f"delay {diff}seconds")
+        #     old_one_in_n = one_in_n
 
     if peak_detect:
         if powers.shape == peak_powers_since_last_display.shape:
