@@ -15,7 +15,6 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: On web interface we update the snapshot table purely on number of entries not values
 """
 
-import datetime
 import os
 import pathlib
 import time
@@ -26,7 +25,6 @@ import logging
 import sys
 import json
 from typing import Tuple
-from typing import Dict
 from typing import Any
 
 import numpy as np
@@ -37,8 +35,10 @@ from dataSink import DataSink_file
 from dataProcessing import ProcessSamples
 from misc import Ewma
 from misc import PluginManager
-from misc import Variables
+from misc import sdrVariables
+from misc import sdrStuff
 from misc import SnapVariables
+from misc import snapStuff
 from misc import commandLine
 from misc import PicGenerator
 from webUI import WebServer
@@ -91,7 +91,7 @@ def main() -> None:
 
     # all our things
     data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, \
-        plugin_manager, source_factory, pic_generator = initialise(configuration, thumbs_dir)
+    plugin_manager, source_factory, pic_generator = initialise(configuration, thumbs_dir)
 
     # the snapshot config
     snap_configuration.cf = configuration.centre_frequency_hz
@@ -182,7 +182,7 @@ def main() -> None:
                     snap_configuration.triggered = False
                     snap_configuration.triggerState = "wait"
                     snap_configuration.snapState = "stop"
-                    snap_configuration.directory_list = list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)  # update it
+                    snap_configuration.directory_list = snapStuff.list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
 
                 snap_configuration.currentSizeMbytes = data_sink.get_current_size_mbytes()
                 snap_configuration.expectedSizeMbytes = data_sink.get_size_mbytes()
@@ -203,13 +203,13 @@ def main() -> None:
                 # Update the UI
                 #################
                 peak_powers_since_last_display, current_peak_count, max_peak_count = \
-                    update_ui(configuration,
-                              to_ui_queue,
-                              processor.get_powers(False),
-                              peak_powers_since_last_display,
-                              current_peak_count,
-                              max_peak_count,
-                              time_rx_nsec)
+                    send_to_ui(configuration,
+                               to_ui_queue,
+                               processor.get_powers(False),
+                               peak_powers_since_last_display,
+                               current_peak_count,
+                               max_peak_count,
+                               time_rx_nsec)
 
                 # average of number of count of spectrums between UI updates
                 peak_average.average(max_peak_count)
@@ -223,7 +223,7 @@ def main() -> None:
                 data_source.close()
                 err_msg = f"Problem with source: {configuration.input_source}"
                 configuration.input_source = "null"
-                data_source = update_source(configuration, source_factory)
+                data_source = sdrStuff.update_source(configuration, source_factory)
                 configuration.error += err_msg
                 logger.error(configuration.error)
 
@@ -247,7 +247,7 @@ def main() -> None:
 
         if now > config_time:
             # check on the source, maybe the gain changed etc
-            update_source_state(configuration, data_source)
+            sdrStuff.update_source_state(configuration, data_source)
             config_time = now + 1
             try:
                 # Send the current configuration to the UI
@@ -289,14 +289,14 @@ def main() -> None:
     logger.error("SpectrumAnalyser exit")
 
 
-def setup() -> Tuple[Variables.Variables, SnapVariables.SnapVariables, pathlib.PurePath]:
+def setup() -> Tuple[sdrVariables.sdrVariables, SnapVariables.SnapVariables, pathlib.PurePath]:
     """
     Basic things everything else use
 
     :return:
     """
     # sdr configuration
-    configuration = Variables.Variables()
+    configuration = sdrVariables.sdrVariables()
     commandLine.parse_command_line(configuration, logger)
 
     # check we have a valid input sample type
@@ -316,7 +316,7 @@ def setup() -> Tuple[Variables.Variables, SnapVariables.SnapVariables, pathlib.P
     snap_configuration = SnapVariables.SnapVariables()
     if not os.path.isdir(SnapVariables.SNAPSHOT_DIRECTORY):
         os.makedirs(SnapVariables.SNAPSHOT_DIRECTORY)
-    snap_configuration.directory_list = list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
+    snap_configuration.directory_list = snapStuff.list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
 
     # web thumbnail directory
     where = f"{os.path.dirname(__file__)}"
@@ -328,8 +328,8 @@ def setup() -> Tuple[Variables.Variables, SnapVariables.SnapVariables, pathlib.P
 
 
 # Problem defining what we return, DataSource can be many different things
-# def initialise(configuration: Variables) -> Tuple[...]:
-def initialise(configuration: Variables, thumbs_dir: pathlib.PurePath):
+# def initialise(configuration: Variables, thumbs_dir: pathlib.PurePath) -> Tuple[...]:
+def initialise(configuration: sdrVariables, thumbs_dir: pathlib.PurePath):
     """
     Initialise everything we need
 
@@ -359,9 +359,9 @@ def initialise(configuration: Variables, thumbs_dir: pathlib.PurePath):
         # plugins, pass in all the variables as we don't know what the plugin may require
         plugin_manager = PluginManager.PluginManager(plugin_init_arguments=vars(configuration))
 
-        data_source = create_source(configuration, factory)
+        data_source = sdrStuff.create_source(configuration, factory)
         try:
-            open_source(configuration, data_source)
+            sdrStuff.open_source(configuration, data_source)
 
             # allowed sample source
             configuration.sample_types = data_source.get_sample_types()
@@ -379,282 +379,22 @@ def initialise(configuration: Variables, thumbs_dir: pathlib.PurePath):
 
         configuration.time_measure_fps = time.time()
 
-        return data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, \
-               plugin_manager, factory, pic_generator
+        return data_source, \
+               display, \
+               to_ui_queue, \
+               to_ui_control_queue, \
+               from_ui_queue, \
+               processor, \
+               plugin_manager,\
+               factory, \
+               pic_generator
 
     except Exception as msg:
         # exceptions here are fatal
         raise msg
 
 
-def list_snap_files(directory: pathlib.PurePath) -> []:
-    """
-    List the files in the provided directory, exclude png and hidden files
-
-    :param directory:
-    :return: List of files
-    """
-    directory_list = []
-    for path in pathlib.Path(directory).iterdir():
-        if not path.name.startswith(".") and not path.name.endswith("png"):
-            # We will not match the time in the filename as it is recording the trigger time
-            # getctime() may also return the last modification time not creation time (dependent on OS)
-            timestamp = int(os.path.getctime(path))
-            date_time = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d_%H-%M-%S')
-            directory_list.append((path.name, str(round(os.path.getsize(path) / (1024 * 1024), 3)), date_time))
-    # sort so that most recent is first
-    directory_list.sort(reverse=True, key=lambda a: a[2])
-    return directory_list
-
-
-def create_source(configuration: Variables, factory) -> DataSource:
-    """
-    Create the source of samples, cannot exception or fail. Does not open the source.
-
-    :param configuration: All the config we need
-    :param factory: Where we get the source from
-    :return: The source, has still to be opened
-    """
-    data_source = factory.create(configuration.input_source,
-                                 configuration.input_params,
-                                 configuration.fft_size,
-                                 configuration.sample_type,
-                                 configuration.sample_rate,
-                                 configuration.centre_frequency_hz,
-                                 configuration.input_bw_hz)
-    return data_source
-
-
-def open_source(configuration: Variables, data_source: DataSource) -> None:
-    """
-    Open the source, just creating a source will not open it as the creation cannot fail but the open can
-
-    :param configuration: Stores how the source is configured for our use
-    :param data_source: The source we will open
-    :return: None
-    """
-    # few other things to configure first before the open()
-    data_source.set_gain_mode(configuration.gain_mode)
-    data_source.set_gain(configuration.gain)
-
-    if data_source.open():
-        # may have updated various things
-        configuration.sample_type = data_source.get_sample_type()
-        configuration.sample_rate = data_source.get_sample_rate_sps()
-        configuration.centre_frequency_hz = data_source.get_centre_frequency_hz()
-        configuration.gain = data_source.get_gain()
-        configuration.gain_modes = data_source.get_gain_modes()
-        configuration.gain_mode = data_source.get_gain_mode()
-        configuration.input_bw_hz = data_source.get_bandwidth_hz()
-
-        # state any errors or warning
-        configuration.source_connected = data_source.connected()
-
-    configuration.error += data_source.get_and_reset_error()
-
-
-def update_source_state(configuration: Variables, data_source: DataSource) -> None:
-    """
-    Things that the source may change on it's own that we need to be aware of for the UI etc
-
-    :param configuration: How we think we are configured
-    :param data_source:  Which source to check
-    :return: None
-    """
-    if data_source:
-        configuration.gain = data_source.get_gain()  # front end may have an auto mode
-        configuration.sample_rate = data_source.get_sample_rate_sps()  # sps may have some resolution
-        configuration.centre_frequency_hz = data_source.get_centre_frequency_hz()  # front end may have some resolution
-
-
-def update_source(configuration: Variables, source_factory) -> DataSource:
-    """
-    Changing the source
-
-    :param configuration: For returning how source is configured
-    :param source_factory: How we will generate a new source
-    :return: The DataSource
-    """
-    data_source = create_source(configuration, source_factory)
-    try:
-        open_source(configuration, data_source)
-        configuration.error += data_source.get_and_reset_error()
-        logger.info(f"Opened source {configuration.input_source}")
-    except ValueError as msg:
-        logger.error(f"Problem with new configuration, {msg} "
-                     f"{configuration.centre_frequency_hz} "
-                     f"{configuration.sample_rate} "
-                     f"{configuration.fft_size}")
-        configuration.error += str(msg)
-        configuration.input_source = "null"
-        data_source = create_source(configuration, source_factory)
-        open_source(configuration, data_source)
-
-    configuration.source_connected = data_source.connected()
-    return data_source
-
-
-def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
-                        new_config: Dict, sdr_config: Variables,
-                        thumb_dir: pathlib.PurePath) -> DataSink_file:
-    """
-    messages from UI
-    We may change the snap object here, data_sink, due to changes in cf, sps or configuration
-
-    :param data_sink: where snap data will go, may change
-    :param snap_config: current snap state etc
-    :param new_config: dictionary from a json string with new configuration for snap
-    :param sdr_config: sdr config so we can get cf, sps etc
-    :param thumb_dir: where thumbnails ended up for the web UI
-    :return: None
-    """
-    # print(new_config)
-    changed = False
-    if new_config['baseFilename'] != snap_config.baseFilename:
-        snap_config.baseFilename = new_config['baseFilename']
-        changed = True
-
-    if new_config['wavFlag'] != snap_config.wav_flag:
-        snap_config.wav_flag = new_config['wavFlag']
-        changed = True
-
-    if new_config['snapState'] != snap_config.snapState:
-        # only 'manual' type can change state here
-        # don't set changed
-        if snap_config.triggerType == "manual":
-            snap_config.snapState = new_config['snapState']
-            if snap_config.snapState == "start":
-                snap_config.triggered = True
-                snap_config.triggerState = "triggered"
-            else:
-                snap_config.triggered = False
-                snap_config.triggerState = "wait"
-                snap_config.snapState = "stop"
-
-    if new_config['preTriggerMilliSec'] != snap_config.preTriggerMilliSec:
-        snap_config.preTriggerMilliSec = new_config['preTriggerMilliSec']
-        changed = True
-
-    if new_config['postTriggerMilliSec'] != snap_config.postTriggerMilliSec:
-        snap_config.postTriggerMilliSec = new_config['postTriggerMilliSec']
-        changed = True
-
-    if new_config['triggerType'] != snap_config.triggerType:
-        snap_config.triggerType = new_config['triggerType']  # don't set changed
-
-    # has any non-snap setting changed
-    if sdr_config.centre_frequency_hz != snap_config.cf or sdr_config.sample_rate != snap_config.sps:
-        snap_config.cf = sdr_config.centre_frequency_hz
-        snap_config.sps = sdr_config.sample_rate
-        changed = True
-
-    if new_config['deleteFileName'] != "":
-        delete_file(new_config['deleteFileName'], thumb_dir)
-        snap_config.directory_list = list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
-
-    if changed:
-        data_sink = DataSink_file.FileOutput(snap_config, SnapVariables.SNAPSHOT_DIRECTORY)
-        # following may of been changed by the sink
-        if data_sink.get_post_trigger_milli_seconds() != snap_config.postTriggerMilliSec or \
-                data_sink.get_pre_trigger_milli_seconds() != snap_config.preTriggerMilliSec:
-            snap_config.postTriggerMilliSec = data_sink.get_post_trigger_milli_seconds()
-            snap_config.preTriggerMilliSec = data_sink.get_pre_trigger_milli_seconds()
-            sdr_config.error += f"Snap modified to maximum file size of {snap_config.max_file_size / 1e6}MBytes"
-
-    return data_sink
-
-
-def delete_file(filename: str, thumb_dir: pathlib.PurePath) -> None:
-    """
-    Delete a snapshot file
-
-    :param filename: The filename we wish to delete, this will be the filename of the samples
-    :param thumb_dir: Where the thumbnail is stored
-    :return: None
-    """
-    filename = os.path.basename(filename)
-    file = pathlib.PurePath(SnapVariables.SNAPSHOT_DIRECTORY, filename)
-    file_png = pathlib.PurePath(SnapVariables.SNAPSHOT_DIRECTORY, filename + ".png")
-    thumb_png = pathlib.PurePath(thumb_dir, filename + ".png")
-    try:
-        os.remove(file)
-        try:
-            os.remove(file_png)
-            os.remove(thumb_png)
-        except OSError:
-            pass  # Don't care if we fail to delete the png files
-    except OSError as msg:
-        err = f"Problem with delete of {filename}, {msg}"
-        logger.error(err)
-
-
-def handle_sdr_message(configuration: Variables, new_config: Dict, data_source,
-                       source_factory, processor: ProcessSamples) -> DataSource:
-    """
-    Handle specific sdr related control messages
-    :param configuration: current config
-    :param new_config: dictionary from a json string with possible new config
-    :param data_source: where we get data from currently
-    :param source_factory:
-    :param processor:
-    :return: DataSource
-    """
-    if (new_config['source'] != configuration.input_source) \
-            or (new_config['sourceParams'] != configuration.input_params) \
-            or (new_config['dataFormat'] != configuration.sample_type):
-        configuration.input_source = new_config['source']
-        configuration.input_params = new_config['sourceParams']
-        configuration.sample_type = new_config['dataFormat']
-        configuration.centre_frequency_hz = new_config['centreFrequencyHz']
-        logger.info(f"changing source to '{configuration.input_source}' "
-                    f"'{configuration.input_params}' '{configuration.sample_type}'")
-        data_source.close()
-        data_source = update_source(configuration, source_factory)
-    else:
-        if new_config['centreFrequencyHz'] != configuration.centre_frequency_hz:
-            new_cf = new_config['centreFrequencyHz']
-            data_source.set_centre_frequency_hz(new_cf)
-            configuration.error += data_source.get_and_reset_error()
-            configuration.centre_frequency_hz = data_source.get_centre_frequency_hz()
-
-        if new_config['sdrBwHz'] != configuration.input_bw_hz:
-            new_bw = new_config['sdrBwHz']
-            data_source.set_bandwidth_hz(new_bw)
-            configuration.error += data_source.get_and_reset_error()
-            configuration.input_bw_hz = data_source.get_bandwidth_hz()
-
-        if new_config['window'] != configuration.window:
-            new_window = new_config['window']
-            processor.set_window(new_window)
-            configuration.window = processor.get_window()
-
-        if new_config['sps'] != configuration.sample_rate:
-            new_sps = new_config['sps']
-            data_source.set_sample_rate_sps(new_sps)
-            configuration.error += data_source.get_and_reset_error()
-            configuration.sample_rate = data_source.get_sample_rate_sps()
-
-        if new_config['fftSize'] != configuration.fft_size:
-            configuration.fft_size = new_config['fftSize']
-            data_source.close()  # can't change the block size without opening again
-            data_source = update_source(configuration, source_factory)
-
-        if new_config['gain'] != configuration.gain:
-            configuration.gain = new_config['gain']
-            data_source.set_gain(configuration.gain)
-            configuration.error += data_source.get_and_reset_error()
-            configuration.gain = data_source.get_gain()
-
-        if new_config['gainMode'] != configuration.gain_mode:
-            configuration.gain_mode = new_config['gainMode']
-            data_source.set_gain_mode(configuration.gain_mode)
-            configuration.error += data_source.get_and_reset_error()
-            configuration.gain_mode = data_source.get_gain_mode()
-
-    return data_source
-
-
-def handle_from_ui_queue(configuration: Variables,
+def handle_from_ui_queue(configuration: sdrVariables,
                          snap_configuration: SnapVariables,
                          to_ui_control_queue: multiprocessing.Queue,
                          from_ui_queue: multiprocessing.Queue,
@@ -704,14 +444,18 @@ def handle_from_ui_queue(configuration: Variables,
             elif new_config['type'] == "stop":
                 configuration.stop = int(new_config['value'])
             elif new_config['type'] == "snapUpdate":
-                snap_sink = handle_snap_message(snap_sink,
-                                                snap_configuration,
-                                                new_config,
-                                                configuration,
-                                                thumb_dir)
+                snap_sink = snapStuff.handle_snap_message(snap_sink,
+                                                          snap_configuration,
+                                                          new_config,
+                                                          configuration,
+                                                          thumb_dir)
             elif new_config['type'] == "sdrUpdate":
                 # we may be directed to change the source
-                data_source = handle_sdr_message(configuration, new_config, data_source, source_factory, processor)
+                data_source = sdrStuff.handle_sdr_message(configuration,
+                                                          new_config,
+                                                          data_source,
+                                                          source_factory,
+                                                          processor)
             else:
                 logger.error(f"Unknown control json from client {new_config}")
                 print(f"Unknown control json from client {new_config}")
@@ -726,13 +470,13 @@ def handle_from_ui_queue(configuration: Variables,
     return data_source, snap_sink
 
 
-def update_ui(configuration: Variables,
-              to_ui_queue: multiprocessing.Queue,
-              powers: np.ndarray,
-              peak_powers_since_last_display: np.ndarray,
-              current_peak_count: int,
-              max_peak_count: int,
-              time_spectrum: float) -> Tuple[np.ndarray, int, int]:
+def send_to_ui(configuration: sdrVariables,
+               to_ui_queue: multiprocessing.Queue,
+               powers: np.ndarray,
+               peak_powers_since_last_display: np.ndarray,
+               current_peak_count: int,
+               max_peak_count: int,
+               time_spectrum: float) -> Tuple[np.ndarray, int, int]:
     """
     Send data to the queue used for talking to the ui processes
 

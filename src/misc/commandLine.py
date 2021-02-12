@@ -3,14 +3,14 @@ import os
 import textwrap
 import logging
 
-from misc import Variables
+from misc import sdrVariables
 from dataSources import DataSourceFactory
 from dataSources import DataSource
 from misc import PluginManager
 from misc import timeSpectral
 
 
-def parse_command_line(configuration: Variables, logger: logging.Logger) -> None:
+def parse_command_line(configuration: sdrVariables, logger: logging.Logger) -> None:
     """
     Parse all the command line options
 

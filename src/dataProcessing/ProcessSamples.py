@@ -4,7 +4,7 @@ import logging
 # import line_profiler
 
 from dataProcessing import Spectrum
-from misc import Variables
+from misc import sdrVariables
 
 logger = logging.getLogger('spectrum_logger')
 
@@ -26,7 +26,7 @@ def get_windows() -> []:
 
 class ProcessSamples:
 
-    def __init__(self, configuration: Variables):
+    def __init__(self, configuration: sdrVariables):
         """
         The main processor for digitised samples
         :param configuration: The configuration we want
