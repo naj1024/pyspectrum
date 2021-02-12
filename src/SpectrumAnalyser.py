@@ -2,13 +2,12 @@
 """
 Provide a basic spectrum analyser for digitised complex samples
 
-## TODOs
+## TODOs, in no particular order
     * TODO: Convert inputs to streaming interfaces.
     * TODO: Drop receivers?
     * TODO: Markers on spectrogram during snapshot, for pre/post limits
     * TODO: Add a seconds marker to the bottom (left) of the spectrogram
     * TODO: Plugin for triggering snapshot on fft bin power, with masks
-    * TODO: File playback should only allow certain paths?
     * TODO: On web interface update just the rows that changed on the configuration table
     * TODO: On web interface config and snap tables change to just update the current not the new cells
     * TODO: On web interface is there a way to update the help when a different source is selected
@@ -78,62 +77,28 @@ def main() -> None:
     logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
     logger.setLevel(logging.WARN)
 
-    logger.info("SpectrumAnalyser starting")
+    logger.info("SpectrumAnalyser started")
 
     # different python versions may impact us
     if sys.version_info < (3, 7):
-        logger.warning(f"Python version means sample timings will be course, python V{sys.version}")
+        logger.warning(f"Python version nas no support for nanoseconds, current interpreter is V{sys.version}")
 
     global processing
     signal.signal(signal.SIGINT, signal_handler)
 
-    # our configuration
-    configuration = Variables.Variables()
-    commandLine.parse_command_line(configuration, logger)
+    # default config and setup
+    configuration, snap_configuration, thumbs_dir = setup()
 
-    # snapshot config
-    snap_configuration = SnapVariables.SnapVariables()
-    if not os.path.isdir(SnapVariables.SNAPSHOT_DIRECTORY):
-        os.makedirs(SnapVariables.SNAPSHOT_DIRECTORY)
-    snap_configuration.directory_list = list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
-
-    # web thumbnail directory
-    where = f"{os.path.dirname(__file__)}"
-    thumbs_dir = pathlib.PurePath(f"{where}/webUI/webroot/thumbnails")
-    if not os.path.isdir(thumbs_dir):
-        os.makedirs(thumbs_dir)
-
-    # thumbnail and pic generator process
-    pic_generator = PicGenerator.PicGenerator(SnapVariables.SNAPSHOT_DIRECTORY, thumbs_dir, logger.level)
-    pic_generator.start()
-    logger.debug(f"Started PicGenerator")
-
-    # check we have a valid input sample type
-    if configuration.sample_type not in DataSource.supported_data_types:
-        logger.critical(f'Illegal sample type of {configuration.sample_type} selected')
-        quit()
-
-    # all the sources available to us
-    configuration.input_sources = DataSourceFactory.DataSourceFactory().sources()
-    configuration.input_sources_web_helps = DataSourceFactory.DataSourceFactory().web_help_strings()
-
-    # windowing
-    configuration.window_types = ProcessSamples.get_windows()
-    configuration.window = configuration.window_types[0]
-
-    # configure us
+    # all our things
     data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, \
-        plugin_manager, source_factory = initialise(configuration)
-
-    # allowed sample types for base source converter
-    configuration.sample_types = data_source.get_sample_types()
+        plugin_manager, source_factory, pic_generator = initialise(configuration, thumbs_dir)
 
     # the snapshot config
     snap_configuration.cf = configuration.centre_frequency_hz
     snap_configuration.sps = configuration.sample_rate
     data_sink = DataSink_file.FileOutput(snap_configuration, SnapVariables.SNAPSHOT_DIRECTORY)
 
-    # The amount of time to get samples
+    # Some info on the amount of time to get samples
     expected_samples_receive_time = configuration.fft_size / configuration.sample_rate
     logger.info(f"SPS: {configuration.sample_rate / 1e6:0.3}MHzs "
                 f"RBW: {(configuration.sample_rate / (configuration.fft_size * 1e3)):0.1f}kHz")
@@ -144,7 +109,7 @@ def main() -> None:
     bits_sec = configuration.sample_rate * 8 * data_source.get_bytes_per_sample()
     logger.info(f"Minimum bit rate of input: {(bits_sec / 1e6):.0f}Mbit/sec")
 
-    # configure some default things before the main loop
+    # Default things before the main loop
     peak_powers_since_last_display = np.full(configuration.fft_size, -200)
     sample_get_time = Ewma.Ewma(0.01)
     process_time = Ewma.Ewma(0.01)
@@ -256,7 +221,7 @@ def main() -> None:
             # incorrect number of samples, probably because something closed
             if processing:
                 data_source.close()
-                err_msg = f"Problem with source {configuration.input_source}"
+                err_msg = f"Problem with source: {configuration.input_source}"
                 configuration.input_source = "null"
                 data_source = update_source(configuration, source_factory)
                 configuration.error += err_msg
@@ -270,7 +235,7 @@ def main() -> None:
             configuration.time_measure_fps = now
             configuration.sent_count = 0
 
-            # Debug print on how long things are taking
+        # Debug print on how long things are taking
         if now > debug_time:
             debug_print(expected_samples_receive_time,
                         configuration.fft_size, process_time,
@@ -281,10 +246,9 @@ def main() -> None:
             debug_time = now + 6
 
         if now > config_time:
-            # check on the source
+            # check on the source, maybe the gain changed etc
             update_source_state(configuration, data_source)
             config_time = now + 1
-            # is there space
             try:
                 # Send the current configuration to the UI
                 to_ui_control_queue.put(configuration.make_json(), block=False)
@@ -325,13 +289,52 @@ def main() -> None:
     logger.error("SpectrumAnalyser exit")
 
 
+def setup() -> Tuple[Variables.Variables, SnapVariables.SnapVariables, pathlib.PurePath]:
+    """
+    Basic things everything else use
+
+    :return:
+    """
+    # sdr configuration
+    configuration = Variables.Variables()
+    commandLine.parse_command_line(configuration, logger)
+
+    # check we have a valid input sample type
+    if configuration.sample_type not in DataSource.supported_data_types:
+        logger.critical(f'Illegal sample type of {configuration.sample_type} selected')
+        quit()
+
+    # get all the sources available to us
+    configuration.input_sources = DataSourceFactory.DataSourceFactory().sources()
+    configuration.input_sources_web_helps = DataSourceFactory.DataSourceFactory().web_help_strings()
+
+    # windowing
+    configuration.window_types = ProcessSamples.get_windows()
+    configuration.window = configuration.window_types[0]
+
+    # snapshot config
+    snap_configuration = SnapVariables.SnapVariables()
+    if not os.path.isdir(SnapVariables.SNAPSHOT_DIRECTORY):
+        os.makedirs(SnapVariables.SNAPSHOT_DIRECTORY)
+    snap_configuration.directory_list = list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
+
+    # web thumbnail directory
+    where = f"{os.path.dirname(__file__)}"
+    thumbs_dir = pathlib.PurePath(f"{where}/webUI/webroot/thumbnails")
+    if not os.path.isdir(thumbs_dir):
+        os.makedirs(thumbs_dir)
+
+    return configuration, snap_configuration, thumbs_dir
+
+
 # Problem defining what we return, DataSource can be many different things
 # def initialise(configuration: Variables) -> Tuple[...]:
-def initialise(configuration: Variables):
+def initialise(configuration: Variables, thumbs_dir: pathlib.PurePath):
     """
     Initialise everything we need
 
     :param configuration: How we will be configured
+    :param thumbs_dir: Where the picture generator will store thumbnails
     :return:
     """
     try:
@@ -359,6 +362,9 @@ def initialise(configuration: Variables):
         data_source = create_source(configuration, factory)
         try:
             open_source(configuration, data_source)
+
+            # allowed sample source
+            configuration.sample_types = data_source.get_sample_types()
         except ValueError as msg:
             logger.error(f"Connection problem {msg}")
             configuration.error += str(msg)
@@ -366,9 +372,15 @@ def initialise(configuration: Variables):
         # The main processor for producing ffts etc
         processor = ProcessSamples.ProcessSamples(configuration)
 
+        # thumbnail and pic generator process
+        pic_generator = PicGenerator.PicGenerator(SnapVariables.SNAPSHOT_DIRECTORY, thumbs_dir, logger.level)
+        pic_generator.start()
+        logger.debug(f"Started PicGenerator")
+
         configuration.time_measure_fps = time.time()
 
-        return data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, plugin_manager, factory
+        return data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, \
+               plugin_manager, factory, pic_generator
 
     except Exception as msg:
         # exceptions here are fatal
@@ -537,7 +549,8 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
         changed = True
 
     if new_config['deleteFileName'] != "":
-        delete_file(new_config['deleteFileName'], snap_config, thumb_dir)
+        delete_file(new_config['deleteFileName'], thumb_dir)
+        snap_config.directory_list = list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
 
     if changed:
         data_sink = DataSink_file.FileOutput(snap_config, SnapVariables.SNAPSHOT_DIRECTORY)
@@ -551,10 +564,17 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
     return data_sink
 
 
-def delete_file(filename: str, snap_vars: SnapVariables, thumb_dir: pathlib.PurePath) -> None:
+def delete_file(filename: str, thumb_dir: pathlib.PurePath) -> None:
+    """
+    Delete a snapshot file
+
+    :param filename: The filename we wish to delete, this will be the filename of the samples
+    :param thumb_dir: Where the thumbnail is stored
+    :return: None
+    """
     filename = os.path.basename(filename)
     file = pathlib.PurePath(SnapVariables.SNAPSHOT_DIRECTORY, filename)
-    file_png = pathlib.PurePath(SnapVariables.SNAPSHOT_DIRECTORY, filename+".png")
+    file_png = pathlib.PurePath(SnapVariables.SNAPSHOT_DIRECTORY, filename + ".png")
     thumb_png = pathlib.PurePath(thumb_dir, filename + ".png")
     try:
         os.remove(file)
@@ -562,12 +582,10 @@ def delete_file(filename: str, snap_vars: SnapVariables, thumb_dir: pathlib.Pure
             os.remove(file_png)
             os.remove(thumb_png)
         except OSError:
-            pass  # Don't care
+            pass  # Don't care if we fail to delete the png files
     except OSError as msg:
         err = f"Problem with delete of {filename}, {msg}"
         logger.error(err)
-
-    snap_vars.directory_list = list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
 
 
 def handle_sdr_message(configuration: Variables, new_config: Dict, data_source,

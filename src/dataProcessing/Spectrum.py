@@ -97,7 +97,7 @@ def get_powers(mag_squared: np.ndarray) -> np.ndarray:
 
 
 def get_windows() -> []:
-    return ['Hamming', 'Hanning', 'Blackman', 'Kaiser 0.8', 'Bartlett', 'rectangular']
+    return ['Hamming', 'Hanning', 'Blackman', 'Kaiser_16', 'Bartlett', 'rectangular']
 
 
 class Spectrum:
@@ -123,8 +123,8 @@ class Spectrum:
                 self._win = np.hanning(self._fft_size)
             elif self._window_type == 'Blackman':
                 self._win = np.blackman(self._fft_size)
-            elif self._window_type == 'Kaiser 0.8':
-                self._win = np.kaiser(self._fft_size, 0.8)
+            elif self._window_type == 'Kaiser_16':
+                self._win = np.kaiser(self._fft_size, 16)
             elif self._window_type == 'Bartlett':
                 self._win = np.bartlett(self._fft_size)
             elif self._window_type == 'rectangular':

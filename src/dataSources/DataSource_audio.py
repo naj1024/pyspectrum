@@ -221,6 +221,6 @@ class Input(DataSource.DataSource):
                     logger.error(msgs)
                     print(msgs)
                     self._empty_count = 0
-                pass
+                    raise ValueError(msgs)
 
         return complex_data, rx_time

@@ -81,11 +81,10 @@ class Input(DataSource.DataSource):
 
     def _set_sleep_time(self):
         self._sleep_time = self._number_complex_samples / self._sample_rate_sps
-        if self._sleep_time > 1.0:
-            self._sleep_time = 1.0
-        print(
-            f"sleep {self._sleep_time} {1 / self._sleep_time}, sps {self._sample_rate_sps}, "
-            f"n {self._number_complex_samples}")
+        if self._sleep_time > 0.1:
+            self._sleep_time = 0.1  # maximum sleep time
+        # print(f"sleep {self._sleep_time} {1 / self._sleep_time}, sps {self._sample_rate_sps}, "
+        #       f"n {self._number_complex_samples}")
 
     def open(self) -> bool:
         try:
