@@ -130,7 +130,7 @@ class Input(DataSource.DataSource):
 
     def get_sample_rate_sps(self) -> float:
         if self._sdr:
-            self._sample_rate_sps = float(self._sdr.get_sample_rate_sps())
+            self._sample_rate_sps = float(self._sdr.get_sample_rate())
         return self._sample_rate_sps
 
     def get_centre_frequency_hz(self) -> float:
@@ -164,7 +164,7 @@ class Input(DataSource.DataSource):
         if self._sdr:
             try:
                 self._sdr.sample_rate = sample_rate
-                self._sample_rate_sps = float(self._sdr.get_sample_rate_sps())
+                self._sample_rate_sps = float(self._sdr.get_sample_rate())
             except Exception as err:
                 self._error = str(err)
                 logger.debug(f"bad sr {sample_rate} now {self._sample_rate_sps}")
@@ -237,9 +237,21 @@ class Input(DataSource.DataSource):
                 else:
                     self._centre_frequency_hz = frequency
                     self._sdr.center_freq = frequency + (self._ppm * frequency / 1e6)
+                    print(f"freq {frequency} ppm {self._ppm} -> {frequency + (self._ppm * frequency / 1e6)}")
                 logger.info(f"Set frequency {frequency / 1e6:0.6f}MHz")
             except Exception as err:
                 self._error = str(err)
+
+    def set_ppm(self, ppm: float) -> None:
+        """
+        +ve reduces tuned frequency
+        -ve increases the tuned frequency
+
+        :param ppm: Parts per million error,
+        :return:
+        """
+        self._ppm = ppm
+        self.set_centre_frequency_hz(self._centre_frequency_hz)
 
     def get_gain(self) -> float:
         if self._sdr:
@@ -272,11 +284,11 @@ class Input(DataSource.DataSource):
                 self._sdr.set_bandwidth_hz(int(bw))
             except Exception as err:
                 self._error += str(err)
-            self._bandwidth_hz = self._sdr.get_bandwidth_hz()
+            self._bandwidth_hz = self._sdr.get_bandwidth()
 
     def get_bandwidth_hz(self) -> float:
         if self._sdr:
-            self._bandwidth_hz = self._sdr.get_bandwidth_hz()
+            self._bandwidth_hz = self._sdr.get_bandwidth()
         return self._bandwidth_hz
 
     def read_cplx_samples(self) -> Tuple[np.array, float]:
