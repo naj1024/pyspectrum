@@ -6,6 +6,16 @@ May have to use export PYTHONPATH=/usr/lib/python3.8/site-packages
 NOTE that the pluto device will accept 70Mhz to 6GHz frequency and 60MHz sampling with the patch.
     but -
           anything above around 2Msps is going to drop samples silently
+
+NOTE: added support for xo-correction by adding the following to ad936x.py from pyadi-iio
+
+    @property
+    def xo_correction(self):
+        return self._get_iio_dev_attr("xo_correction")
+
+    @xo_correction.setter
+    def xo_correction(self, value):
+        self._set_iio_dev_attr_str("xo_correction", value)
 """
 
 import numpy as np
@@ -89,6 +99,12 @@ class Input(DataSource.DataSource):
             raise ValueError(msgs)
 
         logger.debug(f"Connected to {module_type} on {self._source}")
+
+        try:
+            # not everyone will have modified the ad936x.py file
+            logger.info(f"Pluto XO-correction {self._sdr.xo_correction}")
+        except Exception:
+            logger.info("No Pluto XO-correction available")
 
         # pluto is not consistent in its errors so check ranges here
         if self._centre_frequency_hz < 70e6 or self._centre_frequency_hz > 6e9:
