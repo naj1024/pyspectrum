@@ -33,9 +33,10 @@ class sdrVariables:
         self.measured_fps = 20
         self.time_measure_fps = 0
         self.sent_count = 0
-        self.stop = True
+        self.stop = False
         self.web_port = 8080
         self.ack = 0  # time in seconds of the last data displayed by the UI, updated by UI
+        self.ui_delay = 0  # measured difference between now and ack from ui
 
         # where the data comes from
         self.input_source = "null"  # the source type e.g. file, socket, pluto, soapy, rtlsdr, audio ....

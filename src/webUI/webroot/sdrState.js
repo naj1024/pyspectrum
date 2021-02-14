@@ -80,6 +80,9 @@ sdrState.prototype.setLastDataTime = function(last) {
 sdrState.prototype.setNextAckTime = function(next) {
     this.nextAckTime = next;
 }
+sdrState.prototype.setUiDelay = function(delay) {
+    return this.uiDelay = delay;
+}
 
 ////////////////////
 // getters
@@ -156,6 +159,9 @@ sdrState.prototype.getLastDataTime = function() {
 }
 sdrState.prototype.getNextAckTime = function() {
     return this.nextAckTime;
+}
+sdrState.prototype.getUiDelay = function() {
+    return this.uiDelay;
 }
 
 sdrState.prototype.getResetSdrStateUpdated = function() {
@@ -257,6 +263,11 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         updateCfgTable = true;
     }
 
+    if (jsonConfig.ui_delay != sdrState.getUiDelay()) {
+        sdrState.setUiDelay(jsonConfig.ui_delay);
+        updateCfgTable = true;
+    }
+
     return updateCfgTable;
 }
 
@@ -283,4 +294,5 @@ function sdrState() {
     this.measuredFps = 0;
     this.nextAckTime = 0;
     this.lastDataTime = 0;
+    this.uiDelay = 0;
 }

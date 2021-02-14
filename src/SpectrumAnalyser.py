@@ -13,34 +13,35 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: On web interface is there a way to update the help when a different source is selected
     * TODO: On web interface why don't the interval functions for updating things work
     * TODO: On web interface we update the snapshot table purely on number of entries not values
+    # TODO: Generic way to handle data sources with unique parameters, e.g. pluto xo correction
 """
 
+import json
+import logging
+import multiprocessing
 import os
 import pathlib
-import time
-import multiprocessing
 import queue
 import signal
-import logging
 import sys
-import json
+import time
 from typing import Tuple
-from typing import Any
+from typing import Type
 
 import numpy as np
 
-from dataSources import DataSourceFactory
-from dataSources import DataSource
-from dataSink import DataSink_file
 from dataProcessing import ProcessSamples
+from dataSink import DataSink_file
+from dataSources import DataSource
+from dataSources import DataSourceFactory
 from misc import Ewma
-from misc import PluginManager
-from misc import sdrVariables
-from misc import sdrStuff
-from misc import SnapVariables
-from misc import snapStuff
-from misc import commandLine
 from misc import PicGenerator
+from misc import PluginManager
+from misc import SnapVariables
+from misc import commandLine
+from misc import sdrStuff
+from misc import sdrVariables
+from misc import snapStuff
 from webUI import WebServer
 
 processing = True  # global to be set to False from ctrl-c
@@ -91,7 +92,7 @@ def main() -> None:
 
     # all our things
     data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, \
-    plugin_manager, source_factory, pic_generator = initialise(configuration, thumbs_dir)
+        plugin_manager, source_factory, pic_generator = initialise(configuration, thumbs_dir)
 
     # the snapshot config
     snap_configuration.cf = configuration.centre_frequency_hz
@@ -230,7 +231,7 @@ def main() -> None:
         now = time.time()
         if now > fps_update_time:
             if (now - configuration.time_measure_fps) > 0:
-                configuration.measured_fps = int(configuration.sent_count / (now - configuration.time_measure_fps))
+                configuration.measured_fps = round(configuration.sent_count / (now - configuration.time_measure_fps), 1)
             fps_update_time = now + 2
             configuration.time_measure_fps = now
             configuration.sent_count = 0
@@ -327,15 +328,21 @@ def setup() -> Tuple[sdrVariables.sdrVariables, SnapVariables.SnapVariables, pat
     return configuration, snap_configuration, thumbs_dir
 
 
-# Problem defining what we return, DataSource can be many different things
-# def initialise(configuration: Variables, thumbs_dir: pathlib.PurePath) -> Tuple[...]:
-def initialise(configuration: sdrVariables, thumbs_dir: pathlib.PurePath):
+def initialise(configuration: sdrVariables, thumbs_dir: pathlib.PurePath) -> Tuple[Type[DataSource.DataSource],
+                                                                                   WebServer.WebServer,
+                                                                                   multiprocessing.Queue,
+                                                                                   multiprocessing.Queue,
+                                                                                   multiprocessing.Queue,
+                                                                                   ProcessSamples.ProcessSamples,
+                                                                                   PluginManager.PluginManager,
+                                                                                   DataSourceFactory.DataSourceFactory,
+                                                                                   PicGenerator.PicGenerator]:
     """
     Initialise everything we need
 
     :param configuration: How we will be configured
     :param thumbs_dir: Where the picture generator will store thumbnails
-    :return:
+    :return: Lots
     """
     try:
         # where we get our input samples from
@@ -379,15 +386,8 @@ def initialise(configuration: sdrVariables, thumbs_dir: pathlib.PurePath):
 
         configuration.time_measure_fps = time.time()
 
-        return data_source, \
-               display, \
-               to_ui_queue, \
-               to_ui_control_queue, \
-               from_ui_queue, \
-               processor, \
-               plugin_manager,\
-               factory, \
-               pic_generator
+        return data_source, display, to_ui_queue, to_ui_control_queue, \
+               from_ui_queue, processor, plugin_manager, factory, pic_generator
 
     except Exception as msg:
         # exceptions here are fatal
@@ -402,7 +402,7 @@ def handle_from_ui_queue(configuration: sdrVariables,
                          source_factory,
                          snap_sink,
                          thumb_dir: pathlib.PurePath,
-                         processor: ProcessSamples) -> Tuple[Any, Any]:
+                         processor: ProcessSamples) -> Tuple[Type[DataSource.DataSource], DataSink_file.FileOutput]:
     """
     Check the control queue for messages and handle them
 
@@ -494,15 +494,17 @@ def send_to_ui(configuration: sdrVariables,
     # drop things on the floor if we are told to stop
     if configuration.stop:
         configuration.measured_fps = 0  # not doing anything yet
+        configuration.update_count = 0
+        current_peak_count = 0
     else:
         configuration.update_count += 1
         one_in_n = int(configuration.sample_rate / (configuration.fps * configuration.fft_size))
 
         # should we try and add to the ui queue
         if configuration.update_count >= one_in_n:
-            # timings need to be altered
-            if current_peak_count == 1:
+            if current_peak_count == 0:
                 configuration.time_first_spectrum = time_spectrum
+                peak_powers_since_last_display = powers
 
             # order the spectral magnitudes, zero in the middle
             display_peaks = np.fft.fftshift(peak_powers_since_last_display)
@@ -515,17 +517,12 @@ def send_to_ui(configuration: sdrVariables,
                 # peak since last time is the current powers
                 max_peak_count = current_peak_count
                 current_peak_count = 0
-                peak_powers_since_last_display = powers
-                configuration.time_first_spectrum = time_spectrum
                 configuration.sent_count += 1
-
                 configuration.update_count = 0  # success on putting into queue
             except queue.Full:
                 peak_detect = True  # UI can't keep up
         else:
             peak_detect = True
-
-        current_peak_count += 1  # count even when we throw them away
 
         # Is the UI keeping up with how fast we are sending things
         # rather a lot of data may get buffered by the OS or network stack
@@ -533,17 +530,16 @@ def send_to_ui(configuration: sdrVariables,
         ack = configuration.ack
         if ack == 0:
             ack = seconds
-        diff = int(seconds - ack)
-        # if we are more than 4 seconds behind then reset the fps
+        configuration.ui_delay = round((seconds - ack), 2)
+
+        # if we are more than N seconds behind then reset the fps
         # NOTE on say the pluto which silently drops samples you may have a large gap between samples
-        # that gives a low fps and high delay, which if you increase the fps can look like not keeping up on the UI
-        if diff > 4 and configuration.fps > 20:
-            logger.info(f"UI not keeping up last ack {ack}, current data {int(seconds)}, diff {int(seconds - ack)}")
-            # As new fps is done here the webSocketServer process will be reading too fast and cause stuttering
-            # take it as a feature that gives feedback, unless the UI updates the fps and feeds it back to us
-            configuration.fps = 20  # something safe and sensible
-            configuration.ack = seconds
-            configuration.error += f"FPS too fast, UI behind by {diff}seconds. Defaulting to 20fps"
+        # that gives a low fps as data is not arriving at the correct rate
+        if configuration.ui_delay > 5:
+            configuration.fps = 10  # something safe and sensible
+            configuration.ack = seconds + 5  # give some time to work it through
+            configuration.error += f"FPS too fast, UI behind by {configuration.ui_delay}seconds. Defaulting to 10fps"
+            logger.info(configuration.error)
             peak_detect = True  # UI can't keep up
 
         # global old_one_in_n
@@ -557,11 +553,19 @@ def send_to_ui(configuration: sdrVariables,
         #     old_one_in_n = one_in_n
 
     if peak_detect:
+        if current_peak_count == 0:
+            configuration.time_first_spectrum = time_spectrum
         if powers.shape == peak_powers_since_last_display.shape:
             # Record the maximum for each bin, so that ui can show things between display updates
             peak_powers_since_last_display = np.maximum.reduce([powers, peak_powers_since_last_display])
+            current_peak_count += 1
         else:
             peak_powers_since_last_display = powers
+            current_peak_count = 1
+            configuration.time_first_spectrum = time_spectrum
+            configuration.update_count = 0
+    else:
+        peak_powers_since_last_display = np.full(configuration.fft_size, -200)
 
     return peak_powers_since_last_display, current_peak_count, max_peak_count
 
@@ -572,7 +576,7 @@ def debug_print(expect_samples_receive_time: float,
                 sample_get_time: Ewma,
                 peak_count: float,
                 fps: int,
-                mfps: int):
+                mfps: float) -> None:
     """
     Various useful profiling prints
 

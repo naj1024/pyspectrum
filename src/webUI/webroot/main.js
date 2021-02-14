@@ -452,6 +452,7 @@ function updateConfigTableCurrent(spec) {
     $('#currentGmode').empty().append(sdrState.getGainMode());
     $('#currentGain').empty().append(sdrState.getGain()+' dB');
     $('#currentFPS').empty().append(sdrState.getMeasuredFps());
+    $('#currentDelay').empty().append(sdrState.getUiDelay());
     $('#currentRBW').empty().append(spec.convertFrequencyForDisplay(sps / sdrState.getFftSize(),3));
     $('#currentAvg').empty().append(spec.averaging);
     $('#currentZoom').empty().append(spec.zoom);

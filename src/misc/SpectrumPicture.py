@@ -65,7 +65,6 @@ class SpectrumPicture:
                 fig.savefig(pic_name)
                 # create a thumbnail for the web
                 thumb_name = pathlib.PurePath(self._thumbnail_dir, os.path.basename(filename) + ".png")
-                print(f"{pic_name} -> {thumb_name}")
                 image.thumbnail(str(pic_name), str(thumb_name), scale=0.10)  # unix won't take pathlib for this
 
         except ValueError as msg:
