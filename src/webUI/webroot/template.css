@@ -43,6 +43,7 @@ canvas {
 /* highlight table mouse hover row */
 .table-hover tbody tr:hover td, .table-hover tobody th {
     background-color: #d0d0d0;
+    font-size: 20px;  /* make text bigger on hover */
 }
 
 /* remove arrow functionality from form number input boxes
@@ -103,12 +104,3 @@ input[type=number] {
     background: red;
 }
 
-/* for hover spectrum image on snapshot file table */
-/*
-img{
-   display: none
-}
-span:hover + img{
-   display: block;
-}
-*/
