@@ -217,6 +217,12 @@ function handleSdrBwChange(newBwMHz) {
     sdrState.setSdrStateUpdated();
 }
 
+function handlePpmChange(newPpm) {
+    sdrState.setPpmError(newPpm);
+    configTableFocusOut();
+    sdrState.setSdrStateUpdated();
+}
+
 function handleFftChange(newFft) {
     sdrState.setFftSize(newFft);
     // spec.setFftSize(num_floats); // don't do this here as spectrum has to know it changed
@@ -447,6 +453,7 @@ function updateConfigTableCurrent(spec) {
     let sps = sdrState.getSps();
     $('#currentSps').empty().append((sps/1e6).toFixed(6)+' Msps');
     $('#currentSdrBw').empty().append((sdrState.getSdrBwHz()/1e6).toFixed(2)+' MHz');
+    $('#currentPpm').empty().append(sdrState.getPpmError());
     $('#currentFft').empty().append(sdrState.getFftSize());
     $('#currentFftWindow').empty().append(sdrState.getFftWindow());
     $('#currentGmode').empty().append(sdrState.getGainMode());
@@ -568,6 +575,23 @@ function updateConfigTableNew(spec) {
     new_html += '" id="sdrBwInput" name="sdrBwInput">';
     new_html += "&nbsp MHz</form>";
     $('#newSdrBw').empty().append(new_html);
+
+    /////////////
+    // ppm error
+    ///////
+    let ppm = sdrState.getPpmError();
+    let ppm_step = 0.0001;
+    new_html = '<form ';
+    new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+    new_html += 'action="javascript:handlePpmChange(sdrPpmInput.value)">';
+    // as we remove the number inc/dec arrows in css the size parameter does work
+    new_html += '<input type="number" size="9" min="-500" max="500" step="';
+    new_html += ppm_step;
+    new_html += '" value="';
+    new_html += (ppm).toFixed(4);
+    new_html += '" id="sdrPpmInput" name="sdrPpmInput">';
+    new_html += "</form>";
+    $('#newPpm').empty().append(new_html);
 
     /////////////
     // fft

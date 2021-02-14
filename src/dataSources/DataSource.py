@@ -58,6 +58,9 @@ class DataSource:
         self._bandwidth_hz = input_bw
         self._centre_frequency_hz = centre_frequency
 
+        self._ppm = 0.0  # error on clock and frequency. Either removed at source or compensated by the source
+        self._hw_ppm_compensation = False  # True if the hardware does the compensation
+
         self._gain = 0
         self._gain_modes = ['None']
         self._gain_mode = "None"
@@ -118,6 +121,21 @@ class DataSource:
 
     def get_bandwidth_hz(self) -> float:
         return self._bandwidth_hz
+
+    def set_ppm(self, ppm: float) -> None:
+        """
+        ppm error on the sdr, impacts tuned frequency mostly
+
+        +ve reduces tuned frequency
+        -ve increases the tuned frequency
+        :param ppm: parts per million error
+        :return:
+        """
+        self._ppm = ppm
+
+    def get_ppm(self) -> float:
+        # override if hw supports ppm compensation, see pluto source
+        return self._ppm
 
     def get_display_name(self) -> str:
         return self._display_name

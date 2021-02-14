@@ -83,6 +83,9 @@ sdrState.prototype.setNextAckTime = function(next) {
 sdrState.prototype.setUiDelay = function(delay) {
     return this.uiDelay = delay;
 }
+sdrState.prototype.setPpmError = function(error) {
+    this.ppmError = error;
+}
 
 ////////////////////
 // getters
@@ -162,6 +165,9 @@ sdrState.prototype.getNextAckTime = function() {
 }
 sdrState.prototype.getUiDelay = function() {
     return this.uiDelay;
+}
+sdrState.prototype.getPpmError = function() {
+    return this.ppmError;
 }
 
 sdrState.prototype.getResetSdrStateUpdated = function() {
@@ -268,6 +274,11 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         updateCfgTable = true;
     }
 
+    if (jsonConfig.ppm_error != sdrState.getPpmError()) {
+        sdrState.setPpmError(jsonConfig.ppm_error);
+        updateCfgTable = true;
+    }
+
     return updateCfgTable;
 }
 
@@ -288,6 +299,7 @@ function sdrState() {
     this.gainMode = "";
     this.gainModes = [];
     this.sdrBwHz = 0;
+    this.ppmError = 0.0;
     this.dataFormat = "";
     this.dataFormats = [];
     this.fps = 0;

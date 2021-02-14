@@ -351,6 +351,8 @@ class Input(DataSource.DataSource):
         else:
             logger.info(f"Set frequency {frequency / 1e6:0.6f}MHz")
             self._centre_frequency_hz = frequency
+            if not self._hw_ppm_compensation:
+                frequency += (self._ppm * frequency / 1e6)
             return self.send_command(0x01, frequency)
 
         return 0

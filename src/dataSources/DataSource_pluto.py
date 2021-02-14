@@ -100,11 +100,9 @@ class Input(DataSource.DataSource):
 
         logger.debug(f"Connected to {module_type} on {self._source}")
 
-        try:
-            # not everyone will have modified the ad936x.py file
-            logger.info(f"Pluto XO-correction {self._sdr.xo_correction}")
-        except Exception:
-            logger.info("No Pluto XO-correction available")
+        self._hw_ppm_compensation = False
+        self.get_ppm()  # will set _hw_ppm_compensation
+        logger.info(f"Pluto XO-correction {self.get_ppm()}")
 
         # pluto is not consistent in its errors so check ranges here
         if self._centre_frequency_hz < 70e6 or self._centre_frequency_hz > 6e9:
@@ -125,8 +123,11 @@ class Input(DataSource.DataSource):
 
         try:
             self._sdr.rx_buffer_size = self._number_complex_samples  # sets how many complex samples we get each rx()
-            self._sdr.sample_rate = self._sample_rate_sps
-            self._sdr.rx_lo = int(self._centre_frequency_hz)
+            self._sdr.sample_rate = self._sample_rate_sps + (self._ppm * self._sample_rate_sps / 1e6)
+            if self._hw_ppm_compensation:
+                self._sdr.rx_lo = int(self._centre_frequency_hz)
+            else:
+                self._sdr.rx_lo = int(self._centre_frequency_hz + (self._ppm * self._centre_frequency_hz / 1e6))
             self._sdr.rx_rf_bandwidth = int(self._bandwidth_hz)
             # AGC mode will depend on environment, lots of bursting signals or lots of continuous signals
             self.set_gain_mode(self._gain_mode)  # self._sdr.gain_control_mode_chan0 = self._gain_mode
@@ -148,12 +149,14 @@ class Input(DataSource.DataSource):
     def get_sample_rate_sps(self) -> float:
         if self._sdr:
             self._sample_rate_sps = self._sdr.sample_rate
-            return self._sample_rate_sps
+        return self._sample_rate_sps
 
     def get_centre_frequency_hz(self) -> float:
         if self._sdr:
-            self._centre_frequency_hz = float(self._sdr.rx_lo)
-            return self._centre_frequency_hz
+            # if this object is compensating we can't ask the front end
+            if self._hw_ppm_compensation:
+                self._centre_frequency_hz = float(self._sdr.rx_lo)
+        return self._centre_frequency_hz
 
     def set_sample_rate_sps(self, sr: float) -> None:
         if self._sdr:
@@ -164,9 +167,51 @@ class Input(DataSource.DataSource):
     def set_centre_frequency_hz(self, cf: float) -> None:
         if self._sdr:
             if 70.0e6 <= cf <= 6.0e9:
-                self._sdr.rx_lo = int(cf)
-                self._centre_frequency_hz = float(self._sdr.rx_lo)
+                if self._hw_ppm_compensation:
+                    self._sdr.rx_lo = int(cf)
+                    self._centre_frequency_hz = float(self._sdr.rx_lo)
+                else:
+                    self._centre_frequency_hz = cf
+                    self._sdr.rx_lo = int(cf + (self._ppm * cf / 1e6))
                 # logger.error(f"cf set to {self._centre_frequency_hz} from {cf} {int(cf)}")
+
+    def get_ppm(self) -> float:
+        if self._sdr:
+            try:
+                clock_freq = self._sdr.xo_correction2
+                # Master clock is 40MHz
+                self._ppm = (40.0e6 - clock_freq) / 40.0
+                self._hw_ppm_compensation = True
+            except AttributeError:
+                self._hw_ppm_compensation = False
+        return self._ppm
+
+    def set_ppm(self, ppm: float) -> None:
+        """
+        Set the Pluto XO clock value depending on the ppm
+        +ve reduces tuned frequency
+        -ve increases the tuned frequency
+
+        :param ppm: Parts per million error,
+        :return:
+        """
+        self._ppm = ppm
+        if self._sdr:
+            # depends on if we can change the hw or not
+            if self._hw_ppm_compensation:
+                try:
+                    # Pluto has clock offset
+                    # cat xo_correction_available
+                    # [39991751 1 40007749]
+                    if self._ppm > 180:
+                        self._ppm = 180
+                    elif self._ppm < -180:
+                        self._ppm = -180
+                    clock_freq = 40e6 - 40.0 * self._ppm
+                    self._sdr.xo_correction = int(clock_freq)
+                except AttributeError:
+                    self._hw_ppm_compensation = False
+            self.set_centre_frequency_hz(self._centre_frequency_hz)
 
     def set_sample_type(self, data_type: str) -> None:
         # we can't set a different sample type on this source

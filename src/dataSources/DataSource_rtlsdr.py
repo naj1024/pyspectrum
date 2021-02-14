@@ -135,7 +135,8 @@ class Input(DataSource.DataSource):
 
     def get_centre_frequency_hz(self) -> float:
         if self._sdr:
-            self._centre_frequency_hz = float(self._sdr.get_center_freq())
+            if self._hw_ppm_compensation:
+                self._centre_frequency_hz = float(self._sdr.get_center_freq())
         return self._centre_frequency_hz
 
     def set_sample_type(self, data_type: str) -> None:
@@ -230,8 +231,12 @@ class Input(DataSource.DataSource):
 
         if self._sdr and ok:
             try:
-                self._sdr.center_freq = frequency
-                self._centre_frequency_hz = float(self._sdr.get_center_freq())
+                if self._hw_ppm_compensation:
+                    self._sdr.center_freq = frequency
+                    self._centre_frequency_hz = float(self._sdr.get_center_freq())
+                else:
+                    self._centre_frequency_hz = frequency
+                    self._sdr.center_freq = frequency + (self._ppm * frequency / 1e6)
                 logger.info(f"Set frequency {frequency / 1e6:0.6f}MHz")
             except Exception as err:
                 self._error = str(err)

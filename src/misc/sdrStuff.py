@@ -43,6 +43,12 @@ def handle_sdr_message(configuration: sdrVariables, new_config: Dict, data_sourc
             configuration.error += data_source.get_and_reset_error()
             configuration.input_bw_hz = data_source.get_bandwidth_hz()
 
+        if new_config['ppmError'] != configuration.ppm_error:
+            new_ppm = new_config['ppmError']
+            data_source.set_ppm(float(new_ppm))
+            configuration.error += data_source.get_and_reset_error()
+            configuration.ppm_error = data_source.get_ppm()
+
         if new_config['window'] != configuration.window:
             new_window = new_config['window']
             processor.set_window(new_window)
@@ -113,6 +119,7 @@ def open_source(configuration: sdrVariables, data_source: DataSource) -> None:
         configuration.gain_modes = data_source.get_gain_modes()
         configuration.gain_mode = data_source.get_gain_mode()
         configuration.input_bw_hz = data_source.get_bandwidth_hz()
+        configuration.ppm_error = data_source.get_ppm()
 
         # state any errors or warning
         configuration.source_connected = data_source.connected()

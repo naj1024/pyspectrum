@@ -26,6 +26,7 @@ class sdrVariables:
         self.gain_modes = []
         self.gain_mode = ""
         self.input_bw_hz = self.sample_rate
+        self.ppm_error = 0.0
 
         # display
         self.fps = 20
