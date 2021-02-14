@@ -281,7 +281,7 @@ class Input(DataSource.DataSource):
     def set_bandwidth_hz(self, bw: float) -> None:
         if self._sdr:
             try:
-                self._sdr.set_bandwidth_hz(int(bw))
+                self._sdr.set_bandwidth(int(bw))
             except Exception as err:
                 self._error += str(err)
             self._bandwidth_hz = self._sdr.get_bandwidth()
