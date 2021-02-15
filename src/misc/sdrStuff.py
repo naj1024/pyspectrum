@@ -119,8 +119,11 @@ def open_source(configuration: sdrVariables, data_source: DataSource) -> None:
         configuration.gain_modes = data_source.get_gain_modes()
         configuration.gain_mode = data_source.get_gain_mode()
         configuration.input_bw_hz = data_source.get_bandwidth_hz()
-        if data_source.get_ppm() == 0.0:
+        ppm = data_source.get_ppm()
+        if ppm == 0.0:
             data_source.set_ppm(configuration.ppm_error)
+        else:
+            configuration.ppm_error = ppm
 
             # state any errors or warning
         configuration.source_connected = data_source.connected()

@@ -588,7 +588,7 @@ function updateConfigTableNew(spec) {
     new_html += '<input type="number" size="9" min="-500" max="500" step="';
     new_html += ppm_step;
     new_html += '" value="';
-    new_html += (ppm).toFixed(4);
+    new_html += (ppm).toFixed(2);
     new_html += '" id="sdrPpmInput" name="sdrPpmInput">';
     new_html += "</form>";
     $('#newPpm').empty().append(new_html);

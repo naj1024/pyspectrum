@@ -178,7 +178,7 @@ class Input(DataSource.DataSource):
     def get_ppm(self) -> float:
         if self._sdr:
             try:
-                clock_freq = self._sdr.xo_correction2
+                clock_freq = self._sdr.xo_correction
                 # Master clock is 40MHz
                 self._ppm = (40.0e6 - clock_freq) / 40.0
                 self._hw_ppm_compensation = True
