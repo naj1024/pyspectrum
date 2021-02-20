@@ -236,7 +236,7 @@ class Input(DataSource.DataSource):
                     self._centre_frequency_hz = float(self._sdr.get_center_freq())
                 else:
                     self._centre_frequency_hz = frequency
-                    self._sdr.center_freq = frequency + (self._ppm * frequency / 1e6)
+                    self._sdr.center_freq = self.get_ppm_corrected(frequency)
                     # print(f"freq {frequency} ppm {self._ppm} -> {frequency + (self._ppm * frequency / 1e6)}")
                 logger.info(f"Set frequency {frequency / 1e6:0.6f}MHz")
             except Exception as err:

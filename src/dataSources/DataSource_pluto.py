@@ -123,12 +123,10 @@ class Input(DataSource.DataSource):
 
         try:
             self._sdr.rx_buffer_size = self._number_complex_samples  # sets how many complex samples we get each rx()
-            self._sdr.sample_rate = self._sample_rate_sps + (self._ppm * self._sample_rate_sps / 1e6)
-            if self._hw_ppm_compensation:
-                self._sdr.rx_lo = int(self._centre_frequency_hz)
-            else:
-                self._sdr.rx_lo = int(self._centre_frequency_hz + (self._ppm * self._centre_frequency_hz / 1e6))
-            self._sdr.rx_rf_bandwidth = int(self._bandwidth_hz)
+            # don't correct sample rates for ppm error, very small error
+            self.set_sample_rate_sps(self._sample_rate_sps)
+            self.set_centre_frequency_hz(self._centre_frequency_hz)
+            self.set_bandwidth_hz(self._bandwidth_hz)
             # AGC mode will depend on environment, lots of bursting signals or lots of continuous signals
             self.set_gain_mode(self._gain_mode)  # self._sdr.gain_control_mode_chan0 = self._gain_mode
             self.set_gain(40)
@@ -172,7 +170,7 @@ class Input(DataSource.DataSource):
                     self._centre_frequency_hz = float(self._sdr.rx_lo)
                 else:
                     self._centre_frequency_hz = cf
-                    self._sdr.rx_lo = int(cf + (self._ppm * cf / 1e6))
+                    self._sdr.rx_lo = int(self.get_ppm_corrected(cf))
                 # logger.error(f"cf set to {self._centre_frequency_hz} from {cf} {int(cf)}")
 
     def get_ppm(self) -> float:

@@ -113,6 +113,9 @@ class DataSource:
     def set_centre_frequency_hz(self, cf: float) -> None:
         self._centre_frequency_hz = cf
 
+    def get_ppm_corrected(self, frequency_hz: float) -> float:
+        return frequency_hz + (self._ppm * frequency_hz / 1e6)
+
     def get_centre_frequency_hz(self) -> float:
         return self._centre_frequency_hz
 

@@ -13,7 +13,8 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: On web interface is there a way to update the help when a different source is selected
     * TODO: On web interface why don't the interval functions for updating things work
     * TODO: On web interface we update the snapshot table purely on number of entries not values
-    # TODO: Generic way to handle data sources with unique parameters, e.g. pluto xo correction
+    * TODO: Generic way to handle data sources with unique parameters, e.g. pluto xo correction
+    * TODO: UI responsiveness is tied to data arriving, should be independent of arriving spectrum data
 """
 
 import json
@@ -537,9 +538,10 @@ def send_to_ui(configuration: sdrVariables,
         # that gives a low fps as data is not arriving at the correct rate
         if configuration.ui_delay > 5:
             configuration.fps = 10  # something safe and sensible
-            configuration.ack = seconds + 5  # give some time to work it through
-            configuration.error += f"FPS too fast, UI behind by {configuration.ui_delay}seconds. Defaulting to 10fps"
-            logger.info(configuration.error)
+            err_msg = f"FPS too fast, UI behind by {configuration.ui_delay}seconds. Defaulting to 10fps"
+            # don't give error to the UI as this stops it updating and you end up in a loop
+            # configuration.error += err_msg
+            logger.info(err_msg)
             peak_detect = True  # UI can't keep up
 
         # global old_one_in_n

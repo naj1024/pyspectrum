@@ -692,10 +692,11 @@ Spectrum.prototype.addMarker = function(frequencyHz, magdB, time_start, inputCou
     // Measurements
     new_row += "<td>"+(frequencyHz/1e6).toFixed(6)+"</td>";
     new_row += "<td>"+magdB.toFixed(1)+"</td>";
-    new_row += "<td>"+time_start.toFixed(6)+"</td>";
+    // ignore time for now
+    // new_row += "<td>"+time_start.toFixed(6)+"</td>";
     new_row += "<td>";
-    new_row += this.convertFrequencyForDisplay(deltaHz,3)+", ";
-    new_row += deltadB.toFixed(1) +"dB, ";
+    new_row += this.convertFrequencyForDisplay(deltaHz,3)+"<br>";
+    new_row += deltadB.toFixed(1) +"dB<br>";
     new_row += deltaTime.toFixed(6)+"sec</td>";
 
     // bin
@@ -1079,7 +1080,7 @@ Spectrum.prototype.drawLiveMarker = function() {
 
     let marker_value = this.getValuesAtCanvasPosition(canvasX, canvasY);
     if (marker_value != null) {
-        let marker_text = " " + this.convertFrequencyForDisplay(marker_value.freqHz, 3);
+        let marker_text = " " + this.convertFrequencyForDisplay(marker_value.freqHz, 6);
         marker_text += " " + marker_value.power.toFixed(1) + "dB ";
         marker_text += " " + marker_value.diffTime.toFixed(3) + "s ";
 
@@ -1254,8 +1255,8 @@ Spectrum.prototype.zoomIn = function() {
     if (this.zoom <= 1.0) {
        this.zoom = 1.0;
        this.zoomCentreBin = -1;
-    } else if ((this.fftSize / this.zoom) <= 64) {
-       this.zoom /= 2.0; // put zoom back to have at least 128 points across
+    } else if ((this.fftSize / this.zoom) <= 16) {
+       this.zoom /= 2.0; // put zoom back
     }
     this.updatedZoom = true;
 }

@@ -55,7 +55,8 @@ class Input(DataSource.DataSource):
         self._connected = False
 
         self._sleep = True  # may want to read file as fast as possible
-        self._sleep_time = 1.0
+        self._samples_time_ns = 0.0  # how long these samples should take to arrive
+        self._set_samples_time()
 
         try:
             self._create_time = time.time_ns()
@@ -77,14 +78,10 @@ class Input(DataSource.DataSource):
         if sr <= 0:
             sr = 10000.0  # small default, but not too small
         self._sample_rate_sps = sr
-        self._set_sleep_time()
+        self._set_samples_time()
 
-    def _set_sleep_time(self):
-        self._sleep_time = self._number_complex_samples / self._sample_rate_sps
-        if self._sleep_time > 0.1:
-            self._sleep_time = 0.1  # maximum sleep time
-        # print(f"sleep {self._sleep_time} {1 / self._sleep_time}, sps {self._sample_rate_sps}, "
-        #       f"n {self._number_complex_samples}")
+    def _set_samples_time(self):
+        self._samples_time_ns = 1.0e9 * self._number_complex_samples / self._sample_rate_sps
 
     def open(self) -> bool:
         try:
@@ -102,7 +99,7 @@ class Input(DataSource.DataSource):
             self._centre_frequency_hz = cf
             self._sample_rate_sps = sps
 
-            self._set_sleep_time()
+            self._set_samples_time()
 
         except ValueError as msg:
             self._error = msg
@@ -167,7 +164,7 @@ class Input(DataSource.DataSource):
                     rx_time = self._file_time  # mark start of buffer as current distance into file
 
                     # update time into the file by the sample rate
-                    self._file_time += (1.0e9 * self._number_complex_samples / self._sample_rate_sps)
+                    self._file_time += self._samples_time_ns
 
                     if len(raw_bytes) != self._bytes_per_snap:
                         raw_bytes = None
@@ -177,8 +174,8 @@ class Input(DataSource.DataSource):
                             raise ValueError("end-of-file")
 
                     if self._sleep:
-                        # wait how long these samples would of taken to arrive, but not too long
-                        time.sleep(self._sleep_time)
+                        # wait how long these samples would of taken to arrive, less processing time
+                        time.sleep(self._samples_time_ns / 1.0e9)
 
                 except OSError as msg:
                     msgs = f'OSError, {msg}'
