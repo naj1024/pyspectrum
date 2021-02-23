@@ -34,7 +34,6 @@ class FileOutput:
         self._base_filename = config.baseFilename
         self._base_directory = snap_dir
         self._centre_freq_hz = config.cf
-        print(self._centre_freq_hz)
         self._sample_rate_sps = config.sps
         self._post_milliseconds = config.postTriggerMilliSec
         self._pre_milliseconds = config.preTriggerMilliSec
