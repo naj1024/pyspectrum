@@ -60,6 +60,7 @@ input[type=number] {
 
 /* hide submit buttons */
 #submitbtnFreq{display:none;}
+#submitbtnFreqOffset{display:none;}
 #submitbtnGain{display:none;}
 
 /* the font for our buttons */

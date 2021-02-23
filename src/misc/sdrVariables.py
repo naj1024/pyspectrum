@@ -19,7 +19,8 @@ class sdrVariables:
         self.window_types = []
 
         self.sample_rate = 1e6  # default
-        self.centre_frequency_hz = 433.92e6  # default
+        self.centre_frequency_hz = 433.92e6  # used by the sdr
+        self.real_centre_frequency_hz = self.centre_frequency_hz  # takes account of any offset, readonly here
         self.sample_types = []
         self.sample_type = '16tbe'  # default Format of sample data
         self.gain = 0

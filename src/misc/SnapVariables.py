@@ -22,7 +22,7 @@ class SnapVariables:
         self.triggerState = "wait"  # "wait", "triggered"
         self.triggered = False  # rather than the state we have a simple boolean
         self.triggers = ["manual", "off"]  # available trigger sources
-        self.triggerType = "off"  # current trigger source
+        self.triggerType = "manual"  # current trigger source
 
         self.currentSizeMbytes = 0
         self.expectedSizeMbytes = 0

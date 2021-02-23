@@ -15,6 +15,7 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: On web interface we update the snapshot table purely on number of entries not values
     * TODO: Generic way to handle data sources with unique parameters, e.g. pluto xo correction
     * TODO: UI responsiveness is tied to data arriving, should be independent of arriving spectrum data
+    * TODO: Add conversion factor for an up/down converter
 """
 
 import json
@@ -96,7 +97,7 @@ def main() -> None:
         plugin_manager, source_factory, pic_generator = initialise(configuration, thumbs_dir)
 
     # the snapshot config
-    snap_configuration.cf = configuration.centre_frequency_hz
+    snap_configuration.cf = configuration.real_centre_frequency_hz
     snap_configuration.sps = configuration.sample_rate
     data_sink = DataSink_file.FileOutput(snap_configuration, SnapVariables.SNAPSHOT_DIRECTORY)
 
@@ -190,9 +191,9 @@ def main() -> None:
                 snap_configuration.expectedSizeMbytes = data_sink.get_size_mbytes()
 
                 # has underlying sps or cf changed for the snap
-                if snap_configuration.cf != configuration.centre_frequency_hz or \
+                if snap_configuration.cf != configuration.real_centre_frequency_hz or \
                         snap_configuration.sps != configuration.sample_rate:
-                    snap_configuration.cf = configuration.centre_frequency_hz
+                    snap_configuration.cf = configuration.real_centre_frequency_hz
                     snap_configuration.sps = configuration.sample_rate
                     snap_configuration.triggered = False
                     snap_configuration.triggerState = "wait"

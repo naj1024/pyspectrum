@@ -37,6 +37,10 @@ def handle_sdr_message(configuration: sdrVariables, new_config: Dict, data_sourc
             configuration.error += data_source.get_and_reset_error()
             configuration.centre_frequency_hz = data_source.get_centre_frequency_hz()
 
+        if new_config['realCentreFrequencyHz'] != configuration.real_centre_frequency_hz:
+            new_cf = new_config['realCentreFrequencyHz']
+            configuration.real_centre_frequency_hz = new_cf
+
         if new_config['sdrBwHz'] != configuration.input_bw_hz:
             new_bw = new_config['sdrBwHz']
             data_source.set_bandwidth_hz(new_bw)

@@ -14,6 +14,12 @@ sdrState.prototype.setName = function(name) {
 }
 sdrState.prototype.setCentreFrequencyHz = function(freqHz) {
     this.centreFrequencyHz = parseInt(freqHz);
+    this.realCentreFrequencyHz = parseInt(freqHz + this.centreFrequencyOffsetHz);
+}
+sdrState.prototype.setCentreFrequencyOffsetHz = function(freqHz) {
+    this.centreFrequencyOffsetHz = freqHz;
+    // the sdr tuned frequency stays the same
+    this.setCentreFrequencyHz(this.centreFrequencyHz);
 }
 sdrState.prototype.setSps = function(sps) {
     this.sps = parseInt(sps);
@@ -95,6 +101,12 @@ sdrState.prototype.getName = function() {
 }
 sdrState.prototype.getCentreFrequencyHz = function() {
     return this.centreFrequencyHz;
+}
+sdrState.prototype.getRealCentreFrequencyHz = function() {
+    return this.realCentreFrequencyHz;
+}
+sdrState.prototype.getCentreFrequencyOffsetHz = function() {
+    return this.centreFrequencyOffsetHz;
 }
 sdrState.prototype.getSps = function() {
     return this.sps;
@@ -181,9 +193,11 @@ sdrState.prototype.getResetSdrStateUpdated = function() {
 sdrState.prototype.setConfigFromJason = function(jsonConfig) {
     // console.log(jsonConfig)
     let updateCfgTable = false;
+
+    // only update from the sdr frequency
     if (jsonConfig.centre_frequency_hz != sdrState.getCentreFrequencyHz()) {
         sdrState.setCentreFrequencyHz(jsonConfig.centre_frequency_hz);
-        spectrum.setCentreFreqHz(jsonConfig.centre_frequency_hz);
+        spectrum.setCentreFreqHz(sdrState.getRealCentreFrequencyHz());
         updateCfgTable = true;
     }
 
@@ -285,7 +299,9 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
 function sdrState() {
     this.type = "sdrUpdate",
     this.sdrStateUpdated = false; // true if the UI has changed something
-    this.centreFrequencyHz = 0.0;
+    this.centreFrequencyHz = 0.0; // what the sdr will be given
+    this.realCentreFrequencyHz = 0.0; // takes account of offset
+    this.centreFrequencyOffsetHz = 0.0; // subtracted from realCentreFrequencyHz
     this.sps = 0;
     this.fftSize = 0;
     this.window = "";

@@ -178,10 +178,23 @@ async function handleJsonControl(controlData) {
 }
 
 function handleCfChange(newCfMHz) {
-    sdrState.setCentreFrequencyHz(newCfMHz*1e6);
-    spectrum.setCentreFreqHz(newCfMHz*1e6);
-    configTableFocusOut();
-    sdrState.setSdrStateUpdated();
+    // remove offset before updating
+    let newCf = newCfMHz*1e6 - sdrState.getCentreFrequencyOffsetHz();
+    if (newCf >= 0) {
+        sdrState.setCentreFrequencyHz(newCf);
+        spectrum.setCentreFreqHz(sdrState.getRealCentreFrequencyHz());
+        configTableFocusOut();
+        sdrState.setSdrStateUpdated();
+    }
+}
+function handleCfOffsetChange(newCfOffsetMHz) {
+    let newCf = sdrState.getCentreFrequencyHz() + newCfOffsetMHz * 1e6;
+    if (newCf >= 0) {
+        sdrState.setCentreFrequencyOffsetHz(newCfOffsetMHz*1e6);
+        spectrum.setCentreFreqHz(sdrState.getRealCentreFrequencyHz());
+        configTableFocusOut();
+        sdrState.setSdrStateUpdated();
+    }
 }
 
 function setCfHz(newCfHz) {
@@ -449,7 +462,9 @@ function updateConfigTableCurrent(spec) {
     $('#currentSource').empty().append(src);
 
     $('#currentFormat').empty().append(sdrState.getDataFormat());
-    $('#currentCentre').empty().append((sdrState.getCentreFrequencyHz()/1e6).toFixed(6)+' MHz');
+    $('#currentSdrCentre').empty().append((sdrState.getCentreFrequencyHz()/1e6).toFixed(6)+' MHz');
+    $('#currentCentre').empty().append((sdrState.getRealCentreFrequencyHz()/1e6).toFixed(6)+' MHz');
+    $('#currentCfOffset').empty().append((sdrState.getCentreFrequencyOffsetHz()/1e6).toFixed(6)+' MHz');
     let sps = sdrState.getSps();
     $('#currentSps').empty().append((sps/1e6).toFixed(6)+' Msps');
     $('#currentSdrBw').empty().append((sdrState.getSdrBwHz()/1e6).toFixed(2)+' MHz');
@@ -532,15 +547,32 @@ function updateConfigTableNew(spec) {
     new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
     new_html += ' action="javascript:handleCfChange(centreFrequencyInput.value)">';
     // as we remove the number inc/dec arrows in css the size parameter does work
-    new_html += '<input type="number" size="10" min="0" max="10000" ';
+    new_html += '<input type="number" size="12" min="0" max="40000" ';
     new_html += ' step="';
     new_html += cf_step;
     new_html += '" value="';
-    new_html += (sdrState.getCentreFrequencyHz()/1e6).toFixed(6);
+    new_html += (sdrState.getRealCentreFrequencyHz()/1e6).toFixed(6);
     new_html += '" id="centreFrequencyInput" name="centreFrequencyInput">';
     new_html += '<input type=submit id="submitbtnFreq">';
     new_html += '&nbsp MHz</form>';
     $('#newCentre').empty().append(new_html);
+
+    /////////////
+    // centre frequency offset, for up/down converters
+    ///////
+    new_html = '<form ';
+    new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+    new_html += ' action="javascript:handleCfOffsetChange(centreFrequencyOffsetInput.value)">';
+    // as we remove the number inc/dec arrows in css the size parameter does work
+    new_html += '<input type="number" size="12" min="-30000" max="30000" ';
+    new_html += ' step="';
+    new_html += cf_step;
+    new_html += '" value="';
+    new_html += (sdrState.getCentreFrequencyOffsetHz()/1e6).toFixed(6);
+    new_html += '" id="centreFrequencyOffsetInput" name="centreFrequencyOffsetInput">';
+    new_html += '<input type=submit id="submitbtnFreqOffset">';
+    new_html += '&nbsp MHz</form>';
+    $('#newCfOffset').empty().append(new_html);
 
     /////////////
     // sps

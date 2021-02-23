@@ -60,8 +60,8 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
         snap_config.triggerType = new_config['triggerType']  # don't set changed
 
     # has any non-snap setting changed
-    if sdr_config.centre_frequency_hz != snap_config.cf or sdr_config.sample_rate != snap_config.sps:
-        snap_config.cf = sdr_config.centre_frequency_hz
+    if sdr_config.real_centre_frequency_hz != snap_config.cf or sdr_config.sample_rate != snap_config.sps:
+        snap_config.cf = sdr_config.real_centre_frequency_hz
         snap_config.sps = sdr_config.sample_rate
         changed = True
 
