@@ -159,7 +159,7 @@ Spectrum.prototype.drawSpectrum = function(bins) {
     if (this.maxHold)
         this.drawFFT(this.trace0Max, this.trace0MaxholdColour);
 
-    if (this.trace1)
+    if (this.trace1 && !this.trace1Hide)
         this.drawFFT(this.trace1, this.trace1Colour);
 
     // are we in difference to trace1 mode
@@ -567,8 +567,11 @@ Spectrum.prototype.avgToTrace1 = function() {
 Spectrum.prototype.curToTrace1 = function() {
     this.trace1 = Array.from(this.currentMagnitudes);
 }
-Spectrum.prototype.clrTrace1 = function() {
+Spectrum.prototype.clearTrace1 = function() {
     this.trace1 = null;
+}
+Spectrum.prototype.hideTrace1 = function() {
+    this.trace1Hide = !this.trace1Hide;
 }
 
 Spectrum.prototype.toggleFullscreen = function() {
@@ -1559,6 +1562,7 @@ function Spectrum(id, options) {
     this.trace0Average = null;     // average on trace0
     this.trace1 = null             // trace 1
     this.diffTrace1 = false;
+    this.trace1Hide = false;
 
     // one up count of all spectrums received when not paused
     this.inputCount = 0;

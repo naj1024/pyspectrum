@@ -380,6 +380,10 @@ function updateSnapTableNew() {
     }
     let new_html=""
 
+    new_html = '<button type="button" id="snapTriggerBut" title="Manual trigger" class="specbuttons btn btn-outline-dark mx-1 my-1">Trigger</button>';
+    $('#newSnapTriggerState').empty().append(new_html);
+    $('#snapTriggerBut').click(function() {handleSnapTrigger();});
+
     new_html = '<form ';
     new_html += ' onfocusin="snapTableFocusIn()" onfocusout="snapTableFocusOut()" ';
     new_html += 'action="javascript:handleSnapBaseNameChange(snapBaseName.value)">';
@@ -941,7 +945,8 @@ function Main() {
     $('#maxToTrc1But').click(function() {spectrum.pkToTrace1();});
     $('#avgToTrc1But').click(function() {spectrum.avgToTrace1();});
     $('#curToTrc1But').click(function() {spectrum.curToTrace1();});
-    $('#clrToTrc1But').click(function() {spectrum.clrTrace1();});
+    $('#clrToTrc1But').click(function() {spectrum.clearTrace1();});
+    $('#hideTrc1But').click(function() {spectrum.hideTrace1();});
 
     $('#refDwnBut').click(function() {spectrum.refDown();});
     $('#refUpBut').click(function() {spectrum.refUp();});

@@ -159,8 +159,13 @@ def update_source(configuration: sdrVariables, source_factory) -> DataSource:
     """
     data_source = create_source(configuration, source_factory)
     try:
+        # we may just be updating the source (maybe fft size related), so reset the gain to what we expect
+        gain_mode = configuration.gain_mode
+        gain = configuration.gain
         open_source(configuration, data_source)
         configuration.error += data_source.get_and_reset_error()
+        data_source.set_gain_mode(gain_mode)
+        data_source.set_gain(gain)
         logger.info(f"Opened source {configuration.input_source}")
     except ValueError as msg:
         logger.error(f"Problem with new configuration, {msg} "

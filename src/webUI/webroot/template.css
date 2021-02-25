@@ -49,6 +49,12 @@ canvas {
     // font-size: 15px;  /* make text bigger on hover */
 }
 
+/* snapshot file table, max height and scroll */
+.fileListTable {
+    height:300px;
+    overflow-y:auto;
+}
+
 /* remove arrow functionality from form number input boxes
 /* Chrome, Safari, Edge, Opera */
 input::-webkit-outer-spin-button,

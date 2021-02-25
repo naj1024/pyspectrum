@@ -122,7 +122,8 @@
                                     <button type="button" id="maxToTrc1But" title="peak to trace1" class="specbuttons btn btn-outline-dark mx-1 my-1">peak-></button>
                                     <button type="button" id="avgToTrc1But" title="average to trace1" class="specbuttons btn btn-outline-dark mx-1 my-1">Avg-></button>
                                     <button type="button" id="curToTrc1But" title="current to trace1" class="specbuttons btn btn-outline-dark mx-1 my-1">Curr-></button>
-                                    <button type="button" id="clrToTrc1But" title="clear trace1" class="specbuttons btn btn-outline-dark mx-1 my-1">clr</button>
+                                    <button type="button" id="clrToTrc1But" title="clear trace1" class="specbuttons btn btn-outline-dark mx-1 my-1">clear</button>
+                                    <button type="button" id="hideTrc1But" title="hide trace1" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">hide</button>
                                 </div>
 
                                 <h4>Magnitude</h4>
@@ -187,8 +188,9 @@
                                 </div>
                             </div>
                         </div>
+
                         <div id="snapshotTab" class="tab-pane">
-                            <button type="button" id="snapTriggerBut" title="Manual trigger" class="specbuttons btn btn-outline-dark mx-1 my-1">Trigger</button>
+                            <!--<button type="button" id="snapTriggerBut" title="Manual trigger" class="specbuttons btn btn-outline-dark mx-1 my-1">Trigger</button>-->
                             <table id="snapshotTable" class="table table-hover table-striped table-bordered table-sm">
                                 <thead class="thead-dark">
                                     <tr>
@@ -209,7 +211,7 @@
                                 </tbody>
                             </table>
 
-                            <div id="theSnapFileTable" style="height:200px; overflow-y:auto;">
+                            <div id="theSnapFileTable" class="fileListTable">
                                 <table id="snapFileTable" class="table table-hover table-striped table-bordered table-sm">
                                     <thead class="thead-dark">
                                         <tr>
