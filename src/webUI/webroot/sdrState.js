@@ -40,7 +40,8 @@ sdrState.prototype.setInputSourceParams = function(params) {
     if (this.source == "file")
     {
         this.sourceParams = basename(params);
-        console.log(params, this.sourceParams)
+        console.log(params, this.sourceParams);
+        this.centreFrequencyOffsetHz = 0.0;
     }
     else
     {

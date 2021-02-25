@@ -22,6 +22,9 @@ canvas {
     font-family:sans-serif;
     font-size:12pt;
 }
+.blank_row {
+  line-height: 1px;
+}
 
 /* the marker table, don't seem to be able to select it with #markerTable */
 .marker-table-condensed tr {

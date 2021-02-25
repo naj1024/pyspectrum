@@ -88,7 +88,7 @@ async function handleBlob(binary_blob_data) {
 
                 spectrum.setSps(spsHz);
                 spectrum.setSpanHz(spsHz);
-                spectrum.setCentreFreqHz(cfMHz*1e6);
+                spectrum.setCentreFreqHz(sdrState.getRealCentreFrequencyHz());
                 // spectrum.setFftSize(num_floats); // don't do this here
                 spectrum.updateAxes();
                 update=true;
@@ -199,7 +199,7 @@ function handleCfOffsetChange(newCfOffsetMHz) {
 
 function setCfHz(newCfHz) {
     sdrState.setCentreFrequencyHz(newCfHz);
-    spectrum.setCentreFreqHz(newCfHz);
+    spectrum.setCentreFreqHz(sdrState.getRealCentreFrequencyHz());
     sdrState.setSdrStateUpdated();
 }
 
