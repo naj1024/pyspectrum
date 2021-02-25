@@ -73,6 +73,13 @@ input[type=number] {
     font-family: 'Courier New';
 }
 
+/* for the average beside the H4 on the Trace 0 buttons */
+.side-layout {
+    display: flex;
+    justify-content: space-start;
+    font-size: 15pt; /* about h4 size, which we don't specify - a mistake */
+}
+
 /* Tabs */
 .tab-pane {
     border-left: 1px solid #cccccc;

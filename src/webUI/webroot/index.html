@@ -74,21 +74,20 @@
                                     <tr><td><b>Frequency</b></td><td><div id="currentCentre"></div></td><td><div id="newCentre"></div></td></tr>
                                     <tr><td><b>FreqConv</b></td><td><div id="currentCfOffset"></div></td><td><div id="newCfOffset"></div></td></tr>
                                     <tr><td><b>SPS</b></td><td><div id="currentSps"></div></td><td><div id="newSps"></div></td></tr>
-                                    <tr><td><b>Zoom</b></td><td><div id="currentZoom"></div></td><td><div id="newZoom"></div></td></tr>
-                                    <tr><td><b>Span</b></td><td><div id="currentSpan"></div></td><td><div id="newSpan"></div></td></tr>
                                     <tr><td><b>SDR BW</b></td><td><div id="currentSdrBw"></div></td><td><div id="newSdrBw"></div></td></tr>
                                     <tr><td><b>ppm</b></td><td><div id="currentPpm"></div></td><td><div id="newPpm"></div></td></tr>
                                     <tr class="blank_row"><td bgcolor="#000" colspan="3">&nbsp;</td></tr>
                                     <tr><td><b>FFT</b></td><td><div id="currentFft"></div></td><td><div id="newFft"></div></td></tr>
                                     <tr><td><b>RBW</b></td><td><div id="currentRBW"></div></td><td><div id="newRBW"></div></td></tr>
                                     <tr><td><b>Window</b></td><td><div id="currentFftWindow"></div></td><td><div id="newFftWindow"></div></td></tr>
+                                    <tr><td><b>Zoom</b></td><td><div id="currentZoom"></div></td><td><div id="newZoom"></div></td></tr>
+                                    <tr><td><b>Span</b></td><td><div id="currentSpan"></div></td><td><div id="newSpan"></div></td></tr>
                                     <tr class="blank_row"><td bgcolor="#000" colspan="3">&nbsp;</td></tr>
                                     <tr><td><b>Gmode</b></td><td><div id="currentGmode"></div></td><td><div id="newGmode"></div></td></tr>
                                     <tr><td><b>Gain</b></td><td><div id="currentGain"></div></td><td><div id="newGain"></div></td></tr>
                                     <tr class="blank_row"><td bgcolor="#000" colspan="3">&nbsp;</td></tr>
                                     <tr><td><b>FPS</b></td><td><div id="currentFPS"></div></td><td><div id="newFPS"></div></td></tr>
                                     <tr><td><b>UI delay</b></td><td><div id="currentDelay"></div></td><td><div id="newDelay"></div></td></tr>
-                                    <tr><td><b>Average</b></td><td><div id="currentAvg"></div></td><td><div id="newAvg"></div></td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -105,7 +104,10 @@
                                     <button type="button" id="zoomToCfBut" title="set the zoomed centre frequency as the centre frequency " class="specbuttons btn btn-outline-dark mx-1 my-1">z->cf</button>
                                 </div>
 
-                                <h4>Trace 0</h4>
+                                <div  class="side-layout">
+                                    <h4>Trace 0</h4>
+                                    &nbsp&nbsp&nbsp Average:&nbsp <div id="currentAvg"></div>
+                                </div>
                                 <div>
                                     <button type="button" id="pauseBut" title="pause and allow scroll throuh previous spectrums" data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Hold</button>
                                     <button type="button" id="maxHoldBut" data-toggle="button" title="record max dB level" class="specbuttons btn btn-outline-dark mx-1 my-1">Peak</button>
