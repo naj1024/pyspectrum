@@ -12,10 +12,8 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: On web interface config and snap tables change to just update the current not the new cells
     * TODO: On web interface is there a way to update the help when a different source is selected
     * TODO: On web interface why don't the interval functions for updating things work
-    * TODO: On web interface we update the snapshot table purely on number of entries not values
-    * TODO: Generic way to handle data sources with unique parameters, e.g. pluto xo correction
+    * TODO: Generic way to handle data sources with unique parameters
     * TODO: UI responsiveness is tied to data arriving, should be independent of arriving spectrum data
-    * TODO: Add conversion factor for an up/down converter
 """
 
 import json

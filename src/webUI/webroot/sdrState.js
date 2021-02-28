@@ -191,6 +191,12 @@ sdrState.prototype.getResetSdrStateUpdated = function() {
     return state;
 }
 
+sdrState.prototype.getAlwaysChange = function() {
+    let changed = this.alwaysChange;
+    this.alwaysChange = false;
+    return changed;
+}
+
 sdrState.prototype.setConfigFromJason = function(jsonConfig) {
     // console.log(jsonConfig)
     let updateCfgTable = false;
@@ -224,7 +230,7 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         updateCfgTable = true;
     }
 
-    if (jsonConfig.window_types != sdrState.getFftWindows()) {
+    if (JSON.stringify(jsonConfig.window_types) != JSON.stringify(sdrState.getFftWindows())) {
         sdrState.setFftWindows(jsonConfig.window_types);
         updateCfgTable = true;
     }
@@ -239,17 +245,17 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         updateCfgTable = true;
     }
 
-    if (jsonConfig.input_sources != sdrState.getInputSources()) {
+    if (JSON.stringify(jsonConfig.input_sources) != JSON.stringify(sdrState.getInputSources())) {
         sdrState.setInputSources(jsonConfig.input_sources);
         updateCfgTable = true;
     }
 
-    if (jsonConfig.input_sources_web_helps != sdrState.getInputSourceHelps()) {
+    if (JSON.stringify(jsonConfig.input_sources_web_helps) != JSON.stringify(sdrState.getInputSourceHelps())) {
         sdrState.setInputSourceHelps(jsonConfig.input_sources_web_helps);
         updateCfgTable = true;
     }
 
-    if (jsonConfig.sample_types != sdrState.getDataFormats()) {
+    if (JSON.stringify(jsonConfig.sample_types) != JSON.stringify(sdrState.getDataFormats())) {
         sdrState.setDataFormats(jsonConfig.sample_types);
         updateCfgTable = true;
     }
@@ -261,7 +267,7 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
 
     if (jsonConfig.measured_fps != sdrState.getMeasuredFps()) {
         sdrState.setMeasuredFps(jsonConfig.measured_fps);
-        updateCfgTable = true;
+        this.alwaysChange = true;
     }
 
     if (jsonConfig.source_connected != sdrState.getSourceConnected()) {
@@ -271,7 +277,7 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
 
     if (jsonConfig.gain != sdrState.getGain()) {
         sdrState.setGain(jsonConfig.gain);
-        updateCfgTable = true;
+        this.alwaysChange = true;
     }
 
     if (jsonConfig.gain_mode != sdrState.getGainMode()) {
@@ -279,14 +285,14 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         updateCfgTable = true;
     }
 
-    if (jsonConfig.gain_modes != sdrState.getGainMode()) {
+    if (JSON.stringify(jsonConfig.gain_modes)!= JSON.stringify(sdrState.getGainModes())) {
         sdrState.setGainModes(jsonConfig.gain_modes);
         updateCfgTable = true;
     }
 
     if (jsonConfig.ui_delay != sdrState.getUiDelay()) {
         sdrState.setUiDelay(jsonConfig.ui_delay);
-        updateCfgTable = true;
+        this.alwaysChange = true;
     }
 
     if (jsonConfig.ppm_error != sdrState.getPpmError()) {
@@ -312,7 +318,6 @@ function sdrState() {
     this.sources = [];
     this.sourceHelps = [];
     this.sourceConnected = false;
-    this.gain = 0;
     this.gainMode = "";
     this.gainModes = [];
     this.sdrBwHz = 0;
@@ -320,8 +325,12 @@ function sdrState() {
     this.dataFormat = "";
     this.dataFormats = [];
     this.fps = 0;
-    this.measuredFps = 0;
     this.nextAckTime = 0;
     this.lastDataTime = 0;
+
+    // special values that are expected to vary every time
+    this.alwaysChange = false;
+    this.gain = 0;
+    this.measuredFps = 0;
     this.uiDelay = 0;
 }

@@ -164,6 +164,9 @@ async function handleJsonControl(controlData) {
                 alert(control.error);
             }
             let updateCfgTable = sdrState.setConfigFromJason(control);
+            if (sdrState.getAlwaysChange()) {
+                updateAlwaysChangeConfig();
+            }
             if (updateCfgTable) {
                 spectrum.updateAxes();
                 updateConfigTable(spectrum);
@@ -457,6 +460,12 @@ function snapTableFocusOut(){
 function updateConfigTable(spec) {
     updateConfigTableCurrent(spec);
     updateConfigTableNew(spec);
+}
+
+function updateAlwaysChangeConfig() {
+    $('#currentGain').empty().append(sdrState.getGain()+' dB');
+    $('#currentFPS').empty().append(sdrState.getMeasuredFps());
+    $('#currentDelay').empty().append(sdrState.getUiDelay());
 }
 
 function updateConfigTableCurrent(spec) {

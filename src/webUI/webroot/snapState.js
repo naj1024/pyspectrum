@@ -93,7 +93,7 @@ snapState.prototype.setSnapFromJason = function(jsonConfig) {
         snapState.setTriggerType(jsonConfig.triggerType);
         updateSnapTable = true;
     }
-    if (jsonConfig.triggers != snapState.getTriggers()) {
+    if (JSON.stringify(jsonConfig.triggers) != JSON.stringify(snapState.getTriggers())) {
         snapState.setTriggers(jsonConfig.triggers);
         updateSnapTable = true;
     }
