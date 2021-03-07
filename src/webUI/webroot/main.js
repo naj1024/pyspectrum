@@ -316,7 +316,7 @@ function handlePauseToggle() {
 function updateSnapTable() {
     updateSnapTableCurrent();
     updateSnapTableNew();
-    if(snapState.directoryListChanged) {
+    if(snapState.getDirectoryListEntries() !=  ($('#snapFileTable tr').length-1)) {
         updateSnapFileList();
     }
 }
@@ -351,7 +351,6 @@ function updateSnapFileList() {
         } );
         row_count += 1;
     }
-    snapState.directoryListChanged = false;
 }
 
 function updateSnapTableCurrent() {

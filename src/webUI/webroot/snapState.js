@@ -79,6 +79,9 @@ snapState.prototype.getDeleteFilename = function() {
 snapState.prototype.getWavFlag = function() {
     return this.wavFlag;
 }
+snapState.prototype.getDirectoryListEntries = function() {
+    return this.directoryList.length;
+}
 
 snapState.prototype.setSnapFromJason = function(jsonConfig) {
     snapState.setDeleteFilename("");
@@ -126,8 +129,8 @@ snapState.prototype.setSnapFromJason = function(jsonConfig) {
 
     // just on size discrepancy for now
     if(!(jsonConfig.directory_list.length === snapState.directoryList.length)) {
-        snapState.setDirectoryList(jsonConfig.directory_list)
-        snapState.directoryListChanged = true;
+        snapState.setDirectoryList(jsonConfig.directory_list);
+        updateSnapTable = true;
     }
     return updateSnapTable;
 }
@@ -186,7 +189,6 @@ function snapState() {
     this.snapCurrentSize = 0;
     this.snapExpectedSize = 0;
     this.directoryList = [];
-    this.directoryListChanged = false;
     this.deleteFileName = "";
     this.wavFlag = "Off";  // On/Off as getting True/False/true/false to work through json&web was impossible
 }
