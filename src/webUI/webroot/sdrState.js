@@ -14,12 +14,14 @@ sdrState.prototype.setName = function(name) {
 }
 sdrState.prototype.setCentreFrequencyHz = function(freqHz) {
     this.centreFrequencyHz = parseInt(freqHz);
-    this.realCentreFrequencyHz = parseInt(freqHz + this.centreFrequencyOffsetHz);
+    this.realCentreFrequencyHz = this.centreFrequencyHz + this.centreFrequencyOffsetHz;
+    this.cfRealUpdated = true;
 }
 sdrState.prototype.setCentreFrequencyOffsetHz = function(freqHz) {
-    this.centreFrequencyOffsetHz = freqHz;
+    this.centreFrequencyOffsetHz = parseInt(freqHz);
     // the sdr tuned frequency stays the same
     this.setCentreFrequencyHz(this.centreFrequencyHz);
+    window.sessionStorage.setItem("centreFrequencyOffsetHz", this.centreFrequencyOffsetHz);
 }
 sdrState.prototype.setSps = function(sps) {
     this.sps = parseInt(sps);
@@ -185,12 +187,14 @@ sdrState.prototype.getPpmError = function() {
 
 sdrState.prototype.getResetSdrStateUpdated = function() {
     let state = this.sdrStateUpdated;
-    if (state) {
-        this.sdrStateUpdated = false;
-    }
+    this.sdrStateUpdated = false;
     return state;
 }
-
+sdrState.prototype.getResetRealCfUpdated = function() {
+    let state = this.cfRealUpdated;
+    this.cfRealUpdated = false;
+    return state;
+}
 sdrState.prototype.getAlwaysChange = function() {
     let changed = this.alwaysChange;
     this.alwaysChange = false;
@@ -299,7 +303,7 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         sdrState.setPpmError(jsonConfig.ppm_error);
         updateCfgTable = true;
     }
-
+    this.sdrStateUpdated = updateCfgTable;
     return updateCfgTable;
 }
 
@@ -308,6 +312,7 @@ function sdrState() {
     this.sdrStateUpdated = false; // true if the UI has changed something
     this.centreFrequencyHz = 0.0; // what the sdr will be given
     this.realCentreFrequencyHz = 0.0; // takes account of offset
+    this.cfRealUpdated = false;
     this.centreFrequencyOffsetHz = 0.0; // subtracted from realCentreFrequencyHz
     this.sps = 0;
     this.fftSize = 0;

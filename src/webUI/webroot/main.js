@@ -167,7 +167,8 @@ async function handleJsonControl(controlData) {
             if (sdrState.getAlwaysChange()) {
                 updateAlwaysChangeConfig();
             }
-            if (updateCfgTable) {
+            let kk = sdrState.getResetRealCfUpdated();
+            if (updateCfgTable || kk) {
                 spectrum.updateAxes();
                 updateConfigTable(spectrum);
             }
@@ -980,6 +981,10 @@ function Main() {
 
     $('#snapTriggerBut').click(function() {handleSnapTrigger();});
 
+    let offset = sessionStorage.getItem("centreFrequencyOffsetHz");
+    if (offset != null) {
+        sdrState.setCentreFrequencyOffsetHz(offset);
+    }
     updateConfigTable(spectrum);
 
     // Connect to websocket
