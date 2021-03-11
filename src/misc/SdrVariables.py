@@ -9,7 +9,7 @@ Passed to the UI as a jason string every few seconds
 import json
 
 
-class sdrVariables:
+class SdrVariables:
     def __init__(self):
         self.type = "control"  # for use by javascript to distinguish control types
 

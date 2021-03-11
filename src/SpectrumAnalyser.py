@@ -5,7 +5,6 @@ Provide a basic spectrum analyser for digitised complex samples
 ## TODOs, in no particular order
     * TODO: Convert inputs to streaming interfaces.
     * TODO: Drop receivers?
-    * TODO: Markers on spectrogram during snapshot, for pre/post limits
     * TODO: Add a seconds marker to the bottom (left) of the spectrogram
     * TODO: Plugin for triggering snapshot on fft bin power, with masks
     * TODO: On web interface update just the rows that changed on the configuration table
@@ -14,6 +13,7 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: On web interface why don't the interval functions for updating things work
     * TODO: Generic way to handle data sources with unique parameters
     * TODO: UI responsiveness is tied to data arriving, should be independent of arriving spectrum data
+    * TODO: Favourites tab for source, freq, rate etc
 """
 
 import json
@@ -40,7 +40,7 @@ from misc import PluginManager
 from misc import SnapVariables
 from misc import commandLine
 from misc import sdrStuff
-from misc import sdrVariables
+from misc import SdrVariables
 from misc import snapStuff
 from webUI import WebServer
 
@@ -290,14 +290,14 @@ def main() -> None:
     logger.error("SpectrumAnalyser exit")
 
 
-def setup() -> Tuple[sdrVariables.sdrVariables, SnapVariables.SnapVariables, pathlib.PurePath]:
+def setup() -> Tuple[SdrVariables.SdrVariables, SnapVariables.SnapVariables, pathlib.PurePath]:
     """
     Basic things everything else use
 
     :return:
     """
     # sdr configuration
-    configuration = sdrVariables.sdrVariables()
+    configuration = SdrVariables.SdrVariables()
     commandLine.parse_command_line(configuration, logger)
 
     # check we have a valid input sample type
@@ -328,7 +328,7 @@ def setup() -> Tuple[sdrVariables.sdrVariables, SnapVariables.SnapVariables, pat
     return configuration, snap_configuration, thumbs_dir
 
 
-def initialise(configuration: sdrVariables, thumbs_dir: pathlib.PurePath) -> Tuple[Type[DataSource.DataSource],
+def initialise(configuration: SdrVariables, thumbs_dir: pathlib.PurePath) -> Tuple[Type[DataSource.DataSource],
                                                                                    WebServer.WebServer,
                                                                                    multiprocessing.Queue,
                                                                                    multiprocessing.Queue,
@@ -387,14 +387,14 @@ def initialise(configuration: sdrVariables, thumbs_dir: pathlib.PurePath) -> Tup
         configuration.time_measure_fps = time.time()
 
         return data_source, display, to_ui_queue, to_ui_control_queue, \
-               from_ui_queue, processor, plugin_manager, factory, pic_generator
+            from_ui_queue, processor, plugin_manager, factory, pic_generator
 
     except Exception as msg:
         # exceptions here are fatal
         raise msg
 
 
-def handle_from_ui_queue(configuration: sdrVariables,
+def handle_from_ui_queue(configuration: SdrVariables,
                          snap_configuration: SnapVariables,
                          to_ui_control_queue: multiprocessing.Queue,
                          from_ui_queue: multiprocessing.Queue,
@@ -470,7 +470,7 @@ def handle_from_ui_queue(configuration: sdrVariables,
     return data_source, snap_sink
 
 
-def send_to_ui(configuration: sdrVariables,
+def send_to_ui(configuration: SdrVariables,
                to_ui_queue: multiprocessing.Queue,
                powers: np.ndarray,
                peak_powers_since_last_display: np.ndarray,

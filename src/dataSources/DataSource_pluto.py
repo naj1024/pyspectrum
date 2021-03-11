@@ -89,6 +89,10 @@ class Input(DataSource.DataSource):
             logger.error(msgs)
             raise ValueError(msgs)
 
+        if self._source == "?":
+            self._error = f"Can't scan for {module_type} devices"
+            return False
+
         # Create device from specific uri address
         try:
             self._sdr = adi.Pluto(uri="ip:" + self._source)  # use adi.Pluto() for USB

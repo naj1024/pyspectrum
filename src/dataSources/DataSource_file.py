@@ -84,6 +84,11 @@ class Input(DataSource.DataSource):
         self._samples_time_ns = 1.0e9 * self._number_complex_samples / self._sample_rate_sps
 
     def open(self) -> bool:
+
+        if self._source == "?":
+            self._error = "Use snapshot tab to see files available"
+            return False
+
         try:
             # patch up correct filename
             fn = os.path.basename(self._source)

@@ -6,13 +6,13 @@ from typing import Dict
 
 from dataSink import DataSink_file
 from misc import SnapVariables
-from misc import sdrVariables
+from misc import SdrVariables
 
 logger = logging.getLogger('spectrum_logger')
 
 
 def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
-                        new_config: Dict, sdr_config: sdrVariables,
+                        new_config: Dict, sdr_config: SdrVariables,
                         thumb_dir: pathlib.PurePath) -> DataSink_file:
     """
     messages from UI

@@ -262,7 +262,7 @@ class Wave_read:
     def _read_fmt_chunk(self, chunk):
         try:
             self._wFormatTag, self._nchannels, self._framerate, dwAvgBytesPerSec, wBlockAlign = \
-                struct.unpack_from('<HHLLH',chunk.read(14))
+                struct.unpack_from('<HHLLH', chunk.read(14))
 
         except struct.error:
             raise EOFError from None

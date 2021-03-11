@@ -3,12 +3,12 @@ from typing import Dict
 
 from dataProcessing import ProcessSamples
 from dataSources import DataSource
-from misc import sdrVariables
+from misc import SdrVariables
 
 logger = logging.getLogger('spectrum_logger')
 
 
-def handle_sdr_message(configuration: sdrVariables, new_config: Dict, data_source,
+def handle_sdr_message(configuration: SdrVariables, new_config: Dict, data_source,
                        source_factory, processor: ProcessSamples) -> DataSource:
     """
     Handle specific sdr related control messages
@@ -95,7 +95,7 @@ def handle_sdr_message(configuration: sdrVariables, new_config: Dict, data_sourc
     return data_source
 
 
-def create_source(configuration: sdrVariables, factory) -> DataSource:
+def create_source(configuration: SdrVariables, factory) -> DataSource:
     """
     Create the source of samples, cannot exception or fail. Does not open the source.
 
@@ -113,7 +113,7 @@ def create_source(configuration: sdrVariables, factory) -> DataSource:
     return data_source
 
 
-def open_source(configuration: sdrVariables, data_source: DataSource) -> None:
+def open_source(configuration: SdrVariables, data_source: DataSource) -> None:
     """
     Open the source, just creating a source will not open it as the creation cannot fail but the open can
 
@@ -146,7 +146,7 @@ def open_source(configuration: sdrVariables, data_source: DataSource) -> None:
     configuration.error += data_source.get_and_reset_error()
 
 
-def update_source_state(configuration: sdrVariables, data_source: DataSource) -> None:
+def update_source_state(configuration: SdrVariables, data_source: DataSource) -> None:
     """
     Things that the source may change on it's own that we need to be aware of for the UI etc
 
@@ -160,7 +160,7 @@ def update_source_state(configuration: sdrVariables, data_source: DataSource) ->
         configuration.centre_frequency_hz = data_source.get_centre_frequency_hz()  # front end may have some resolution
 
 
-def update_source(configuration: sdrVariables, source_factory) -> DataSource:
+def update_source(configuration: SdrVariables, source_factory) -> DataSource:
     """
     Changing the source
 

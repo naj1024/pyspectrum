@@ -15,8 +15,8 @@ from dataSources import DataSource
 logger = logging.getLogger('spectrum_logger')
 
 module_type = "rtlsdr"
-help_string = f"{module_type}:Number \t- The device number to use, normally 0"
-web_help_string = "Number - The device number to use, normally 0"
+help_string = f"{module_type}:Number \t- The device number to use, normally 0. Use '?' for list"
+web_help_string = "Number - The device number to use, normally 0. Use '?' for list"
 
 # The following must match the rtl_sdr C source code definitions in rtl_sdr.h for enum rtlsdr_tuner{}
 allowed_tuner_types = {0: "Unknown",
@@ -82,6 +82,10 @@ class Input(DataSource.DataSource):
             logger.error(msgs)
             raise ValueError(msgs)
 
+        if self._source == "?":
+            self._error = self.find_devices()
+            return False
+
         try:
             self._device_index = int(self._source)
         except ValueError as err:
@@ -127,6 +131,23 @@ class Input(DataSource.DataSource):
             self._sdr.close()
             self._sdr = None
         self._connected = False
+
+    @staticmethod
+    def find_devices() -> str:
+        devices = ""
+        # could do with a call that returns the valid device_index's
+        for device in range(10):
+            try:
+                sdr = RtlSdr(device_index=device)
+                type_of_tuner = sdr.get_tuner_type()
+                # index = sdr.get_device_index_by_serial('0000001')  # permissions required
+                # addresses = sdr.get_device_serial_addresses() # permissions required
+                sdr.close()
+                devices += f"device {device}, type {type_of_tuner} {allowed_tuner_types[type_of_tuner]}\n"
+            except Exception as err:
+                pass
+        print(devices)
+        return devices
 
     def get_sample_rate_sps(self) -> float:
         if self._sdr:

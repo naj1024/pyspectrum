@@ -56,6 +56,10 @@ class Input(DataSource.DataSource):
         # specifics to this class
         # break apart the ip address and port, will be something like 192.168.0.1:1234
 
+        if self._source == "?":
+            self._error = f"Can't scan for {module_type} devices"
+            return False
+
         parts = self._source.split(':')
         if len(parts) < 2:
             raise ValueError(f"input specification does not contain two colon separated items, "
