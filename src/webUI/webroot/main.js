@@ -480,7 +480,7 @@ function updateConfigTableCurrent(spec) {
     $('#currentFftWindow').empty().append(sdrState.getFftWindow());
     $('#currentGmode').empty().append(sdrState.getGainMode());
     $('#currentGain').empty().append(sdrState.getGain()+' dB');
-    $('#currentFPS').empty().append(sdrState.getMeasuredFps());
+    $('#currentFPS').empty().append(sdrState.getMeasuredFps()+ ' (max:'+spec.getMaxFps()+')');
     $('#currentDelay').empty().append(sdrState.getUiDelay());
     $('#currentRBW').empty().append(spec.convertFrequencyForDisplay(sps / sdrState.getFftSize(),3));
     $('#currentAvg').empty().append(spec.averaging);
@@ -725,7 +725,7 @@ function updateConfigTableNew(spec) {
     new_html += '<option value="320" '+((fpsV==320)?"selected":"")+'>320</option>';
     new_html += '<option value="640" '+((fpsV==640)?"selected":"")+'>640</option>';
     new_html += '<option value="10000" '+((fpsV==10000)?"selected":"")+'>10000</option>';
-    new_html += '</select> Max '+spec.getmaxFps()+'</form>';
+    new_html += '</select></form>';
     $('#newFPS').empty().append(new_html);
 }
 

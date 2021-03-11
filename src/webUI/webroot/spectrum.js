@@ -1529,8 +1529,12 @@ Spectrum.prototype.getSpectrogramArrayIndex = function(ypos) {
     return spectrogram_array_index;
 }
 
-Spectrum.prototype.getmaxFps = function() {
-    return (parseInt(this.sps/this.fftSize));
+Spectrum.prototype.getMaxFps = function() {
+    let maxFps = 1;
+    if (this.fftSize > 0) {
+        maxFps = parseInt(parseInt(this.sps)/parseInt(this.fftSize));
+    }
+    return maxFps;
 }
 
 function Spectrum(id, options) {

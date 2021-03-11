@@ -535,9 +535,9 @@ def send_to_ui(configuration: sdrVariables,
         # if we are more than N seconds behind then reset the fps
         # NOTE on say the pluto which silently drops samples you may have a large gap between samples
         # that gives a low fps as data is not arriving at the correct rate
-        if configuration.ui_delay > 5:
+        if (configuration.ui_delay > 5) and (configuration.measured_fps > 10):
             configuration.fps = 10  # something safe and sensible
-            err_msg = f"FPS too fast, UI behind by {configuration.ui_delay}seconds. Defaulting to 10fps"
+            err_msg = f"UI behind by {configuration.ui_delay}seconds. Defaulting to 10fps"
             # don't give error to the UI as this stops it updating and you end up in a loop
             # configuration.error += err_msg
             logger.info(err_msg)
