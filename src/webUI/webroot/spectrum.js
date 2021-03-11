@@ -1088,7 +1088,12 @@ Spectrum.prototype.drawLiveMarker = function() {
     if (marker_value != null) {
         let marker_text = " " + this.convertFrequencyForDisplay(marker_value.freqHz, 6);
         marker_text += " " + marker_value.power.toFixed(1) + "dB ";
-        marker_text += " " + marker_value.absTime.toFixed(3) + "s ";
+        if(this.inSpectrum(canvasY)) {
+            marker_text += " " + marker_value.absTime.toFixed(3) + "s ";
+        } else {
+            // relative to current spectrum time
+            marker_text += " " + (marker_value.absTime - this.currentTime).toFixed(3) + "s ";
+        }
 
         // are we past half way, then put text on left
         if (canvasX > (this.canvas.clientWidth/2)) {

@@ -159,9 +159,9 @@ async function handleJsonControl(controlData) {
                 alert(control.error);
             }
             let updateCfgTable = sdrState.setConfigFromJason(control);
-            if (sdrState.getAlwaysChange()) {
-                updateAlwaysChangeConfig();
-            }
+//            if (sdrState.getAlwaysChange()) {
+//                updateAlwaysChangeConfig();
+//            }
             spectrum.updateAxes();
             updateConfigTable(spectrum); // update Current and maybe new
         }
