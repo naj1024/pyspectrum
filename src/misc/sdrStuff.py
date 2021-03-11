@@ -19,17 +19,25 @@ def handle_sdr_message(configuration: sdrVariables, new_config: Dict, data_sourc
     :param processor:
     :return: DataSource
     """
+    # print(new_config)
+
     if (new_config['source'] != configuration.input_source) \
             or (new_config['sourceParams'] != configuration.input_params) \
             or (new_config['dataFormat'] != configuration.sample_type):
-        configuration.input_source = new_config['source']
-        configuration.input_params = new_config['sourceParams']
-        configuration.sample_type = new_config['dataFormat']
-        configuration.centre_frequency_hz = new_config['centreFrequencyHz']
-        logger.info(f"changing source to '{configuration.input_source}' "
-                    f"'{configuration.input_params}' '{configuration.sample_type}'")
-        data_source.close()
-        data_source = update_source(configuration, source_factory)
+        # any of the above means we close and reopen the source
+        # but bad things will happen if the source is empty
+        if new_config['source'] != "" and new_config['dataFormat'] != "" \
+                and new_config['sourceParams'] != "":
+            configuration.input_source = new_config['source']
+            configuration.input_params = new_config['sourceParams']
+            configuration.sample_type = new_config['dataFormat']
+            configuration.centre_frequency_hz = new_config['centreFrequencyHz']
+            logger.info(f"changing source to '{configuration.input_source}' "
+                        f"'{configuration.input_params}' '{configuration.sample_type}'")
+            data_source.close()
+            data_source = update_source(configuration, source_factory)
+        else:
+            logger.error("Attempt to use empty source parameter")
     else:
         if new_config['centreFrequencyHz'] != configuration.centre_frequency_hz:
             new_cf = new_config['centreFrequencyHz']
@@ -80,6 +88,9 @@ def handle_sdr_message(configuration: sdrVariables, new_config: Dict, data_sourc
             data_source.set_gain_mode(configuration.gain_mode)
             configuration.error += data_source.get_and_reset_error()
             configuration.gain_mode = data_source.get_gain_mode()
+
+    # make sure we are in step with the UI
+    configuration.uuid = new_config['uuid']
 
     return data_source
 

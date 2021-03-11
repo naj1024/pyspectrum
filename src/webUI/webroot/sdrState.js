@@ -12,6 +12,8 @@ function basename(path) {
 sdrState.prototype.setName = function(name) {
     this.name = name;
 }
+
+// ALL set fucntions should only be called from UI side
 sdrState.prototype.setCentreFrequencyHz = function(freqHz) {
     this.centreFrequencyHz = parseInt(freqHz);
     this.realCentreFrequencyHz = this.centreFrequencyHz + this.centreFrequencyOffsetHz;
@@ -39,37 +41,19 @@ sdrState.prototype.setInputSource = function(source) {
     this.source = source;
 }
 sdrState.prototype.setInputSourceParams = function(params) {
-    if (this.source == "file")
-    {
+    if (this.source == "file") {
         this.sourceParams = basename(params);
         console.log(params, this.sourceParams);
         this.centreFrequencyOffsetHz = 0.0;
-    }
-    else
-    {
+    } else {
         this.sourceParams = params;
     }
-}
-sdrState.prototype.setInputSources = function(sources) {
-    this.sources = sources;
-}
-sdrState.prototype.setInputSourceHelps = function(helps) {
-    this.sourceHelps = helps;
-}
-sdrState.prototype.setDataFormats = function(formats) {
-   this.dataFormats = formats;
 }
 sdrState.prototype.setDataFormat = function(format) {
     this.dataFormat = format;
 }
-sdrState.prototype.setMeasuredFps = function(measured) {
-    this.measuredFps = measured;
-}
 sdrState.prototype.setFps = function(fps) {
     this.fps = fps;
-}
-sdrState.prototype.setSourceConnected = function(connected) {
-    this.sourceConnected = connected;
 }
 sdrState.prototype.setGain = function(gain) {
     this.gain = gain;
@@ -82,15 +66,6 @@ sdrState.prototype.setGainModes = function(gainModes) {
 }
 sdrState.prototype.setSdrBwHz = function(sdrBwHz) {
     this.sdrBwHz = sdrBwHz;
-}
-sdrState.prototype.setLastDataTime = function(last) {
-    this.lastDataTime = last;
-}
-sdrState.prototype.setNextAckTime = function(next) {
-    this.nextAckTime = next;
-}
-sdrState.prototype.setUiDelay = function(delay) {
-    return this.uiDelay = delay;
 }
 sdrState.prototype.setPpmError = function(error) {
     this.ppmError = error;
@@ -166,11 +141,13 @@ sdrState.prototype.getSdrBwHz = function() {
     return this.sdrBwHz;
 }
 
-sdrState.prototype.setSdrStateUpdated = function() {
-    this.sdrStateUpdated = true;
+sdrState.prototype.setUiStateUpdated = function() {
+    this.uuid += 1;
+    sessionStorage.setItem("uuid", this.uuid);
+    this.uiStateUpdated = true;
 }
-sdrState.prototype.getSdrStateUpdated = function() {
-    return this.sdrStateUpdated;
+sdrState.prototype.getUiStateUpdated = function() {
+    return this.uiStateUpdated;
 }
 sdrState.prototype.getLastDataTime = function() {
     return this.lastDataTime;
@@ -190,6 +167,11 @@ sdrState.prototype.getResetSdrStateUpdated = function() {
     this.sdrStateUpdated = false;
     return state;
 }
+sdrState.prototype.getResetUiStateUpdated = function() {
+    let state = this.uiStateUpdated;
+    this.uiStateUpdated = false;
+    return state;
+}
 sdrState.prototype.getResetRealCfUpdated = function() {
     let state = this.cfRealUpdated;
     this.cfRealUpdated = false;
@@ -200,142 +182,178 @@ sdrState.prototype.getAlwaysChange = function() {
     this.alwaysChange = false;
     return changed;
 }
+sdrState.prototype.setLastDataTime = function(last) {
+    this.lastDataTime = last;
+}
+sdrState.prototype.setNextAckTime = function(next) {
+    this.nextAckTime = next;
+}
 
 sdrState.prototype.setConfigFromJason = function(jsonConfig) {
-    // console.log(jsonConfig)
-    let updateCfgTable = false;
+    // this is only called when configuration data is sent from the server
+    let updateUi = false;
+    // ignore json that is out of step with our state
+    if (jsonConfig.uuid >= this.uuid) {
+        // if json uuid is in advance of ours then it means we have connected to a server
+        // that has been runign a while and we are a new UI
+        this.uuid = jsonConfig.uuid;
+        //console.log(jsonConfig.uuid, this.uuid, jsonConfig)
 
-    // only update from the sdr frequency
-    if (jsonConfig.centre_frequency_hz != sdrState.getCentreFrequencyHz()) {
-        sdrState.setCentreFrequencyHz(jsonConfig.centre_frequency_hz);
-        spectrum.setCentreFreqHz(sdrState.getRealCentreFrequencyHz());
-        updateCfgTable = true;
+        if (jsonConfig.centre_frequency_hz != this.centreFrequencyHz) {
+            this.centreFrequencyHz = parseInt(jsonConfig.centre_frequency_hz);
+            this.realCentreFrequencyHz = this.centreFrequencyHz + this.centreFrequencyOffsetHz;
+            spectrum.setCentreFreqHz(this.realCentreFrequencyHz);
+            updateUi = true;
+            this.cfRealUpdated = true;
+        }
+
+        if (jsonConfig.sample_rate != this.sps) {
+            this.sps = jsonConfig.sample_rate;
+            spectrum.setSps(jsonConfig.sample_rate);
+            spectrum.setSpanHz(jsonConfig.sample_rate);
+            updateUi = true;
+        }
+
+        if (jsonConfig.input_bw_hz != this.sdrBwHz) {
+            this.sdrBwHz = jsonConfig.input_bw_hz;
+            updateUi = true;
+        }
+
+        if (jsonConfig.fft_size != this.fftSize) {
+            this.fftSize = jsonConfig.fft_size;
+            updateUi = true;
+        }
+
+        if (jsonConfig.window != this.window) {
+            this.window = jsonConfig.window;
+            updateUi = true;
+        }
+
+        if (JSON.stringify(jsonConfig.window_types) != JSON.stringify(this.windows)) {
+            this.windows = jsonConfig.window_types;
+            updateUi = true;
+        }
+
+        if (jsonConfig.input_source != this.source) {
+            this.source = jsonConfig.input_source;
+            updateUi = true;
+        }
+
+        if (jsonConfig.input_params != this.sourceParams) {
+             if (this.source == "file") {
+                this.sourceParams = basename(jsonConfig.input_params);
+             } else {
+                this.sourceParams = jsonConfig.input_params;
+             }
+            updateUi = true;
+        }
+
+        if (JSON.stringify(jsonConfig.input_sources) != JSON.stringify(this.sources)) {
+            this.sources = jsonConfig.input_sources;
+            updateUi = true;
+        }
+
+        if (JSON.stringify(jsonConfig.input_sources_web_helps) != JSON.stringify(this.sourceHelps)) {
+            this.sourceHelps = jsonConfig.input_sources_web_helps;
+            updateUi = true;
+        }
+
+        if (JSON.stringify(jsonConfig.sample_types) != JSON.stringify(this.dataFormats)) {
+            this.dataFormats = jsonConfig.sample_types;
+            updateUi = true;
+        }
+
+        if (jsonConfig.sample_type != this.dataFormat) {
+            this.dataFormat = jsonConfig.sample_type;
+            updateUi = true;
+        }
+
+        if (jsonConfig.source_connected != this.sourceConnected) {
+            this.sourceConnected = jsonConfig.source_connected;
+            updateUi = true;
+        }
+
+        if (jsonConfig.gain_mode != this.gainMode) {
+            this.gainMode = jsonConfig.gain_mode;
+            updateUi = true;
+        }
+
+        if (JSON.stringify(jsonConfig.gain_modes)!= JSON.stringify(this.gainModes)) {
+            this.gainModes = jsonConfig.gain_modes;
+            updateUi = true;
+        }
+
+        if (jsonConfig.ppm_error != this.ppmError) {
+            this.ppmError = parseFloat(jsonConfig.ppm_error);
+            updateUi = true;
+        }
+        this.sdrStateUpdated = updateUi;
     }
 
-    if (jsonConfig.sample_rate != sdrState.getSps()) {
-        sdrState.setSps(jsonConfig.sample_rate);
-        spectrum.setSps(jsonConfig.sample_rate);
-        spectrum.setSpanHz(jsonConfig.sample_rate);
-        updateCfgTable = true;
+    // things that will always change, and we don't care about uuid
+    if (jsonConfig.gain != this.gain) {
+        this.gain = jsonConfig.gain;
+        this.alwaysChange = true;
     }
-
-    if (jsonConfig.input_bw_hz != sdrState.getSdrBwHz()) {
-        sdrState.setSdrBwHz(jsonConfig.input_bw_hz);
-        updateCfgTable = true;
+    if (jsonConfig.ui_delay != this.uiDelay) {
+        this.uiDelay = jsonConfig.ui_delay;
+        this.alwaysChange = true;
     }
-
-    if (jsonConfig.fft_size != sdrState.getFftSize()) {
-        sdrState.setFftSize(jsonConfig.fft_size);
-        updateCfgTable = true;
-    }
-
-    if (jsonConfig.window != sdrState.getFftWindow()) {
-        sdrState.setFftWindow(jsonConfig.window);
-        updateCfgTable = true;
-    }
-
-    if (JSON.stringify(jsonConfig.window_types) != JSON.stringify(sdrState.getFftWindows())) {
-        sdrState.setFftWindows(jsonConfig.window_types);
-        updateCfgTable = true;
-    }
-
-    if (jsonConfig.input_source != sdrState.getInputSource()) {
-        sdrState.setInputSource(jsonConfig.input_source);
-        updateCfgTable = true;
-    }
-
-    if (jsonConfig.input_params != sdrState.getInputSourceParams()) {
-        sdrState.setInputSourceParams(jsonConfig.input_params);
-        updateCfgTable = true;
-    }
-
-    if (JSON.stringify(jsonConfig.input_sources) != JSON.stringify(sdrState.getInputSources())) {
-        sdrState.setInputSources(jsonConfig.input_sources);
-        updateCfgTable = true;
-    }
-
-    if (JSON.stringify(jsonConfig.input_sources_web_helps) != JSON.stringify(sdrState.getInputSourceHelps())) {
-        sdrState.setInputSourceHelps(jsonConfig.input_sources_web_helps);
-        updateCfgTable = true;
-    }
-
-    if (JSON.stringify(jsonConfig.sample_types) != JSON.stringify(sdrState.getDataFormats())) {
-        sdrState.setDataFormats(jsonConfig.sample_types);
-        updateCfgTable = true;
-    }
-
-    if (jsonConfig.sample_type != sdrState.getDataFormat()) {
-        sdrState.setDataFormat(jsonConfig.sample_type);
-        updateCfgTable = true;
-    }
-
-    if (jsonConfig.measured_fps != sdrState.getMeasuredFps()) {
-        sdrState.setMeasuredFps(jsonConfig.measured_fps);
+    if (jsonConfig.measured_fps != this.measuredFps) {
+        this.measuredFps = jsonConfig.measured_fps;
         this.alwaysChange = true;
     }
 
-    if (jsonConfig.source_connected != sdrState.getSourceConnected()) {
-        sdrState.setSourceConnected(jsonConfig.source_connected);
-        updateCfgTable = true;
-    }
-
-    if (jsonConfig.gain != sdrState.getGain()) {
-        sdrState.setGain(jsonConfig.gain);
-        this.alwaysChange = true;
-    }
-
-    if (jsonConfig.gain_mode != sdrState.getGainMode()) {
-        sdrState.setGainMode(jsonConfig.gain_mode);
-        updateCfgTable = true;
-    }
-
-    if (JSON.stringify(jsonConfig.gain_modes)!= JSON.stringify(sdrState.getGainModes())) {
-        sdrState.setGainModes(jsonConfig.gain_modes);
-        updateCfgTable = true;
-    }
-
-    if (jsonConfig.ui_delay != sdrState.getUiDelay()) {
-        sdrState.setUiDelay(jsonConfig.ui_delay);
-        this.alwaysChange = true;
-    }
-
-    if (jsonConfig.ppm_error != sdrState.getPpmError()) {
-        sdrState.setPpmError(jsonConfig.ppm_error);
-        updateCfgTable = true;
-    }
-    this.sdrStateUpdated = updateCfgTable;
-    return updateCfgTable;
+    return updateUi;
 }
 
 function sdrState() {
-    this.type = "sdrUpdate",
-    this.sdrStateUpdated = false; // true if the UI has changed something
+    this.type = "sdrUpdate";
+    this.uuid = 0; // for ignoring out of date, in flight, server replies
+
+    this.uiStateUpdated = false; // true if the UI has changed something
+    this.sdrStateUpdated = false; // true if the server has changed something
+    this.cfRealUpdated = false;
+
+    // special values that are expected to vary every time
+    this.alwaysChange = false;  // things that will change all the time
+    this.gain = 0;
+    this.measuredFps = 0;
+    this.uiDelay = 0;
+
+    // non visible things
+    this.nextAckTime = 0;
+    this.lastDataTime = 0;
+
+    // normal UI visible values
     this.centreFrequencyHz = 0.0; // what the sdr will be given
     this.realCentreFrequencyHz = 0.0; // takes account of offset
-    this.cfRealUpdated = false;
     this.centreFrequencyOffsetHz = 0.0; // subtracted from realCentreFrequencyHz
+
     this.sps = 0;
+    this.sdrBwHz = 0;
+    this.ppmError = 0.0;
+
     this.fftSize = 0;
     this.window = "";
     this.windows = [];
+
     this.source = "";
     this.sourceParams = "";
     this.sources = [];
     this.sourceHelps = [];
     this.sourceConnected = false;
+
     this.gainMode = "";
     this.gainModes = [];
-    this.sdrBwHz = 0;
-    this.ppmError = 0.0;
+
     this.dataFormat = "";
     this.dataFormats = [];
-    this.fps = 0;
-    this.nextAckTime = 0;
-    this.lastDataTime = 0;
 
-    // special values that are expected to vary every time
-    this.alwaysChange = false;
-    this.gain = 0;
-    this.measuredFps = 0;
-    this.uiDelay = 0;
+    this.fps = 0;
+
+    let uuid = sessionStorage.getItem("uuid");
+    if (uuid != null) {
+        sdrState.uuid = uuid;
+    }
 }

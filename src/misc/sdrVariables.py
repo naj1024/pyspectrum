@@ -13,6 +13,8 @@ class sdrVariables:
     def __init__(self):
         self.type = "control"  # for use by javascript to distinguish control types
 
+        self.uuid = 0  # for UI to tag state so it can tell if it gets back state correctly
+
         # input data related
         self.fft_size = 2048  # default, but any integer allowed
         self.window = ""

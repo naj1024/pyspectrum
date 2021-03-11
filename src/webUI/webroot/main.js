@@ -142,11 +142,6 @@ async function handleJsonControl(controlData) {
     // console.table(JSON.parse(controlData));
     // console.log(controlData);
 
-    // ignore incoming control if we have updated and NOT sent off that control yet
-    if (sdrState.getSdrStateUpdated()) {
-        return;
-    }
-
     try {
         let control = JSON.parse(controlData);
         // console.log("control json:", control)
@@ -167,11 +162,8 @@ async function handleJsonControl(controlData) {
             if (sdrState.getAlwaysChange()) {
                 updateAlwaysChangeConfig();
             }
-            let kk = sdrState.getResetRealCfUpdated();
-            if (updateCfgTable || kk) {
-                spectrum.updateAxes();
-                updateConfigTable(spectrum);
-            }
+            spectrum.updateAxes();
+            updateConfigTable(spectrum); // update Current and maybe new
         }
         else {
             console.log("Unknown control json:", control)
@@ -188,7 +180,7 @@ function handleCfChange(newCfMHz) {
         sdrState.setCentreFrequencyHz(newCf);
         spectrum.setCentreFreqHz(sdrState.getRealCentreFrequencyHz());
         configTableFocusOut();
-        sdrState.setSdrStateUpdated();
+        sdrState.setUiStateUpdated();
     }
 }
 function handleCfOffsetChange(newCfOffsetMHz) {
@@ -197,14 +189,14 @@ function handleCfOffsetChange(newCfOffsetMHz) {
         sdrState.setCentreFrequencyOffsetHz(newCfOffsetMHz*1e6);
         spectrum.setCentreFreqHz(sdrState.getRealCentreFrequencyHz());
         configTableFocusOut();
-        sdrState.setSdrStateUpdated();
+        sdrState.setUiStateUpdated();
     }
 }
 
 function setCfHz(newCfHz) {
     sdrState.setCentreFrequencyHz(newCfHz);
     spectrum.setCentreFreqHz(sdrState.getRealCentreFrequencyHz());
-    sdrState.setSdrStateUpdated();
+    sdrState.setUiStateUpdated();
 }
 
 function incrementCf(divisor) {
@@ -225,45 +217,45 @@ function handleSpsChange(newSps) {
     sdrState.setSdrBwHz(newSps*1e6);
     spectrum.setSps(newSps);
     configTableFocusOut();
-    sdrState.setSdrStateUpdated();
+    sdrState.setUiStateUpdated();
 }
 
 function handleSdrBwChange(newBwMHz) {
     sdrState.setSdrBwHz(newBwMHz*1e6);
     configTableFocusOut();
-    sdrState.setSdrStateUpdated();
+    sdrState.setUiStateUpdated();
 }
 
 function handlePpmChange(newPpm) {
     sdrState.setPpmError(newPpm);
     configTableFocusOut();
-    sdrState.setSdrStateUpdated();
+    sdrState.setUiStateUpdated();
 }
 
 function handleFftChange(newFft) {
     sdrState.setFftSize(newFft);
     // spec.setFftSize(num_floats); // don't do this here as spectrum has to know it changed
     configTableFocusOut();
-    sdrState.setSdrStateUpdated();
+    sdrState.setUiStateUpdated();
 }
 
 function handleFftWindowChange(newWindow) {
     sdrState.setFftWindow(newWindow);
     configTableFocusOut();
-    sdrState.setSdrStateUpdated();
+    sdrState.setUiStateUpdated();
 }
 
 function handleInputChange(newSource, newParams) {
     sdrState.setInputSource(newSource);
     sdrState.setInputSourceParams(newParams);
     configTableFocusOut();
-    sdrState.setSdrStateUpdated();
+    sdrState.setUiStateUpdated();
 }
 
 function handleDataFormatChange(newFormat) {
     sdrState.setDataFormat(newFormat);
     configTableFocusOut();
-    sdrState.setSdrStateUpdated();
+    sdrState.setUiStateUpdated();
 }
 
 function handleFpsChange(newFps) {
@@ -279,12 +271,12 @@ function handleFpsChange(newFps) {
 function handleGainChange(newGain) {
     sdrState.setGain(newGain);
     configTableFocusOut();
-    sdrState.setSdrStateUpdated();
+    sdrState.setUiStateUpdated();
 }
 function handleGainModeChange(newMode) {
     sdrState.setGainMode(newMode);
     configTableFocusOut();
-    sdrState.setSdrStateUpdated();
+    sdrState.setUiStateUpdated();
 }
 
 function handleStopToggle() {
@@ -459,7 +451,9 @@ function snapTableFocusOut(){
 
 function updateConfigTable(spec) {
     updateConfigTableCurrent(spec);
-    updateConfigTableNew(spec);
+    if (sdrState.getResetSdrStateUpdated()) {
+        updateConfigTableNew(spec);
+    }
 }
 
 function updateAlwaysChangeConfig() {
@@ -802,7 +796,7 @@ function connectWebSocket(spec) {
         }
 
         // control back to server
-        if (sdrState.getResetSdrStateUpdated()) {
+        if (sdrState.getResetUiStateUpdated()) {
             let jsonString= JSON.stringify(sdrState);
             // console.log(jsonString);
             websocket.send(jsonString);
@@ -992,7 +986,7 @@ function Main() {
 
 //    // checking if config has changed in the UI to send to the server
 //    setInterval(function() {
-//        if (sdrState.getResetSdrStateUpdated()) {
+//        if (sdrState.getResetUiStateUpdated()) {
 //            let jsonString= JSON.stringify(sdrState);
 //            websocket.send(jsonString);
 //            console.log(jsonString);
