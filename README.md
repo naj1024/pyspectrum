@@ -3,6 +3,7 @@
 ![Screenshot](screenShot_web.png)
 
 * Takes digitised IQ samples from some source to give a live spectrum and spectrogram.
+* All samples are used for the FFT. Provides detection of short bursting signals.
 * Has a plugin architecture for sources and analysis of spectrums.
 * Can snapshot IQ samples to file upon an event, currently a manual trigger.
 * Has a web based UI that can be used to take measurements on the spectrum.
