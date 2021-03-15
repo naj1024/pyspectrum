@@ -158,6 +158,9 @@ sdrState.prototype.getNextAckTime = function() {
 sdrState.prototype.getUiDelay = function() {
     return this.uiDelay;
 }
+sdrState.prototype.getReadRatio = function() {
+    return this.readRatio;
+}
 sdrState.prototype.getPpmError = function() {
     return this.ppmError;
 }
@@ -299,6 +302,10 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         this.uiDelay = jsonConfig.ui_delay;
         this.alwaysChange = true;
     }
+    if (jsonConfig.read_ratio != this.readRatio) {
+        this.readRatio = jsonConfig.read_ratio;
+        this.alwaysChange = true;
+    }
     if (jsonConfig.measured_fps != this.measuredFps) {
         this.measuredFps = jsonConfig.measured_fps;
         this.alwaysChange = true;
@@ -320,6 +327,7 @@ function sdrState() {
     this.gain = 0;
     this.measuredFps = 0;
     this.uiDelay = 0;
+    this.readRatio = 0;
 
     // non visible things
     this.nextAckTime = 0;

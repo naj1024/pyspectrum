@@ -112,8 +112,11 @@ def main() -> None:
 
     # Default things before the main loop
     peak_powers_since_last_display = np.full(configuration.fft_size, -200)
-    sample_get_time = Ewma.Ewma(0.01)
+    capture_time = Ewma.Ewma(0.01)
     process_time = Ewma.Ewma(0.01)
+    analysis_time = Ewma.Ewma(0.01)
+    reporting_time = Ewma.Ewma(0.01)
+    ui_time = Ewma.Ewma(0.01)
     debug_time = 0
     config_time = 0  # when we will send our config to the UI
     fps_update_time = 0
@@ -122,6 +125,7 @@ def main() -> None:
     peak_average = Ewma.Ewma(0.1)
     current_peak_count = 0
     max_peak_count = 0
+    slow = 0
     while processing:
 
         if not multiprocessing.active_children():
@@ -137,33 +141,43 @@ def main() -> None:
         # Get and process the complex samples we will work on
         ######################
         try:
-            data_samples_perf_time_start = time.perf_counter()
+            time_start = time.perf_counter()
             samples, time_rx_nsec = data_source.read_cplx_samples()
-            data_samples_perf_time_end = time.perf_counter()
+            time_end = time.perf_counter()
 
-            _ = sample_get_time.average(data_samples_perf_time_end - data_samples_perf_time_start)
             if samples is None:
                 time.sleep(0.001)  # rate limit on trying to get samples
             else:
+                _ = capture_time.average(time_end - time_start)
+                # read ratio will be > 1.0 if we take longer to get samples than we expect
+                configuration.read_ratio = (configuration.sample_rate * capture_time.get_ewma()) / configuration.fft_size
+
                 # record start time so we can average how long processing is taking
-                complete_process_time_start = time.perf_counter()
+                time_start = time.perf_counter()
 
                 ##########################
                 # Calculate the spectrum
                 #################
                 processor.process(samples)
+                time_end = time.perf_counter()
+                process_time.average(time_end - time_start)
 
                 ###########################
                 # analysis of the spectrum
                 #################
+                time_start = time.perf_counter()
                 results = plugin_manager.call_plugin_method(method="analysis",
                                                             args={"powers": processor.get_powers(False),
                                                                   "noise_floors": processor.get_long_average(False),
                                                                   "reordered": False})
 
+                time_end = time.perf_counter()
+                analysis_time.average(time_end - time_start)
+
                 #####################
                 # reporting results
                 #############
+                time_start = time.perf_counter()
                 if "peaks" in results and len(results["peaks"]) > 0:
                     freqs = ProcessSamples.convert_to_frequencies(results["peaks"],
                                                                   configuration.sample_rate,
@@ -173,6 +187,9 @@ def main() -> None:
                                                                 "frequencies": freqs,
                                                                 "centre_frequency_hz":
                                                                     configuration.centre_frequency_hz})
+
+                time_end = time.perf_counter()
+                reporting_time.average(time_end - time_start)
 
                 ##########################
                 # Handle snapshots
@@ -187,6 +204,8 @@ def main() -> None:
 
                 snap_configuration.currentSizeMbytes = data_sink.get_current_size_mbytes()
                 snap_configuration.expectedSizeMbytes = data_sink.get_size_mbytes()
+
+                time_start = time.perf_counter()
 
                 # has underlying sps or cf changed for the snap
                 if snap_configuration.cf != configuration.real_centre_frequency_hz or \
@@ -211,12 +230,11 @@ def main() -> None:
                                current_peak_count,
                                max_peak_count,
                                time_rx_nsec)
+                time_end = time.perf_counter()
+                ui_time.average(time_end - time_start)
 
                 # average of number of count of spectrums between UI updates
                 peak_average.average(max_peak_count)
-
-                complete_process_time_end = time.perf_counter()  # time for everything but data get
-                process_time.average(complete_process_time_end - complete_process_time_start)
 
         except ValueError:
             # incorrect number of samples, probably because something closed
@@ -238,9 +256,13 @@ def main() -> None:
 
         # Debug print on how long things are taking
         if now > debug_time:
-            debug_print(expected_samples_receive_time,
-                        configuration.fft_size, process_time,
-                        sample_get_time,
+            debug_print(configuration.sample_rate,
+                        configuration.fft_size,
+                        capture_time,
+                        process_time,
+                        analysis_time,
+                        reporting_time,
+                        ui_time,
                         peak_average.get_ewma(),
                         configuration.fps,
                         configuration.measured_fps)
@@ -571,32 +593,41 @@ def send_to_ui(configuration: SdrVariables,
     return peak_powers_since_last_display, current_peak_count, max_peak_count
 
 
-def debug_print(expect_samples_receive_time: float,
+def debug_print(sps: float,
                 fft_size: int,
-                process_time: Ewma,
                 sample_get_time: Ewma,
+                process_time: Ewma,
+                analysis_time: Ewma,
+                reporting_time: Ewma,
+                ui_time: Ewma,
                 peak_count: float,
                 fps: int,
                 mfps: float) -> None:
     """
     Various useful profiling prints
 
-    :param expect_samples_receive_time: How long the samples would of taken to digitise
+    :param sps: Digitisation rate
     :param fft_size: The number of samples per cycle
-    :param process_time: How long we have spent processing the samples
     :param sample_get_time: How long it took as to receive the digitised samples
+    :param process_time: How long we have spent processing the samples
+    :param analysis_time: How long we have spent analysing things
+    :param reporting_time: How long we have spent reporting things
+    :param ui_time: How long we have spent telling the ui
     :param peak_count: Count of how many spectrums we are peak detecting on for the UI
     :param fps: requested fps
     :param mfps: measured fps
 
     :return: None
     """
-    total_time = sample_get_time.get_ewma() + process_time.get_ewma()
-    logger.debug(f'FFT:{fft_size} '
-                 f'{1e6 * expect_samples_receive_time:.0f}usec, '
+    data_time = (fft_size/sps)
+    logger.debug(f'SPS:{sps:.0f}, '
+                 f'FFT:{fft_size} '
+                 f'{1e6 * data_time:.0f}usec, '
                  f'read:{1e6 * sample_get_time.get_ewma():.0f}usec, '
                  f'process:{1e6 * process_time.get_ewma():.0f}usec, '
-                 f'total:{1e6 * total_time:.0f}usec, '
+                 f'analysis:{1e6 * analysis_time.get_ewma():.0f}usec, '
+                 f'report:{1e6 * reporting_time.get_ewma():.0f}usec, '
+                 f'ui:{1e6 * ui_time.get_ewma():.0f}usec, '
                  f'pc:{peak_count:0.1f}, '
                  f'fps:{fps}, '
                  f'mfps:{mfps}, ')

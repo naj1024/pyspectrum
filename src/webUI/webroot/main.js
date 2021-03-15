@@ -159,9 +159,6 @@ async function handleJsonControl(controlData) {
                 alert(control.error);
             }
             let updateCfgTable = sdrState.setConfigFromJason(control);
-//            if (sdrState.getAlwaysChange()) {
-//                updateAlwaysChangeConfig();
-//            }
             spectrum.updateAxes();
             updateConfigTable(spectrum); // update Current and maybe new
         }
@@ -456,12 +453,6 @@ function updateConfigTable(spec) {
     }
 }
 
-function updateAlwaysChangeConfig() {
-    $('#currentGain').empty().append(sdrState.getGain()+' dB');
-    $('#currentFPS').empty().append(sdrState.getMeasuredFps());
-    $('#currentDelay').empty().append(sdrState.getUiDelay());
-}
-
 function updateConfigTableCurrent(spec) {
     let src = '<div>'+sdrState.getInputSource()+'</div>';
     src += '<div title="'+sdrState.getInputSourceParams()+'" class="CropLongTexts100">'+sdrState.getInputSourceParams()+'</div>'
@@ -482,6 +473,7 @@ function updateConfigTableCurrent(spec) {
     $('#currentGain').empty().append(sdrState.getGain()+' dB');
     $('#currentFPS').empty().append(sdrState.getMeasuredFps()+ ' (max:'+spec.getMaxFps()+')');
     $('#currentDelay').empty().append(sdrState.getUiDelay());
+    $('#currentReadRatio').empty().append(sdrState.getReadRatio().toFixed(3));
     $('#currentRBW').empty().append(spec.convertFrequencyForDisplay(sps / sdrState.getFftSize(),3));
     $('#currentAvg').empty().append(spec.averaging);
     $('#currentZoom').empty().append(spec.zoom);

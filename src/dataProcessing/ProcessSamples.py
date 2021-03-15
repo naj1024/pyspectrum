@@ -87,3 +87,6 @@ class ProcessSamples:
 
     def get_window(self) -> str:
         return self._spec.get_window()
+
+    def get_fft_used(self) -> str:
+        return self._spec.get_fft_used()

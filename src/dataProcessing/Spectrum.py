@@ -139,6 +139,14 @@ class Spectrum:
     def get_window(self) -> str:
         return self._window_type
 
+    def get_fft_used(self) -> str:
+        if self._use_scipy_fft:
+            return "scipy"
+        elif self._use_fftw_fft:
+            return "fftw"
+        else:
+            return "numpy"
+
     def set_fft(self) -> None:
         """
         Decide which fft to use for the required fft length
