@@ -37,10 +37,10 @@ from dataSources import DataSourceFactory
 from misc import Ewma
 from misc import PicGenerator
 from misc import PluginManager
+from misc import SdrVariables
 from misc import SnapVariables
 from misc import commandLine
 from misc import sdrStuff
-from misc import SdrVariables
 from misc import snapStuff
 from webUI import WebServer
 
@@ -92,7 +92,7 @@ def main() -> None:
 
     # all our things
     data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, \
-        plugin_manager, source_factory, pic_generator = initialise(configuration, thumbs_dir)
+    plugin_manager, source_factory, pic_generator = initialise(configuration, thumbs_dir)
 
     # the snapshot config
     snap_configuration.cf = configuration.real_centre_frequency_hz
@@ -150,6 +150,7 @@ def main() -> None:
             else:
                 _ = capture_time.average(time_end - time_start)
                 # read ratio will be > 1.0 if we take longer to get samples than we expect
+                # it should be less than we expect as the driver will be getting samples while we do other things
                 configuration.read_ratio = (configuration.sample_rate * capture_time.get_ewma()) / configuration.fft_size
 
                 # record start time so we can average how long processing is taking
@@ -409,7 +410,7 @@ def initialise(configuration: SdrVariables, thumbs_dir: pathlib.PurePath) -> Tup
         configuration.time_measure_fps = time.time()
 
         return data_source, display, to_ui_queue, to_ui_control_queue, \
-            from_ui_queue, processor, plugin_manager, factory, pic_generator
+               from_ui_queue, processor, plugin_manager, factory, pic_generator
 
     except Exception as msg:
         # exceptions here are fatal
@@ -558,11 +559,12 @@ def send_to_ui(configuration: SdrVariables,
         # NOTE on say the pluto which silently drops samples you may have a large gap between samples
         # that gives a low fps as data is not arriving at the correct rate
         if (configuration.ui_delay > 5) and (configuration.measured_fps > 10):
-            configuration.fps = 10  # something safe and sensible
-            err_msg = f"UI behind by {configuration.ui_delay}seconds. Defaulting to 10fps"
-            # don't give error to the UI as this stops it updating and you end up in a loop
-            # configuration.error += err_msg
-            logger.info(err_msg)
+            if configuration.fps != 10:
+                configuration.fps = 10  # something safe and sensible
+                err_msg = f"UI behind by {configuration.ui_delay}seconds. Defaulting to 10fps"
+                # don't give error to the UI as this stops it updating and you end up in a loop
+                # configuration.error += err_msg
+                logger.info(err_msg)
             peak_detect = True  # UI can't keep up
 
         # global old_one_in_n
@@ -619,7 +621,7 @@ def debug_print(sps: float,
 
     :return: None
     """
-    data_time = (fft_size/sps)
+    data_time = (fft_size / sps)
     logger.debug(f'SPS:{sps:.0f}, '
                  f'FFT:{fft_size} '
                  f'{1e6 * data_time:.0f}usec, '
