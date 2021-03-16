@@ -473,7 +473,8 @@ function updateConfigTableCurrent(spec) {
     $('#currentGain').empty().append(sdrState.getGain()+' dB');
     $('#currentFPS').empty().append(sdrState.getMeasuredFps()+ ' (max:'+spec.getMaxFps()+')');
     $('#currentDelay').empty().append(sdrState.getUiDelay());
-    $('#currentReadRatio').empty().append(sdrState.getReadRatio().toFixed(3));
+    $('#currentReadRatio').empty().append(sdrState.getReadRatio().toFixed(2));
+    $('#currentHeadroom').empty().append(sdrState.getHeadroom().toFixed(1) +'%');
     $('#currentRBW').empty().append(spec.convertFrequencyForDisplay(sps / sdrState.getFftSize(),3));
     $('#currentAvg').empty().append(spec.averaging);
     $('#currentZoom').empty().append(spec.zoom);

@@ -74,10 +74,10 @@
                                         <td><b>Format</b></td><td><div id="currentFormat"></div></td><td><div id="newFormat"></div></td></tr>
                                     <tr title="Frequency the SDR is tuned to">
                                         <td><b>sdr Freq</b></td><td><div id="currentSdrCentre"></div></td><td/></tr>
-                                    <tr title="Real tuned frequency, takes FreqConv into account">
+                                    <tr title="Real tuned frequency, takes conversion into account">
                                         <td><b>Frequency</b></td><td><div id="currentCentre"></div></td><td><div id="newCentre"></div></td></tr>
                                     <tr title="Up or down conversion factor to give the real frequency">
-                                        <td><b>FreqConv</b></td><td><div id="currentCfOffset"></div></td><td><div id="newCfOffset"></div></td></tr>
+                                        <td><b>Conversion</b></td><td><div id="currentCfOffset"></div></td><td><div id="newCfOffset"></div></td></tr>
                                     <tr title="Samples per second of input">
                                         <td><b>SPS</b></td><td><div id="currentSps"></div></td><td><div id="newSps"></div></td></tr>
                                     <tr title="Filtering at the front end">
@@ -98,15 +98,17 @@
                                     <tr class="blank_row"><td bgcolor="#000" colspan="3">&nbsp;</td></tr>
                                     <tr title="Type of gain control">
                                         <td><b>Gmode</b></td><td><div id="currentGmode"></div></td><td><div id="newGmode"></div></td></tr>
-                                    <tr title=""Gain in dB>
+                                    <tr title="Gain in dB">
                                         <td><b>Gain</b></td><td><div id="currentGain"></div></td><td><div id="newGain"></div></td></tr>
                                     <tr class="blank_row"><td bgcolor="#000" colspan="3">&nbsp;</td></tr>
                                     <tr title="How often we update this UI display">
                                         <td><b>FPS</b></td><td><div id="currentFPS"></div></td><td><div id="newFPS"></div></td></tr>
                                     <tr title="Approximate delay from front end to UI">
                                         <td><b>UI delay</b></td><td><div id="currentDelay"></div></td><td/></tr>
-                                    <tr title="Values >1.0 indicate we are taking longer then expected to read samples">
+                                    <tr title="Values >1.0 samples not arriving fast enough. Small values mean at limit of reading fast enough">
                                         <td><b>Read ratio</b></td><td><div id="currentReadRatio"></div></td><td/></tr>
+                                    <tr title="Free processing time at this sample rate">
+                                        <td><b>Headroom</b></td><td><div id="currentHeadroom"></div></td><td/></tr>
                                 </tbody>
                             </table>
                         </div>

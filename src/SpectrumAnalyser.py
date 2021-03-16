@@ -92,7 +92,7 @@ def main() -> None:
 
     # all our things
     data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, \
-    plugin_manager, source_factory, pic_generator = initialise(configuration, thumbs_dir)
+        plugin_manager, source_factory, pic_generator = initialise(configuration, thumbs_dir)
 
     # the snapshot config
     snap_configuration.cf = configuration.real_centre_frequency_hz
@@ -116,6 +116,7 @@ def main() -> None:
     process_time = Ewma.Ewma(0.01)
     analysis_time = Ewma.Ewma(0.01)
     reporting_time = Ewma.Ewma(0.01)
+    snap_time = Ewma.Ewma(0.01)
     ui_time = Ewma.Ewma(0.01)
     debug_time = 0
     config_time = 0  # when we will send our config to the UI
@@ -125,7 +126,6 @@ def main() -> None:
     peak_average = Ewma.Ewma(0.1)
     current_peak_count = 0
     max_peak_count = 0
-    slow = 0
     while processing:
 
         if not multiprocessing.active_children():
@@ -197,6 +197,7 @@ def main() -> None:
                 # -- this may alter sample values
                 # due to pre-trigger we need to always give the samples
                 #################
+                time_start = time.perf_counter()
                 if data_sink.write(snap_configuration.triggered, samples, time_rx_nsec):
                     snap_configuration.triggered = False
                     snap_configuration.triggerState = "wait"
@@ -205,6 +206,9 @@ def main() -> None:
 
                 snap_configuration.currentSizeMbytes = data_sink.get_current_size_mbytes()
                 snap_configuration.expectedSizeMbytes = data_sink.get_size_mbytes()
+
+                time_end = time.perf_counter()
+                snap_time.average(time_end - time_start)
 
                 time_start = time.perf_counter()
 
@@ -263,6 +267,7 @@ def main() -> None:
                         process_time,
                         analysis_time,
                         reporting_time,
+                        snap_time,
                         ui_time,
                         peak_average.get_ewma(),
                         configuration.fps,
@@ -273,6 +278,10 @@ def main() -> None:
             # check on the source, maybe the gain changed etc
             sdrStuff.update_source_state(configuration, data_source)
             config_time = now + 1
+            total_time = process_time.get_ewma() + analysis_time.get_ewma() + reporting_time.get_ewma() + \
+                         snap_time.get_ewma() + ui_time.get_ewma()
+            data_time = (configuration.fft_size / configuration.sample_rate)
+            configuration.headroom = 100.0 * (data_time - total_time) / data_time
             try:
                 # Send the current configuration to the UI
                 to_ui_control_queue.put(configuration.make_json(), block=False)
@@ -601,6 +610,7 @@ def debug_print(sps: float,
                 process_time: Ewma,
                 analysis_time: Ewma,
                 reporting_time: Ewma,
+                snap_time: Ewma,
                 ui_time: Ewma,
                 peak_count: float,
                 fps: int,
@@ -614,6 +624,7 @@ def debug_print(sps: float,
     :param process_time: How long we have spent processing the samples
     :param analysis_time: How long we have spent analysing things
     :param reporting_time: How long we have spent reporting things
+    :param snap_time: How long we have spent saving snaps
     :param ui_time: How long we have spent telling the ui
     :param peak_count: Count of how many spectrums we are peak detecting on for the UI
     :param fps: requested fps
@@ -622,6 +633,9 @@ def debug_print(sps: float,
     :return: None
     """
     data_time = (fft_size / sps)
+    total_time = process_time.get_ewma() + analysis_time.get_ewma() + reporting_time.get_ewma() + \
+                snap_time.get_ewma() + ui_time.get_ewma()
+    headroom = 100.0 * (data_time - total_time) / data_time
     logger.debug(f'SPS:{sps:.0f}, '
                  f'FFT:{fft_size} '
                  f'{1e6 * data_time:.0f}usec, '
@@ -629,7 +643,10 @@ def debug_print(sps: float,
                  f'process:{1e6 * process_time.get_ewma():.0f}usec, '
                  f'analysis:{1e6 * analysis_time.get_ewma():.0f}usec, '
                  f'report:{1e6 * reporting_time.get_ewma():.0f}usec, '
+                 f'snap:{1e6 * snap_time.get_ewma():.0f}usec, '
                  f'ui:{1e6 * ui_time.get_ewma():.0f}usec, '
+                 f'total:{1e6 * total_time:.0f}usec, '
+                 f'free:{headroom:.0f}%, '
                  f'pc:{peak_count:0.1f}, '
                  f'fps:{fps}, '
                  f'mfps:{mfps}, ')
