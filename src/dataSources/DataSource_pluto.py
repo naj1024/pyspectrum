@@ -7,6 +7,8 @@ NOTE that the pluto device will accept 70Mhz to 6GHz frequency and 60MHz samplin
     but -
           anything above around 2Msps is going to drop samples silently
 
+NOTE: Had to read large blocks from pluto otherwise data was being dropped somewhere
+
 NOTE: added support for xo-correction by adding the following to ad936x.py from pyadi-iio
 
     @property
@@ -81,6 +83,13 @@ class Input(DataSource.DataSource):
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 
+        # for supporting read of blocks which we partition out
+        self._read_block_size = 16384  # MUST be a power of 2
+        self._index = self._read_block_size  # force read on first access
+        self._rx_time = 0  # first sample time
+        self._complex_data = None  # the block store
+        self._block_time = self._number_complex_samples / self._sample_rate_sps
+
     def open(self) -> bool:
         global import_error_msg
         if import_error_msg != "":
@@ -126,7 +135,7 @@ class Input(DataSource.DataSource):
             self._error += msgs
 
         try:
-            self._sdr.rx_buffer_size = self._number_complex_samples  # sets how many complex samples we get each rx()
+            self._sdr.rx_buffer_size = self._read_block_size  # sets how many complex samples we get each rx()
             # don't correct sample rates for ppm error, very small error
             self.set_sample_rate_sps(self._sample_rate_sps)
             self.set_centre_frequency_hz(self._centre_frequency_hz)
@@ -266,15 +275,25 @@ class Input(DataSource.DataSource):
         rx_time = 0
 
         if self._connected and self._sdr:
-            try:
-                complex_data = self._sdr.rx()  # the samples here are complex128 i.e. full doubles
-                rx_time = self.get_time_ns()
-                complex_data = complex_data / 4096.0  # 12bit
-                complex_data = np.array(complex_data, dtype=np.complex64)  # if we need all values to be 32bit floats
-            except Exception as err:
-                self._connected = False
-                self._error = str(err)
-                logger.error(self._error)
-                raise ValueError(err)
+            # do we need to read in the next big block
+            if self._index >= self._read_block_size:
+                try:
+                    self._complex_data = self._sdr.rx()  # the samples here are complex128 i.e. full doubles
+                    self._rx_time = self.get_time_ns()
+                    self._index = 0
+                except Exception as err:
+                    self._connected = False
+                    self._error = str(err)
+                    logger.error(self._error)
+                    raise ValueError(err)
+
+            last_sample = self._index + self._number_complex_samples
+            complex_data = np.array(self._complex_data[self._index:last_sample], dtype=np.complex64)
+            complex_data /= 4096.0  # 12bit
+            rx_time = self._rx_time
+
+            # ready for the next block
+            self._rx_time += self._block_time
+            self._index += self._number_complex_samples
 
         return complex_data, rx_time
