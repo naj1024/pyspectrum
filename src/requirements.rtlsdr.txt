@@ -35,7 +35,7 @@ requests==2.25.0
 scipy==1.6.0
 six==1.15.0
 sounddevice==0.4.1
-urllib3==1.26.2
+urllib3==1.26.3
 wcwidth==0.2.3
 websockets==8.1
 wxPython==4.0.7
