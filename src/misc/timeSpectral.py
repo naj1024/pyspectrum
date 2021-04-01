@@ -40,7 +40,7 @@ def time_spectral(configuration: SdrVariables):
     # only measuring powers of two, not limited to that though
     fft_sizes = [256, 512, 1024, 2048, 4096, 8192, 16384, 32768]
     print("\nSpectral processing time (sps are absolute maximums for the basic spectral calculation)")
-    print("spec \tusec  \tMsps \ttype")
+    print("FFT \tusec  \tMsps \ttype")
     print("=============================")
     for fft_size in fft_sizes:
         configuration.fft_size = fft_size
