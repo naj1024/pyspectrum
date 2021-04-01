@@ -8,7 +8,9 @@ import json
 import pathlib
 import os
 
-SNAPSHOT_DIRECTORY = pathlib.PurePath(f"{os.path.dirname(__file__)}/../snapshots")
+from misc import global_vars
+
+SNAPSHOT_DIRECTORY = pathlib.PurePath(f"{os.path.dirname(__file__)}/../{global_vars.snapshot_dir}")
 
 
 class SnapVariables:

@@ -100,6 +100,23 @@ def main() -> None:
     global processing
     signal.signal(signal.SIGINT, signal_handler)
 
+    # directories we need
+    try:
+        os.mkdir(pathlib.PurePath(os.path.dirname(__file__), "webUI/webroot/thumbnails"))
+    except FileExistsError:
+        pass
+    except Exception as msg:
+        print(f"Failed to create web thumbnails directory, {msg}")
+        exit(1)
+
+    try:
+        os.mkdir(pathlib.PurePath(os.path.dirname(__file__), global_vars.snapshot_dir))
+    except FileExistsError:
+        pass
+    except Exception as msg:
+        print(f"Failed to create snapshot directory, {msg}")
+        exit(1)
+
     # default config and setup
     configuration, snap_configuration, thumbs_dir = setup()
 

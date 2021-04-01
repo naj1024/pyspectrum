@@ -14,6 +14,7 @@ import os
 import pathlib
 
 from misc import SpectrumPicture
+from misc import global_vars
 
 # for logging
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ class PicGenerator(multiprocessing.Process):
 
     def run(self):
         global logger
-        log_file = pathlib.PurePath(os.path.dirname(__file__), "..", "logs", __name__+".log")
+        log_file = pathlib.PurePath(os.path.dirname(__file__), "..", global_vars.log_dir, __name__+".log")
         # define file handler and set formatter
         file_handler = logging.FileHandler(log_file, mode="w")
         formatter = logging.Formatter('%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
