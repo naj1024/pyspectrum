@@ -102,7 +102,7 @@ def main() -> None:
 
     # directories we need
     try:
-        os.mkdir(pathlib.PurePath(os.path.dirname(__file__), "webUI/webroot/thumbnails"))
+        os.mkdir(pathlib.PurePath(os.path.dirname(__file__), "webUI", "webroot", "thumbnails"))
     except FileExistsError:
         pass
     except Exception as msg:
