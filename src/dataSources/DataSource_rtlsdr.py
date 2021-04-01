@@ -6,9 +6,10 @@ Requires librtlsdr to be installed, tested on Linux only
 Requires pyrtlsdr to be installed - provides RtlSdr
 """
 
-import numpy as np
-from typing import Tuple
 import logging
+from typing import Tuple
+
+import numpy as np
 
 from dataSources import DataSource
 
@@ -136,7 +137,8 @@ class Input(DataSource.DataSource):
     def find_devices() -> str:
         devices = ""
         # could do with a call that returns the valid device_index's
-        for device in range(10):
+        max_device = 10
+        for device in range(max_device):
             try:
                 sdr = RtlSdr(device_index=device)
                 type_of_tuner = sdr.get_tuner_type()
@@ -146,6 +148,8 @@ class Input(DataSource.DataSource):
                 devices += f"device {device}, type {type_of_tuner} {allowed_tuner_types[type_of_tuner]}\n"
             except Exception as err:
                 pass
+        if devices == "":
+            devices = f"No rtlsdr devices found, scanned 0 to {max_device-1}"
         print(devices)
         return devices
 
