@@ -12,6 +12,7 @@ from builtins import Exception
 
 import websockets
 from websockets import WebSocketServerProtocol
+from misc import global_vars
 
 # for logging in the webSocket
 logger = logging.getLogger(__name__)
@@ -57,7 +58,7 @@ class WebSocketServer(multiprocessing.Process):
         """
         # logging to our own logger, not the base one - we will not see log messages for imported modules
         global logger
-        log_file = pathlib.PurePath(os.path.dirname(__file__), "..", "logs", __name__+".log")
+        log_file = pathlib.PurePath(os.path.dirname(__file__), "..", global_vars.log_dir, __name__ + ".log")
 
         try:
             # define file handler and set formatter

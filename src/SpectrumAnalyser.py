@@ -43,6 +43,7 @@ from misc import commandLine
 from misc import sdrStuff
 from misc import snapStuff
 from webUI import WebServer
+from misc import global_vars
 
 processing = True  # global to be set to False from ctrl-c
 # old_one_in_n = 0  # for debugging fps
@@ -53,7 +54,6 @@ logger = logging.getLogger("spectrum_logger")  # a name we use to find this logg
 
 MAX_TO_UI_QUEUE_DEPTH = 10  # low for low latency
 MAX_FROM_UI_QUEUE_DEPTH = 10  # stop things backing up when no UI connected
-
 
 def signal_handler(sig, __):
     global processing
@@ -69,7 +69,15 @@ def main() -> None:
     """
     # logging to our own logger, not the base one - we will not see log messages for imported modules
     global logger
-    log_file = pathlib.PurePath(os.path.dirname(__file__), "logs", "SpectrumAnalyser.log")
+    try:
+        os.mkdir(pathlib.PurePath(os.path.dirname(__file__), global_vars.log_dir))
+    except FileExistsError:
+        pass
+    except Exception as msg:
+        print(f"Failed to create logging directory, {msg}")
+        exit(1)
+
+    log_file = pathlib.PurePath(os.path.dirname(__file__), global_vars.log_dir, "SpectrumAnalyser.log")
     try:
         # don't use %Z for timezone as some say 'GMT' or 'GMT standard time'
         logging.basicConfig(format='%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',

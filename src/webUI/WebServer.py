@@ -10,6 +10,7 @@ import time
 import signal
 
 from webUI import WebSocketServer
+from misc import global_vars
 
 # root is directory relative to our source file
 web_root = f"{os.path.dirname(__file__)}/webroot/"
@@ -95,7 +96,7 @@ class WebServer(multiprocessing.Process):
         :return: None
         """
         global logger
-        log_file = pathlib.PurePath(os.path.dirname(__file__), "..", "logs", __name__+".log")
+        log_file = pathlib.PurePath(os.path.dirname(__file__), "..", global_vars.log_dir, __name__ + ".log")
 
         try:
             # define file handler and set formatter
