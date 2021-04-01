@@ -3,13 +3,16 @@
 ![Screenshot](screenShot_web.png)
 
 * Takes digitised IQ samples from some source to give a live spectrum and spectrogram.
-* All samples are used for the FFT. Provides detection of short bursting signals.
+* All samples are used for the FFT. Providing detection of short bursting signals.
 * Has a plugin architecture for sources and analysis of spectrums.
 * Can snapshot IQ samples to file upon an event, currently a manual trigger.
 * Has a web based UI that can be used to take measurements on the spectrum.
 
 This was an exercise in writing some python which expanded into providing a web based UI. 
 The fft computations are done by libraries in Python, so not the fastest.
+
+If you have an rtlsdr working with any of the other tools then this analyser should work as well 
+once the python rtlsdr support is installed in your environment.
 
 Performance depends on your machine and how the supporting fft libraries were compiled. 
 I have certainly kept up with streams of data at over 3Msps.
@@ -60,21 +63,22 @@ Some examples for running from command line
 
     python ./SpectrumAnalyser.py -i?     - list input sources that are available
 
-    python ./SpectrumAnalyser.py -ipluto:192.168.2.1 -c433.92e6 -s600e3   - pluto at 433MHz and 600ksps
+    Some default input selections, normally select trhough web interface:
+      python ./SpectrumAnalyser.py -ipluto:192.168.2.1 -c433.92e6 -s600e3   - pluto at 433MHz and 600ksps
+  
+      python ./SpectrumAnalyser.py -ipluto:192.168.2.1 -c433.92e6 -s1e6 
+                              --plugin analysis:peak:threshold:12 
+                              --plugin report:mqtt:broker:192.168.0.101     - detect and log signals
+  
+      python ./SpectrumAnalyser.py -ifile:test.wav -c433.92e6    - a test wav file
+  
+      python ./SpectrumAnalyser.py -iaudio:1 -s48e3 -iaudio:1    - audio input 
+  
+      python ./SpectrumAnalyser.py -irtlsdr:kk -c433.92e6 -s1e6   - rtlsdr
 
-    python ./SpectrumAnalyser.py -ipluto:192.168.2.1 -c433.92e6 -s1e6 
-                            --plugin analysis:peak:threshold:12 
-                            --plugin report:mqtt:broker:192.168.0.101     - detect and log signals
-
-    python ./SpectrumAnalyser.py -ifile:test.wav -c433.92e6    - a test wav file
-
-    python ./SpectrumAnalyser.py -iaudio:1 -s48e3 -iaudio:1    - audio input 
-
-    python ./SpectrumAnalyser.py -irtlsdr:kk -c433.92e6 -s1e6   - rtlsdr
-
-    python ./src/SpectrumAnalyser.py -isoapy:audio -s48000 -c0  - soapy input
-
-    python ./src/SpectrumAnalyser.py -isoapy:sdrplay -s2e6 c433.92e6 
+    SOAPY may not work:
+      python ./src/SpectrumAnalyser.py -isoapy:audio -s48000 -c0  - soapy input
+      python ./src/SpectrumAnalyser.py -isoapy:sdrplay -s2e6 c433.92e6 
 
 
 ## Dependencies
