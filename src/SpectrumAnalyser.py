@@ -70,11 +70,16 @@ def main() -> None:
     # logging to our own logger, not the base one - we will not see log messages for imported modules
     global logger
     log_file = pathlib.PurePath(os.path.dirname(__file__), "logs", "SpectrumAnalyser.log")
-    # don't use %Z for timezone as some say 'GMT' or 'GMT standard time'
-    logging.basicConfig(format='%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
-                        datefmt="%Y-%m-%d %H:%M:%S UTC",
-                        filemode='w',
-                        filename=log_file)
+    try:
+        # don't use %Z for timezone as some say 'GMT' or 'GMT standard time'
+        logging.basicConfig(format='%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
+                            datefmt="%Y-%m-%d %H:%M:%S UTC",
+                            filemode='w',
+                            filename=log_file)
+    except Exception as msg:
+        print(f"Failed to create logger for main, {msg}")
+        exit(1)
+
     logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
     logger.setLevel(logging.WARN)
 

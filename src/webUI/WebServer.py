@@ -97,8 +97,13 @@ class WebServer(multiprocessing.Process):
         global logger
         log_file = pathlib.PurePath(os.path.dirname(__file__), "..", "logs", __name__+".log")
 
-        # define file handler and set formatter
-        file_handler = logging.FileHandler(log_file, mode="w")
+        try:
+            # define file handler and set formatter
+            file_handler = logging.FileHandler(log_file, mode="w")
+        except Exception as msg:
+            print(f"Failed to create logger for webserver, {msg}")
+            exit(1)
+
         formatter = logging.Formatter('%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
                                       datefmt="%Y-%m-%d %H:%M:%S UTC")
         file_handler.setFormatter(formatter)
