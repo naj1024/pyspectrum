@@ -46,7 +46,7 @@ def parse_command_line(configuration: SdrVariables, logger: logging.Logger) -> N
                            default=configuration.centre_frequency_hz,
                            required=False)
     data_opts.add_argument('-C', '--conversionFrequency', type=float,
-                           help=f'Up/down conversion frequency frequency in Hz '
+                           help=f'Up/down conversion frequency in Hz '
                                 f'(default: {configuration.conversion_frequency_hz})',
                            default=configuration.conversion_frequency_hz,
                            required=False)
