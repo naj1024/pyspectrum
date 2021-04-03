@@ -206,8 +206,9 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         //console.log(jsonConfig.uuid, this.uuid, jsonConfig)
 
         // this should only set the offset frequency initially, i.e. set on command line
-        if (jsonConfig.conversion_frequency_hz != this.centreFrequencyOffsetHz) {
+        if (this.firstTime) {
             this.centreFrequencyOffsetHz = parseInt(jsonConfig.conversion_frequency_hz);
+            this.firstTime = false;
         }
 
         if (jsonConfig.centre_frequency_hz != this.centreFrequencyHz) {
@@ -350,6 +351,7 @@ function sdrState() {
     this.centreFrequencyHz = 0.0; // what the sdr will be given
     this.realCentreFrequencyHz = 0.0; // takes account of offset
     this.centreFrequencyOffsetHz = 0.0; // subtracted from realCentreFrequencyHz
+    this.firstTime = true;
 
     this.sps = 0;
     this.sdrBwHz = 0;
