@@ -50,6 +50,10 @@ class Input(DataSource.DataSource):
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 
+    def open(self) -> bool:
+        self._error = "Null device has no samples"
+        return False
+
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """
             Always no samples

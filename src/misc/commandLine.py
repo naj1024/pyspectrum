@@ -45,6 +45,11 @@ def parse_command_line(configuration: SdrVariables, logger: logging.Logger) -> N
                            help=f'Centre frequency in Hz (default: {configuration.centre_frequency_hz})',
                            default=configuration.centre_frequency_hz,
                            required=False)
+    data_opts.add_argument('-C', '--conversionFrequency', type=float,
+                           help=f'Up/down conversion frequency frequency in Hz '
+                                f'(default: {configuration.conversion_frequency_hz})',
+                           default=configuration.conversion_frequency_hz,
+                           required=False)
     data_opts.add_argument('-s', '--sampleRate', type=float,
                            help=f'Sample rate in sps (default: {configuration.sample_rate})',
                            default=configuration.sample_rate,
@@ -91,10 +96,15 @@ def parse_command_line(configuration: SdrVariables, logger: logging.Logger) -> N
 
     if args['centreFrequency'] is not None:
         configuration.centre_frequency_hz = float(args['centreFrequency'])
+    if args['conversionFrequency'] is not None:
+        configuration.conversion_frequency_hz = float(args['conversionFrequency'])
     if args['sampleRate'] is not None:
         configuration.sample_rate = float(args['sampleRate'])
     if args['type'] is not None:
         configuration.sample_type = args['type']
+
+    # allow for conversion frequency
+    configuration.real_centre_frequency_hz = configuration.centre_frequency_hz + configuration.conversion_frequency_hz
 
     if args['input'] is not None:
         full_source_name = args['input']

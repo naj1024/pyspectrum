@@ -13,7 +13,7 @@ sdrState.prototype.setName = function(name) {
     this.name = name;
 }
 
-// ALL set fucntions should only be called from UI side
+// ALL set functions should only be called from UI side
 sdrState.prototype.setCentreFrequencyHz = function(freqHz) {
     this.centreFrequencyHz = parseInt(freqHz);
     this.realCentreFrequencyHz = this.centreFrequencyHz + this.centreFrequencyOffsetHz;
@@ -204,6 +204,11 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         // that has been runign a while and we are a new UI
         this.uuid = jsonConfig.uuid;
         //console.log(jsonConfig.uuid, this.uuid, jsonConfig)
+
+        // this should only set the offset frequency initially, i.e. set on command line
+        if (jsonConfig.conversion_frequency_hz != this.centreFrequencyOffsetHz) {
+            this.centreFrequencyOffsetHz = parseInt(jsonConfig.conversion_frequency_hz);
+        }
 
         if (jsonConfig.centre_frequency_hz != this.centreFrequencyHz) {
             this.centreFrequencyHz = parseInt(jsonConfig.centre_frequency_hz);

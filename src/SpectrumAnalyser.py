@@ -67,58 +67,15 @@ def main() -> None:
 
     :return: None
     """
-    # logging to our own logger, not the base one - we will not see log messages for imported modules
-    global logger
-    try:
-        os.mkdir(pathlib.PurePath(os.path.dirname(__file__), global_vars.log_dir))
-    except FileExistsError:
-        pass
-    except Exception as msg:
-        print(f"Failed to create logging directory, {msg}")
-        exit(1)
 
-    log_file = pathlib.PurePath(os.path.dirname(__file__), global_vars.log_dir, "SpectrumAnalyser.log")
-    try:
-        # don't use %Z for timezone as some say 'GMT' or 'GMT standard time'
-        logging.basicConfig(format='%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
-                            datefmt="%Y-%m-%d %H:%M:%S UTC",
-                            filemode='w',
-                            filename=log_file)
-    except Exception as msg:
-        print(f"Failed to create logger for main, {msg}")
-        exit(1)
-
-    logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
-    logger.setLevel(logging.WARN)
-
-    logger.info("SpectrumAnalyser started")
+    # default config and setup
+    configuration, snap_configuration, thumbs_dir = setup()
 
     # different python versions may impact us
     if sys.version_info < (3, 7):
         logger.warning(f"Python version nas no support for nanoseconds, current interpreter is V{sys.version}")
 
-    global processing
     signal.signal(signal.SIGINT, signal_handler)
-
-    # directories we need
-    try:
-        os.mkdir(pathlib.PurePath(os.path.dirname(__file__), "webUI", "webroot", "thumbnails"))
-    except FileExistsError:
-        pass
-    except Exception as msg:
-        print(f"Failed to create web thumbnails directory, {msg}")
-        exit(1)
-
-    try:
-        os.mkdir(pathlib.PurePath(os.path.dirname(__file__), global_vars.snapshot_dir))
-    except FileExistsError:
-        pass
-    except Exception as msg:
-        print(f"Failed to create snapshot directory, {msg}")
-        exit(1)
-
-    # default config and setup
-    configuration, snap_configuration, thumbs_dir = setup()
 
     # all our things
     data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, \
@@ -142,6 +99,7 @@ def main() -> None:
 
     # Default things before the main loop
     peak_powers_since_last_display = np.full(configuration.fft_size, -200)
+    # timing things, averages
     capture_time = Ewma.Ewma(0.01)
     process_time = Ewma.Ewma(0.01)
     analysis_time = Ewma.Ewma(0.01)
@@ -156,6 +114,7 @@ def main() -> None:
     peak_average = Ewma.Ewma(0.1)
     current_peak_count = 0
     max_peak_count = 0
+    global processing
     while processing:
 
         if not multiprocessing.active_children():
@@ -358,6 +317,32 @@ def setup() -> Tuple[SdrVariables.SdrVariables, SnapVariables.SnapVariables, pat
 
     :return:
     """
+    # logging to our own logger, not the base one - we will not see log messages for imported modules
+    global logger
+    try:
+        os.mkdir(pathlib.PurePath(os.path.dirname(__file__), global_vars.log_dir))
+    except FileExistsError:
+        pass
+    except Exception as msg:
+        print(f"Failed to create logging directory, {msg}")
+        exit(1)
+
+    log_file = pathlib.PurePath(os.path.dirname(__file__), global_vars.log_dir, "SpectrumAnalyser.log")
+    try:
+        # don't use %Z for timezone as some say 'GMT' or 'GMT standard time'
+        logging.basicConfig(format='%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
+                            datefmt="%Y-%m-%d %H:%M:%S UTC",
+                            filemode='w',
+                            filename=log_file)
+    except Exception as msg:
+        print(f"Failed to create logger for main, {msg}")
+        exit(1)
+
+    logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
+    logger.setLevel(logging.WARN)
+
+    logger.info("SpectrumAnalyser started")
+
     # sdr configuration
     configuration = SdrVariables.SdrVariables()
     commandLine.parse_command_line(configuration, logger)
@@ -378,14 +363,26 @@ def setup() -> Tuple[SdrVariables.SdrVariables, SnapVariables.SnapVariables, pat
     # snapshot config
     snap_configuration = SnapVariables.SnapVariables()
     if not os.path.isdir(SnapVariables.SNAPSHOT_DIRECTORY):
-        os.makedirs(SnapVariables.SNAPSHOT_DIRECTORY)
+        try:
+            os.makedirs(SnapVariables.SNAPSHOT_DIRECTORY)
+        except FileExistsError:
+            pass
+        except Exception as msg:
+            print(f"Failed to create snapshot directory, {msg}")
+            exit(1)
     snap_configuration.directory_list = snapStuff.list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
 
     # web thumbnail directory
     where = f"{os.path.dirname(__file__)}"
     thumbs_dir = pathlib.PurePath(f"{where}/webUI/webroot/thumbnails")
     if not os.path.isdir(thumbs_dir):
-        os.makedirs(thumbs_dir)
+        try:
+            os.makedirs(thumbs_dir)
+        except FileExistsError:
+            pass
+        except Exception as msg:
+            print(f"Failed to create web thumbnails directory, {msg}")
+            exit(1)
 
     return configuration, snap_configuration, thumbs_dir
 
