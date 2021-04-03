@@ -55,6 +55,7 @@ logger = logging.getLogger("spectrum_logger")  # a name we use to find this logg
 MAX_TO_UI_QUEUE_DEPTH = 10  # low for low latency
 MAX_FROM_UI_QUEUE_DEPTH = 10  # stop things backing up when no UI connected
 
+
 def signal_handler(sig, __):
     global processing
     processing = False
@@ -67,15 +68,15 @@ def main() -> None:
 
     :return: None
     """
+    signal.signal(signal.SIGINT, signal_handler)
 
     # default config and setup
     configuration, snap_configuration, thumbs_dir = setup()
+    logger.info("SpectrumAnalyser started")
 
     # different python versions may impact us
     if sys.version_info < (3, 7):
         logger.warning(f"Python version nas no support for nanoseconds, current interpreter is V{sys.version}")
-
-    signal.signal(signal.SIGINT, signal_handler)
 
     # all our things
     data_source, display, to_ui_queue, to_ui_control_queue, from_ui_queue, processor, \
@@ -317,31 +318,7 @@ def setup() -> Tuple[SdrVariables.SdrVariables, SnapVariables.SnapVariables, pat
 
     :return:
     """
-    # logging to our own logger, not the base one - we will not see log messages for imported modules
-    global logger
-    try:
-        os.mkdir(pathlib.PurePath(os.path.dirname(__file__), global_vars.log_dir))
-    except FileExistsError:
-        pass
-    except Exception as msg:
-        print(f"Failed to create logging directory, {msg}")
-        exit(1)
-
-    log_file = pathlib.PurePath(os.path.dirname(__file__), global_vars.log_dir, "SpectrumAnalyser.log")
-    try:
-        # don't use %Z for timezone as some say 'GMT' or 'GMT standard time'
-        logging.basicConfig(format='%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
-                            datefmt="%Y-%m-%d %H:%M:%S UTC",
-                            filemode='w',
-                            filename=log_file)
-    except Exception as msg:
-        print(f"Failed to create logger for main, {msg}")
-        exit(1)
-
-    logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
-    logger.setLevel(logging.WARN)
-
-    logger.info("SpectrumAnalyser started")
+    setup_logging("SpectrumAnalyser.log")
 
     # sdr configuration
     configuration = SdrVariables.SdrVariables()
@@ -349,8 +326,7 @@ def setup() -> Tuple[SdrVariables.SdrVariables, SnapVariables.SnapVariables, pat
 
     # check we have a valid input sample type
     if configuration.sample_type not in DataSource.supported_data_types:
-        logger.critical(f'Illegal sample type of {configuration.sample_type} selected')
-        quit()
+        raise ValueError(f'Illegal sample type of {configuration.sample_type} selected')
 
     # get all the sources available to us
     configuration.input_sources = DataSourceFactory.DataSourceFactory().sources()
@@ -360,7 +336,37 @@ def setup() -> Tuple[SdrVariables.SdrVariables, SnapVariables.SnapVariables, pat
     configuration.window_types = ProcessSamples.get_windows()
     configuration.window = configuration.window_types[0]
 
-    # snapshot config
+    snap_configuration = setup_snap_config()
+    thumbs_dir = setup_thumbs_dir()
+    return configuration, snap_configuration, thumbs_dir
+
+
+def setup_logging(log_filename: str) -> None:
+    # logging to our own logger, not the base one - we will not see log messages for imported modules
+    global logger
+    try:
+        os.mkdir(pathlib.PurePath(os.path.dirname(__file__), global_vars.log_dir))
+    except FileExistsError:
+        pass
+    except Exception as msg:
+        raise ValueError(f"Failed to create logging directory, {msg}")
+
+    log_file = pathlib.PurePath(os.path.dirname(__file__), global_vars.log_dir, log_filename)
+    try:
+        # don't use %Z for timezone as some say 'GMT' or 'GMT standard time'
+        logging.basicConfig(format='%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
+                            datefmt="%Y-%m-%d %H:%M:%S UTC",
+                            filemode='w',
+                            filename=log_file)
+    except Exception as msg:
+        raise ValueError(f"Failed to create logger for main, {msg}")
+
+    logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
+    logger.setLevel(logging.WARN)
+
+
+def setup_snap_config() -> SnapVariables.SnapVariables:
+    # make sure we have the snapshot directory
     snap_configuration = SnapVariables.SnapVariables()
     if not os.path.isdir(SnapVariables.SNAPSHOT_DIRECTORY):
         try:
@@ -368,10 +374,12 @@ def setup() -> Tuple[SdrVariables.SdrVariables, SnapVariables.SnapVariables, pat
         except FileExistsError:
             pass
         except Exception as msg:
-            print(f"Failed to create snapshot directory, {msg}")
-            exit(1)
+            raise ValueError(f"Failed to create snapshot directory, {msg}")
     snap_configuration.directory_list = snapStuff.list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
+    return snap_configuration
 
+
+def setup_thumbs_dir() -> pathlib.PurePath:
     # web thumbnail directory
     where = f"{os.path.dirname(__file__)}"
     thumbs_dir = pathlib.PurePath(f"{where}/webUI/webroot/thumbnails")
@@ -381,10 +389,9 @@ def setup() -> Tuple[SdrVariables.SdrVariables, SnapVariables.SnapVariables, pat
         except FileExistsError:
             pass
         except Exception as msg:
-            print(f"Failed to create web thumbnails directory, {msg}")
-            exit(1)
-
-    return configuration, snap_configuration, thumbs_dir
+            print()
+            raise ValueError(f"Failed to create web thumbnails directory, {msg}")
+    return thumbs_dir
 
 
 def initialise(configuration: SdrVariables, thumbs_dir: pathlib.PurePath) -> Tuple[Type[DataSource.DataSource],
