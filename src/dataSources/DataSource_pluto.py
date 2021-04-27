@@ -136,21 +136,30 @@ class Input(DataSource.DataSource):
 
         try:
             self._sdr.rx_buffer_size = self._read_block_size  # sets how many complex samples we get each rx()
-            # don't correct sample rates for ppm error, very small error
+
+            # don't correct sample rates for ppm error, very small error and XO correction may be doing it for us
+            # NOTE I have seen set_sample_rate_sps() fail for some reason, exception raised - invalid parameter
+            #       self._set_iio_attr("out", "voltage_filter_fir_en", False, 1) in ad936x.py
+            #       which calls the following which raises the exception, all looked good under debugger
+            #       channel.attrs[attr_name].value = str(value) in attribute.py
+            #
+            #   reboot of windows, unplug/replug pluto and general magic incantations and it worked again!
+            #   This was on Windows10
             self.set_sample_rate_sps(self._sample_rate_sps)
+
             self.set_centre_frequency_hz(self._centre_frequency_hz)
             self.set_bandwidth_hz(self._bandwidth_hz)
             # AGC mode will depend on environment, lots of bursting signals or lots of continuous signals
             self.set_gain_mode(self._gain_mode)  # self._sdr.gain_control_mode_chan0 = self._gain_mode
             self.set_gain(40)
         except Exception as err:
-            msgs = f"problem with initialisation {err}"
+            msgs = f"problem with initialisation of {module_type}: {err}"
             self._error += f"str(msgs),\n"
             logger.error(msgs)
             raise ValueError(msgs)
 
         if self._number_complex_samples < 1024:
-            msgs = f"sis best with sizes above 1024"
+            msgs = f"Best with sample sizes above 1024"
             logger.warning(msgs)
 
         logger.debug(f"{module_type}: {self._centre_frequency_hz / 1e6:.6}MHz @ {self._sample_rate_sps / 1e6:.3f}Msps")

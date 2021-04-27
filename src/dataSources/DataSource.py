@@ -58,7 +58,7 @@ class DataSource:
         self._bandwidth_hz = input_bw
         self._centre_frequency_hz = centre_frequency
 
-        self._ppm = 0.0  # error on clock and frequency. Either removed at source or compensated by the source
+        self._ppm = 0.0  # error on clock and frequency. Either removed by device or compensated by our sources
         self._hw_ppm_compensation = False  # True if the hardware does the compensation
 
         self._gain = 0
