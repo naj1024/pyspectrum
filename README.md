@@ -27,6 +27,7 @@ corresponding Python libraries gleaned from Pypi.
 * rtlsdr      - Direct connection via USB
 * rtltcp      - rtl over tcp
 * socket      - any stream of IQ samples
+* funcube     - pro and pro+ as audio devices
 
 There is soapy support for sdrplay, but i have failed to get this working again after an initial success.
 
@@ -43,10 +44,12 @@ There is soapy support for sdrplay, but i have failed to get this working again 
   simpler in C/C++.
 * Soapy support is not really tested anymore (sdrplay support relies on soapy).
 * if the programme exceptions immediately, check the dependencies are met.
+* funcube will exception under windows when closed.
+* Linux only funcube usb hid control, see source file permissions.
 
 ## Tested with the following:
-    Windows: audio, file, pluto (IP), rtlsdr, rtltcp, socket
-    Linux  : audio, file, pluto (IP), rtlsdr, rtltcp, socket
+    Windows: audio, file, pluto (IP), rtlsdr, rtltcp, socket, funcube
+    Linux  : audio, file, pluto (IP), rtlsdr, rtltcp, socket, funcube
              soapy(audio, rtlsdr, sdrplay)
     
     On windows make sure to use the correct rlibrtlsdr.dll for your python 32bit/64bit
@@ -98,9 +101,10 @@ The following python modules should be installed. Optional ones provide specific
         pyadi-iio   - pluto device
         iio         - pluto device
         pyrtlsdr    - rtlsdr devices
-        sounddevice - audio devices
+        sounddevice - audio and funcube devices
         soapysdr    - soapy support
         paho-mqtt   - mqtt functionality (client)
+        hid         - control of funcube through usb hid
 
 
 ```

@@ -76,7 +76,8 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
                 data_sink.get_pre_trigger_milli_seconds() != snap_config.preTriggerMilliSec:
             snap_config.postTriggerMilliSec = data_sink.get_post_trigger_milli_seconds()
             snap_config.preTriggerMilliSec = data_sink.get_pre_trigger_milli_seconds()
-            sdr_config.error += f"Snap modified to maximum file size of {snap_config.max_file_size / 1e6}MBytes"
+            SdrVariables.add_to_error(sdr_config, f"Snap modified to maximum file size of "
+                                                  f"{snap_config.max_file_size / 1e6}MBytes")
 
     return data_sink
 

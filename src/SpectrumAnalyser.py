@@ -14,6 +14,8 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: Generic way to handle data sources with unique parameters
     * TODO: UI responsiveness is tied to data arriving, should be independent of arriving spectrum data
     * TODO: Favourites tab for source, freq, rate etc
+    * TODO: Support controlling the FUNcube
+
 """
 
 import json
@@ -238,7 +240,7 @@ def main() -> None:
                 err_msg = f"Problem with source: {configuration.input_source}"
                 configuration.input_source = "null"
                 data_source = sdrStuff.update_source(configuration, source_factory)
-                configuration.error += err_msg
+                SdrVariables.add_to_error(configuration, err_msg)
                 logger.error(configuration.error)
 
         now = time.time()
@@ -440,7 +442,7 @@ def initialise(configuration: SdrVariables, thumbs_dir: pathlib.PurePath) -> Tup
             configuration.sample_types = data_source.get_sample_types()
         except ValueError as msg:
             logger.error(f"Connection problem {msg}")
-            configuration.error += str(msg)
+            SdrVariables.add_to_error(configuration, str(msg))
 
         # The main processor for producing ffts etc
         processor = ProcessSamples.ProcessSamples(configuration)

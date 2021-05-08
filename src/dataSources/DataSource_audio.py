@@ -8,7 +8,6 @@ If we have a mono input we duplicate each sample into both I and Q samples
 """
 
 import queue
-import pprint as pp
 import logging
 import time
 from typing import Tuple
@@ -28,7 +27,7 @@ try:
     import sounddevice as sd
 except ImportError as msg:
     sd = None
-    import_error_msg = "Info: audio source has an issue, {str(msg)}"
+    import_error_msg = f"Info: {module_type} source has an issue, {str(msg)}"
     logging.info(import_error_msg)
 
 
@@ -114,8 +113,6 @@ class Input(DataSource.DataSource):
 
         if self._source == "?":
             self._audio_stream = None
-            print("Audio devices available:")
-            pp.pprint(sd.query_devices())
             self._error = str(sd.query_devices())
             return False
 

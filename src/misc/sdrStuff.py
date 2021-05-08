@@ -35,6 +35,7 @@ def handle_sdr_message(configuration: SdrVariables, new_config: Dict, data_sourc
             logger.info(f"changing source to '{configuration.input_source}' "
                         f"'{configuration.input_params}' '{configuration.sample_type}'")
             data_source.close()
+            SdrVariables.add_to_error(configuration, data_source.get_and_reset_error())
             data_source = update_source(configuration, source_factory)
         else:
             logger.error("Attempt to use empty source parameter")
@@ -42,7 +43,7 @@ def handle_sdr_message(configuration: SdrVariables, new_config: Dict, data_sourc
         if new_config['centreFrequencyHz'] != configuration.centre_frequency_hz:
             new_cf = new_config['centreFrequencyHz']
             data_source.set_centre_frequency_hz(new_cf)
-            configuration.error += data_source.get_and_reset_error()
+            SdrVariables.add_to_error(configuration, data_source.get_and_reset_error())
             configuration.centre_frequency_hz = data_source.get_centre_frequency_hz()
 
         if new_config['realCentreFrequencyHz'] != configuration.real_centre_frequency_hz:
@@ -52,13 +53,13 @@ def handle_sdr_message(configuration: SdrVariables, new_config: Dict, data_sourc
         if new_config['sdrBwHz'] != configuration.input_bw_hz:
             new_bw = new_config['sdrBwHz']
             data_source.set_bandwidth_hz(new_bw)
-            configuration.error += data_source.get_and_reset_error()
+            SdrVariables.add_to_error(configuration, data_source.get_and_reset_error())
             configuration.input_bw_hz = data_source.get_bandwidth_hz()
 
         if new_config['ppmError'] != configuration.ppm_error:
             new_ppm = new_config['ppmError']
             data_source.set_ppm(float(new_ppm))
-            configuration.error += data_source.get_and_reset_error()
+            SdrVariables.add_to_error(configuration, data_source.get_and_reset_error())
             configuration.ppm_error = data_source.get_ppm()
 
         if new_config['window'] != configuration.window:
@@ -69,7 +70,7 @@ def handle_sdr_message(configuration: SdrVariables, new_config: Dict, data_sourc
         if new_config['sps'] != configuration.sample_rate:
             new_sps = new_config['sps']
             data_source.set_sample_rate_sps(new_sps)
-            configuration.error += data_source.get_and_reset_error()
+            SdrVariables.add_to_error(configuration, data_source.get_and_reset_error())
             configuration.sample_rate = data_source.get_sample_rate_sps()
 
         if new_config['fftSize'] != configuration.fft_size:
@@ -80,13 +81,13 @@ def handle_sdr_message(configuration: SdrVariables, new_config: Dict, data_sourc
         if new_config['gain'] != configuration.gain:
             configuration.gain = new_config['gain']
             data_source.set_gain(configuration.gain)
-            configuration.error += data_source.get_and_reset_error()
+            SdrVariables.add_to_error(configuration, data_source.get_and_reset_error())
             configuration.gain = data_source.get_gain()
 
         if new_config['gainMode'] != configuration.gain_mode:
             configuration.gain_mode = new_config['gainMode']
             data_source.set_gain_mode(configuration.gain_mode)
-            configuration.error += data_source.get_and_reset_error()
+            SdrVariables.add_to_error(configuration, data_source.get_and_reset_error())
             configuration.gain_mode = data_source.get_gain_mode()
 
     # make sure we are in step with the UI
@@ -143,7 +144,7 @@ def open_source(configuration: SdrVariables, data_source: DataSource) -> None:
             # state any errors or warning
         configuration.source_connected = data_source.connected()
 
-    configuration.error += data_source.get_and_reset_error()
+    SdrVariables.add_to_error(configuration, data_source.get_and_reset_error())
 
 
 def update_source_state(configuration: SdrVariables, data_source: DataSource) -> None:
@@ -174,7 +175,7 @@ def update_source(configuration: SdrVariables, source_factory) -> DataSource:
         gain_mode = configuration.gain_mode
         gain = configuration.gain
         open_source(configuration, data_source)
-        configuration.error += data_source.get_and_reset_error()
+        SdrVariables.add_to_error(configuration, data_source.get_and_reset_error())
         data_source.set_gain_mode(gain_mode)
         data_source.set_gain(gain)
         logger.info(f"Opened source {configuration.input_source}")
@@ -183,7 +184,7 @@ def update_source(configuration: SdrVariables, source_factory) -> DataSource:
                      f"{configuration.centre_frequency_hz} "
                      f"{configuration.sample_rate} "
                      f"{configuration.fft_size}")
-        configuration.error += str(msg)
+        SdrVariables.add_to_error(configuration, str(msg))
         configuration.input_source = "null"
         data_source = create_source(configuration, source_factory)
         open_source(configuration, data_source)
