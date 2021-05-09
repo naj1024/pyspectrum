@@ -1,6 +1,22 @@
 """
 Soapy class wrapper
 
+This has really only been tested on an sdrplay. Things that are probably specific are:
+    1. bws are a discrete set
+    2. there is no hardware ppm, soapy says there is but then fails to set it, don't actually know of sdrplay has ppm
+    3. sdrplay gains seems to be upside down, i.e. its an attenuator
+    4. sdrplay gains are from zero to 42 as a max/min range not discrete
+    5. don't yet check for proper ranges on freq or sample rate, soapy will silently ignore wrong ones
+
+On Linux, debian bullseye ():
+    apt install python3-soapysdr
+    dpkg -L python3-soapysdr
+
+    Copy the files in dist-packages (.py and .so) to your virtual environments site-packages
+    cp /usr/lib/python3/dist-packages/SoapySDR.py
+            /home/username/.local/share/virtualenvs/username-w79atRX8/lib/python3.9/site-packages/
+    cp /usr/lib/python3/dist-packages/_SoapySDR.cpython-39-x86_64-linux-gnu.so
+            /home/username/.local/share/virtualenvs/username-w79atRX8/lib/python3.9/site-packages/
 """
 
 import numpy as np
@@ -57,6 +73,15 @@ class Input(DataSource.DataSource):
         self._complex_data = None
         self._output_size = 0
         self._rx_stream = None
+        self._gain_modes = []
+        self._gain_mode = "auto"
+        self._max_gain = 100
+        self._min_gain = 0
+        # not correctly setting min,max on sps and freq yet
+        self._min_sps = 0
+        self._max_sps = 8e6
+        self._min_cf = 0
+        self._max_cf = 2e9
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 
@@ -71,14 +96,22 @@ class Input(DataSource.DataSource):
         try:
             if self._source == "?":
                 self._sdr = None
-                results = SoapySDR.Device.enumerate()
-                print("Soapy drivers:")
-                for result in results:
-                    print(result)
-                    self._error = str(results)
+                devices = SoapySDR.Device.enumerate()
+                print("Soapy devices:")
+                for device in devices:
+                    print(device)
+                    for key, value in device.items():
+                        if key == 'driver':
+                            self._error += f"{str(value)}\n"
                 return False
-            self._sdr = SoapySDR.Device(f'driver={self._source}')
+        except Exception as msg_err:
+            msgs = f"{module_type} {msg_err}"
+            self._error = str(msgs)
+            logger.error(msgs)
+            raise ValueError(msgs)
 
+        try:
+            self._sdr = SoapySDR.Device(f'driver={self._source}')
         except Exception as msg_err:
             msgs = f"{module_type} {msg_err}"
             self._error = str(msgs)
@@ -107,8 +140,32 @@ class Input(DataSource.DataSource):
 
             # Set Automatic Gain Control
             if self._sdr.hasGainMode(SoapySDR.SOAPY_SDR_RX, self._channel):
-                logger.info("Soapy setting AGC")
-                self._sdr.setGainMode(SoapySDR.SOAPY_SDR_RX, self._channel, True)
+                self._gain_modes = ["manual", "auto"]  # what we will call them
+                self.get_gain_mode()  # leave gain mode as is
+                self.get_gain()
+                # and what can we set things to
+                gains = self._sdr.getGainRange(SoapySDR.SOAPY_SDR_RX, self._channel)
+                self._max_gain = gains.maximum()
+                self._min_gain = gains.minimum()
+
+            # ranges may return different types of thing
+            # could be a:
+            #    tuple of SoapySDR.Range with multiple ranges of say 8000,8000 then 16000,16000
+            #    tuple of SoapySDR.Range with a single range like 0,6e9
+            #    a SoapySDR.Range, i.e. not a tuple of them
+            #
+            # sr_range = self._sdr.getSampleRateRange(SoapySDR.SOAPY_SDR_RX, self._channel)
+            # print(f"sr range; {sr_range}")
+            # self._min_sps = sr_range.minimum()
+            # self._max_sps = sr_range.maximum()
+
+            # cf_range = self._sdr.getFrequencyRange(SoapySDR.SOAPY_SDR_RX, self._channel)
+            # print(f"cf range; {cf_range}")
+            # self._min_cf = cf_range.minimum()
+            # self._max_cf = cf_range.maximum()
+
+            self.get_ppm()
+            self.get_bandwidth_hz()
 
             # turn on the stream
             self._sdr.activateStream(self._rx_stream)  # start streaming
@@ -129,6 +186,137 @@ class Input(DataSource.DataSource):
             self._sdr.deactivateStream(self._rx_stream)  # stop streaming
             self._sdr.closeStream(self._rx_stream)
             self._sdr = None
+
+    def get_sample_rate_sps(self) -> float:
+        if self._sdr:
+            self._sample_rate_sps = self._sdr.getSampleRate(SoapySDR.SOAPY_SDR_RX, self._channel)
+        return self._sample_rate_sps
+
+    def get_centre_frequency_hz(self) -> float:
+        if self._sdr:
+            # if this object is compensating we can't ask the front end
+            if self._hw_ppm_compensation:
+                self._centre_frequency_hz = self._sdr.getFrequency(SoapySDR.SOAPY_SDR_RX, self._channel)
+        return self._centre_frequency_hz
+
+    def set_sample_rate_sps(self, sr: float) -> None:
+        if self._sdr:
+            if sr < self._min_sps:
+                self._sample_rate_sps = self._min_sps
+            elif sr > self._max_sps:
+                self._sample_rate_sps = self._max_sps
+            else:
+                self._sample_rate_sps = sr
+            self._sdr.setSampleRate(SoapySDR.SOAPY_SDR_RX, self._channel, self._sample_rate_sps)
+            self.get_sample_rate_sps()
+
+    def set_centre_frequency_hz(self, cf: float) -> None:
+        if self._sdr:
+            if self._hw_ppm_compensation:
+                if cf < self._min_cf:
+                    self._centre_frequency_hz = self._min_cf
+                elif cf > self._max_cf:
+                    self._centre_frequency_hz = self._max_cf
+                else:
+                    self._centre_frequency_hz = cf
+                self._sdr.setFrequency(SoapySDR.SOAPY_SDR_RX, self._channel, self._centre_frequency_hz)
+                self.get_centre_frequency_hz()
+            else:
+                self._centre_frequency_hz = cf  # non compensated frequency
+                freq = self.get_ppm_corrected(cf)
+                if freq < self._min_cf:
+                    freq = self._min_cf
+                elif freq > self._max_cf:
+                    freq = self._max_cf
+                self._sdr.setFrequency(SoapySDR.SOAPY_SDR_RX, self._channel, freq)
+                set_freq = self._sdr.getFrequency(SoapySDR.SOAPY_SDR_RX, self._channel)
+                if set_freq != freq:
+                    print(f"failed to set freq {set_freq} != {freq}")
+                else:
+                    print("set freq")
+
+    def get_gain(self) -> float:
+        if self._sdr:
+            if self._sdr.hasGainMode(SoapySDR.SOAPY_SDR_RX, self._channel):
+                self._gain = self._sdr.getGain(SoapySDR.SOAPY_SDR_RX, self._channel)
+        return self._gain
+
+    def set_gain(self, gain: float) -> None:
+        self._gain = float(gain)
+        if self._sdr:
+            if self._sdr.hasGainMode(SoapySDR.SOAPY_SDR_RX, self._channel):
+                if self._gain > self._max_gain:
+                    self._gain = self._max_gain
+                if self._gain < self._min_gain:
+                    self._gain = self._min_gain
+                self._sdr.setGain(SoapySDR.SOAPY_SDR_RX, self._channel, self._gain)
+
+    def get_gain_mode(self) -> str:
+        if self._sdr:
+            if self._sdr.hasGainMode(SoapySDR.SOAPY_SDR_RX, self._channel):
+                on = self._sdr.getGainMode(SoapySDR.SOAPY_SDR_RX, self._channel)
+                if on:
+                    self._gain_mode = "auto"
+                else:
+                    self._gain_mode = "false"
+        return self._gain_mode
+
+    def set_gain_mode(self, mode: str) -> None:
+        if mode in self._gain_modes:
+            self._gain_mode = mode
+            if self._sdr:
+                if self._sdr.hasGainMode(SoapySDR.SOAPY_SDR_RX, self._channel):
+                    if self._gain_mode == "auto":
+                        self._sdr.setGainMode(SoapySDR.SOAPY_SDR_RX, self._channel, True)
+                    else:
+                        self._sdr.setGainMode(SoapySDR.SOAPY_SDR_RX, self._channel, False)
+
+    def get_ppm(self) -> float:
+        if self._sdr:
+            if self._hw_ppm_compensation:
+                try:
+                    if self._sdr.hasFrequencyCorrection(SoapySDR.SOAPY_SDR_RX, self._channel):
+                        self._ppm = self._sdr.getFrequencyCorrection(SoapySDR.SOAPY_SDR_RX, self._channel)
+                except AttributeError:
+                    self._hw_ppm_compensation = False
+        return self._ppm
+
+    def set_ppm(self, ppm: float) -> None:
+        self._ppm = ppm
+        if self._sdr:
+            # depends on if we can change the hw or not
+            try:
+                if self._sdr.hasFrequencyCorrection(SoapySDR.SOAPY_SDR_RX, self._channel):
+                    self._sdr.setFrequencyCorrection(SoapySDR.SOAPY_SDR_RX, self._channel, self._ppm)
+                    # did it get set
+                    self.get_ppm()
+                    if self._ppm != ppm:
+                        self._hw_ppm_compensation = False
+                        self._ppm = ppm
+            except AttributeError:
+                self._hw_ppm_compensation = False
+            self.set_centre_frequency_hz(self._centre_frequency_hz)
+
+    def set_bandwidth_hz(self, bw: float) -> None:
+        if self._sdr:
+            try:
+                # find a bw, bws is a tuple of floats here - which may be empty
+                bws = self._sdr.listBandwidths(SoapySDR.SOAPY_SDR_RX, self._channel)  # tuple, min to max
+                for bw_entry in bws:
+                    self._bandwidth_hz = bw_entry
+                    if bw_entry >= bw:
+                        break  # take first BW above what we require
+                self._sdr.setBandwidth(SoapySDR.SOAPY_SDR_RX, self._channel, self._bandwidth_hz)
+            except AttributeError:
+                pass
+
+    def get_bandwidth_hz(self) -> float:
+        if self._sdr:
+            try:
+                self._bandwidth_hz = self._sdr.getBandwidth(SoapySDR.SOAPY_SDR_RX, self._channel)
+            except AttributeError:
+                pass
+        return self._bandwidth_hz
 
     def read_cplx_samples(self) -> Tuple[np.array, float]:
         """

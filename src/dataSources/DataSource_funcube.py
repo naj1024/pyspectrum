@@ -154,11 +154,16 @@ def is_available() -> Tuple[str, str]:
 # A queue for the audio streamer callback to put samples in to, 4 deep for low latency
 audio_q = queue.Queue(4)
 
+input_overflows = 0
+
 
 def audio_callback(incoming_samples: np.ndarray, frames: int, time_1, status) -> None:
     if status:
         if status.input_overflow:
-            logger.error("audio input overflow")
+            # only ever seen overflows when on a linux vm (virtualbox)
+            global input_overflows
+            input_overflows += 1
+            logger.error(f"audio input overflow {input_overflows}")
         else:
             err = f"Error: {module_type} had a problem, {status}"
             logger.error(err)
@@ -381,6 +386,7 @@ class Input(DataSource.DataSource):
                 rx_time = self.get_time_ns()
                 self._empty_count = 0
                 complex_data /= 32767.0  # normalise the data, assumes 16bit
+
             except queue.Empty:
                 time.sleep(0.001)
                 self._empty_count += 1

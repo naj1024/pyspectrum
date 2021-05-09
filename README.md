@@ -17,7 +17,7 @@ once the python rtlsdr support is installed in your environment.
 Performance depends on your machine and how the supporting fft libraries were compiled. 
 I have certainly kept up with streams of data at over 3Msps.
 
-All the input sources are provided by python modules with the different SDR platforms are supported by
+Input sources are provided by python modules with the different SDR platforms are supported by
 corresponding Python libraries gleaned from Pypi.
 
 ## Input modules:
@@ -27,7 +27,8 @@ corresponding Python libraries gleaned from Pypi.
 * rtlsdr      - Direct connection via USB
 * rtltcp      - rtl over tcp
 * socket      - any stream of IQ samples
-* funcube     - pro and pro+ as audio devices
+* funcube     - pro and pro+ as audio devices, hid control under Linux only
+* soapy       - sdrplay support under Linux
 
 There is soapy support for sdrplay, but i have failed to get this working again after an initial success.
 
@@ -42,9 +43,8 @@ There is soapy support for sdrplay, but i have failed to get this working again 
 ## Problems
 * Converting input data to complex float32 numpy arrays. This takes a lot of time, which would be a lot 
   simpler in C/C++.
-* Soapy support is not really tested anymore (sdrplay support relies on soapy).
 * if the programme exceptions immediately, check the dependencies are met.
-* funcube will exception under windows when closed.
+* funcube will exception under windows when closed, which we do when changing the fft size
 * Linux only funcube usb hid control, see source file permissions.
 
 ## Tested with the following:
@@ -52,10 +52,8 @@ There is soapy support for sdrplay, but i have failed to get this working again 
     Linux  : audio, file, pluto (IP), rtlsdr, rtltcp, socket, funcube
              soapy(audio, rtlsdr, sdrplay)
     
-    On windows make sure to use the correct rlibrtlsdr.dll for your python 32bit/64bit
-    
-    Since, once, getting soapy to work under Linux i have failed to replicate 
-        this ever again - pity it was my only interface to an sdrplay device
+    On windows make sure you have the correct rlibrtlsdr.dll for your python 32bit/64bit
+    soapy rtlsdr is no longer producing samples
         
 ## Examples
 Some examples for running from command line

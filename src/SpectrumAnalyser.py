@@ -14,7 +14,9 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: Generic way to handle data sources with unique parameters
     * TODO: UI responsiveness is tied to data arriving, should be independent of arriving spectrum data
     * TODO: Favourites tab for source, freq, rate etc
-    * TODO: Support controlling the FUNcube
+    * TODO: Support controlling the FUNcube, frequency done on linux
+    * TODO: Divorce input buffer size from the fft size, esp important on funcube on linux vm
+    * TODO: sample rate, centre frequency, bandwidths need to handle ranges and discrete lists
 
 """
 
