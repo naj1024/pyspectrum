@@ -30,8 +30,6 @@ corresponding Python libraries gleaned from Pypi.
 * funcube     - pro and pro+ as audio devices, hid control under Linux only
 * soapy       - sdrplay support under Linux
 
-There is soapy support for sdrplay, but i have failed to get this working again after an initial success.
-
 ## Input data IQ types:
 * 8bit offset binary
 * 8bit 2's complement
