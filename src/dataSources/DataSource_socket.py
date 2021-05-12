@@ -27,7 +27,6 @@ class Input(DataSource.DataSource):
 
     def __init__(self,
                  ip_address_port: str,
-                 number_complex_samples: int,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
@@ -35,14 +34,13 @@ class Input(DataSource.DataSource):
         """Initialise the object
         Args:
         :param ip_address_port: The address and port we connect to, address empty then we are the server
-        :param number_complex_samples: The number of complex samples we expect to get every call to read_cplx_samples()
         :param data_type: The type of data we are going to be receiving on the socket
         :param sample_rate: The sample rate this source is supposed to be working at, in Hz
         :param centre_frequency: The centre frequency this input is supposed to be at, in Hz
         :param input_bw: The filtering of the input, may not be configurable
         """
 
-        super().__init__(ip_address_port, number_complex_samples, data_type, sample_rate, centre_frequency, input_bw)
+        super().__init__(ip_address_port, data_type, sample_rate, centre_frequency, input_bw)
         self._connected = False
         self._ip_address = ""  # filled in when we open()
         self._ip_port = 0  # filled in when we open()
@@ -137,7 +135,7 @@ class Input(DataSource.DataSource):
     def is_server(self) -> bool:
         return not self._client
 
-    def read_cplx_samples(self) -> Tuple[np.array, float]:
+    def read_cplx_samples(self, number_samples: int) -> Tuple[np.array, float]:
         """Read data from the socket and convert them to complex floats using the data type specified
 
         :return: A tuple of a numpy array of complex samples and time in nsec
@@ -146,6 +144,7 @@ class Input(DataSource.DataSource):
         rx_time = 0
 
         if self._connected:
+            total_bytes = self._bytes_per_complex_sample * number_samples
             raw_bytes = bytearray()
             try:
                 sock = None
@@ -155,9 +154,8 @@ class Input(DataSource.DataSource):
                     sock = self._served_connection
 
                 if sock:
-                    num_bytes_to_get = self._bytes_per_snap
-                    while sock and (len(raw_bytes) != self._bytes_per_snap):
-                        got: bytearray = sock.recv(num_bytes_to_get)  # will get a MAXIMUM of this number of bytes
+                    while sock and (len(raw_bytes) != total_bytes):
+                        got: bytearray = sock.recv(total_bytes)  # will get a MAXIMUM of this number of bytes
                         if rx_time == 0:
                             rx_time = self.get_time_ns()
                         if len(got) == 0:
@@ -165,7 +163,7 @@ class Input(DataSource.DataSource):
                             logger.info('Socket connection closed')
                             raise ValueError('Socket connection closed')
                         raw_bytes += got
-                        num_bytes_to_get -= len(got)
+                        total_bytes -= len(got)
 
             except OSError as msg:
                 self.close()
@@ -187,10 +185,10 @@ class Input(DataSource.DataSource):
             # t2 = time.perf_counter()
             # print(f"{1000000.0 * (t2 - t1) / 10000.0}usec")
 
-            if len(raw_bytes) == self._bytes_per_snap:
+            if len(raw_bytes) == total_bytes:
                 complex_data = self.unpack_data(raw_bytes)
             else:
                 complex_data = np.empty(0)
-                logger.error(f'Socket gave incorrect # of bytes, got {len(raw_bytes)} expected {self._bytes_per_snap}')
+                logger.error(f'Socket gave incorrect # of bytes, got {len(raw_bytes)} expected {total_bytes}')
 
         return complex_data, rx_time

@@ -47,7 +47,6 @@ class Input(DataSource.DataSource):
 
     def __init__(self,
                  source: str,
-                 number_complex_samples: int,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
@@ -56,7 +55,6 @@ class Input(DataSource.DataSource):
         The rtlsdr input source
 
         :param source: The device number, normally zero
-        :param number_complex_samples: The number of complex samples we require each request
         :param data_type: The data type the rtlsdr is providing, we will convert this
         :param sample_rate: The sample rate we will set the source to, note true sps is set from the device
         :param centre_frequency: The centre frequency the source will be set to
@@ -64,8 +62,7 @@ class Input(DataSource.DataSource):
         """
         # Driver converts to floating point for us, underlying is 8o?
         self._constant_data_type = "16tle"
-        super().__init__(source, number_complex_samples, self._constant_data_type, sample_rate,
-                         centre_frequency, input_bw)
+        super().__init__(source, self._constant_data_type, sample_rate, centre_frequency, input_bw)
         self._connected = False
         self._sdr = None
         self._tuner_type = 0
@@ -316,7 +313,7 @@ class Input(DataSource.DataSource):
             self._bandwidth_hz = self._sdr.get_bandwidth()
         return self._bandwidth_hz
 
-    def read_cplx_samples(self) -> Tuple[np.array, float]:
+    def read_cplx_samples(self, number_samples: int) -> Tuple[np.array, float]:
         """
         Get complex float samples from the device
 
@@ -329,7 +326,7 @@ class Input(DataSource.DataSource):
 
         if self._sdr and self._connected:
             try:
-                complex_data = self._sdr.read_samples(self._number_complex_samples)  # will return np.complex128
+                complex_data = self._sdr.read_samples(number_samples)  # will return np.complex128
                 rx_time = self.get_time_ns()
                 complex_data = np.array(complex_data, dtype=np.complex64)  # (?) we need all values to be 32bit floats
             except Exception as err:

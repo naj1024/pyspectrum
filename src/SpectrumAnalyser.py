@@ -14,8 +14,8 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: Generic way to handle data sources with unique parameters
     * TODO: UI responsiveness is tied to data arriving, should be independent of arriving spectrum data
     * TODO: Favourites tab for source, freq, rate etc
-    * TODO: Support controlling the FUNcube, frequency done on linux
-    * TODO: Divorce input buffer size from the fft size, esp important on funcube on linux vm
+    * TODO: Support controlling the FUNcube, frequency done on linux but not windows
+    * TODO: Change input sources so they can handle a fft size change without having to be recreated
     * TODO: sample rate, centre frequency, bandwidths need to handle ranges and discrete lists
 
 """
@@ -99,7 +99,7 @@ def main() -> None:
     logger.info(f"Required FFT per second: {configuration.sample_rate / configuration.fft_size:.0f}")
 
     # expected bits/sec on network, 8bits byte, 4 bytes per complex
-    bits_sec = configuration.sample_rate * 8 * data_source.get_bytes_per_sample()
+    bits_sec = 8 * configuration.sample_rate * data_source.get_bytes_per_complex_sample() * configuration.fft_size
     logger.info(f"Minimum bit rate of input: {(bits_sec / 1e6):.0f}Mbit/sec")
 
     # Default things before the main loop
@@ -136,8 +136,9 @@ def main() -> None:
         ######################
         try:
             time_start = time.perf_counter()
-            samples, time_rx_nsec = data_source.read_cplx_samples()
+            samples, time_rx_nsec = data_source.read_cplx_samples(configuration.fft_size)
             time_end = time.perf_counter()
+            configuration.input_overflows = data_source.get_overflows()
 
             if samples is None:
                 time.sleep(0.001)  # rate limit on trying to get samples

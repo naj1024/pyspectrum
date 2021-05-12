@@ -31,7 +31,6 @@ class Input(DataSource.DataSource):
 
     def __init__(self,
                  file_name: str,
-                 number_complex_samples: int,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
@@ -40,7 +39,6 @@ class Input(DataSource.DataSource):
         File input class
 
         :param file_name: File name including path if required
-        :param number_complex_samples: How many complex samples we require on each read
         :param data_type: The type of data we have in the file
         :param sample_rate: The sample rate this source is supposed to be working at, in Hz
         :param centre_frequency: The centre frequency this input is supposed to be at, in Hz
@@ -48,7 +46,7 @@ class Input(DataSource.DataSource):
         """
         self._is_wav_file = False  # until we work it out
 
-        super().__init__(file_name, number_complex_samples, data_type, sample_rate, centre_frequency, input_bw)
+        super().__init__(file_name, data_type, sample_rate, centre_frequency, input_bw)
 
         self._file = None
         self._rewind = True  # true if we will rewind the file each time it ends
@@ -56,7 +54,6 @@ class Input(DataSource.DataSource):
 
         self._sleep = True  # may want to read file as fast as possible
         self._samples_time_ns = 0.0  # how long these samples should take to arrive
-        self._set_samples_time()
 
         try:
             self._create_time = time.time_ns()
@@ -78,10 +75,6 @@ class Input(DataSource.DataSource):
         if sr <= 0:
             sr = 10000.0  # small default, but not too small
         self._sample_rate_sps = sr
-        self._set_samples_time()
-
-    def _set_samples_time(self):
-        self._samples_time_ns = 1.0e9 * self._number_complex_samples / self._sample_rate_sps
 
     def open(self) -> bool:
 
@@ -103,8 +96,6 @@ class Input(DataSource.DataSource):
             # cf and sps can be overridden from ui
             self._centre_frequency_hz = cf
             self._sample_rate_sps = sps
-
-            self._set_samples_time()
 
         except ValueError as msg:
             self._error = msg
@@ -149,7 +140,7 @@ class Input(DataSource.DataSource):
         self._connected = True
         return self._connected
 
-    def read_cplx_samples(self) -> Tuple[np.array, float]:
+    def read_cplx_samples(self, number_samples: int) -> Tuple[np.array, float]:
         """
         Get complex float samples from the device.
         :return: A tuple of a numpy array of complex samples and time in nsec
@@ -161,17 +152,18 @@ class Input(DataSource.DataSource):
             raw_bytes = None
             if self._file:
                 try:
+                    total_bytes = self._bytes_per_complex_sample * number_samples
                     if self._is_wav_file:
-                        raw_bytes = self._file.readframes(self._number_complex_samples)
+                        raw_bytes = self._file.readframes(number_samples)
                     else:
                         # get just the number of bytes we needs
-                        raw_bytes = self._file.read(self._bytes_per_snap)
+                        raw_bytes = self._file.read(total_bytes)
                     rx_time = self._file_time  # mark start of buffer as current distance into file
 
                     # update time into the file by the sample rate
-                    self._file_time += self._samples_time_ns
+                    self._file_time += (1.0e9 * number_samples / self._sample_rate_sps)
 
-                    if len(raw_bytes) != self._bytes_per_snap:
+                    if len(raw_bytes) != total_bytes:
                         raw_bytes = None
                         if self._rewind:
                             self.rewind()
@@ -179,8 +171,10 @@ class Input(DataSource.DataSource):
                             raise ValueError("end-of-file")
 
                     if self._sleep:
-                        # wait how long these samples would of taken to arrive, less processing time
-                        time.sleep(self._samples_time_ns / 1.0e9)
+                        sleep_time = number_samples / self._sample_rate_sps
+                        if sleep_time > 0.001:
+                            # wait how long these samples would of taken to arrive
+                            time.sleep(sleep_time)
 
                 except OSError as msg:
                     msgs = f'OSError, {msg}'

@@ -1,5 +1,6 @@
 import logging
 import time
+import threading
 from typing import List
 
 import numpy as np
@@ -15,6 +16,24 @@ logger = logging.getLogger('spectrum_logger')
 supported_data_types = ["8t", "8o", "16tbe", "16tle", "32fle", "32fbe"]
 
 
+overflow_lock = threading.Lock()
+overflow_count = 0
+
+def write_overflow(count: int):
+    overflow_lock.acquire()
+    global overflow_count
+    overflow_count += count
+    overflow_lock.release()
+
+def read_and_reest_overflow() -> int:
+    overflow_lock.acquire()
+    global overflow_count
+    tmp = overflow_count
+    overflow_count = 0
+    overflow_lock.release()
+    return tmp
+
+
 class DataSource:
     """
     Base class for all the DataSource classes
@@ -22,14 +41,13 @@ class DataSource:
     Inherit from this and the with a correct module name (e.g. DataSource_xyz) the factory should pick it up
 
     The main method you have to implement in a new source is:
-        def read_cplx_samples(self) -> Tuple[np.array, float]:
+        def read_cplx_samples(self, num_samples: int) -> Tuple[np.array, float]:
             Get complex float samples from the device
             :return: A tuple of a numpy array of complex samples (dtype=complex64) and time in nsec
     """
 
     def __init__(self,
                  source: str,
-                 number_complex_samples: int,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
@@ -42,7 +60,6 @@ class DataSource:
         to a source. So the creation must not fail. When we open the device we may fail
 
         :param source: This source name is meaningful to the DataSource only
-        :param number_complex_samples: How many samples we expect to get each time
         :param data_type: The type of data that this source will be converting to complex floats/doubles
         :param sample_rate: The sample rate this source is supposed to be working at, in Hz
         :param centre_frequency: The centre frequency this input is supposed to be at, in Hz
@@ -51,7 +68,6 @@ class DataSource:
         """
         self._source = source
         self._display_name = source
-        self._number_complex_samples = number_complex_samples
         self._sample_rate_sps = sample_rate
         if self._sample_rate_sps <= 0:
             self._sample_rate_sps = 10000.0  # don't make default to small as things may take a long time
@@ -67,7 +83,10 @@ class DataSource:
 
         self._error = ""
 
-        self._bytes_per_snap = 0  # used for input sources that need to know bytes per sample
+        self._overflows = 0
+        _ = read_and_reest_overflow()
+
+        self._bytes_per_complex_sample = 0  # used for input sources that need to know bytes per sample
         self._data_type = ""
         self.set_sample_type(data_type)
 
@@ -101,6 +120,9 @@ class DataSource:
         err = self._error
         self._error = ""
         return err
+
+    def get_overflows(self):
+        return self._overflows
 
     def set_sample_rate_sps(self, sr: float) -> None:
         if sr <= 0:
@@ -174,17 +196,17 @@ class DataSource:
         # how many bytes are required if reading bytes from somewhere
         # side effect is that we check for the types we can handle
         if data_type == '32fle':
-            self._bytes_per_snap = self._number_complex_samples * 8
+            self._bytes_per_complex_sample = 8
         elif data_type == '32fbe':
-            self._bytes_per_snap = self._number_complex_samples * 8
+            self._bytes_per_complex_sample = 8
         elif data_type == '16tle':
-            self._bytes_per_snap = self._number_complex_samples * 4
+            self._bytes_per_complex_sample = 4
         elif data_type == '16tbe':
-            self._bytes_per_snap = self._number_complex_samples * 4
+            self._bytes_per_complex_sample = 4
         elif data_type == '8t':
-            self._bytes_per_snap = self._number_complex_samples * 2
+            self._bytes_per_complex_sample = 2
         elif data_type == '8o':
-            self._bytes_per_snap = self._number_complex_samples * 2
+            self._bytes_per_complex_sample = 2
         else:
             msgs = f'Unsupported data type "{data_type}"'
             logger.error(msgs)
@@ -215,8 +237,8 @@ class DataSource:
         except AttributeError:
             return time.time() * 1e9
 
-    def get_bytes_per_sample(self) -> float:
-        return self._bytes_per_snap // self._number_complex_samples
+    def get_bytes_per_complex_sample(self) -> float:
+        return self._bytes_per_complex_sample
 
     def unpack_data(self, data: bytes) -> np.ndarray:
         """ Method convert bytes into floats using the specified data type

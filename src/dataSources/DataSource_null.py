@@ -28,7 +28,6 @@ class Input(DataSource.DataSource):
 
     def __init__(self,
                  source: str,
-                 number_complex_samples: int,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
@@ -37,14 +36,13 @@ class Input(DataSource.DataSource):
         The null input source
 
         :param source: xxx, ignored
-        :param number_complex_samples: The number of complex samples we require each request
         :param data_type: Not used
         :param sample_rate: The sample rate we will set the source to
         :param centre_frequency: Not used
         :param sleep_time: Time in seconds between reads, not used on most sources
         :param input_bw: The filtering of the input, may not be configurable
         """
-        super().__init__(source, number_complex_samples, data_type, sample_rate, centre_frequency, input_bw)
+        super().__init__(source, data_type, sample_rate, centre_frequency, input_bw)
 
         self._connected = True
         super().set_help(help_string)
@@ -54,7 +52,7 @@ class Input(DataSource.DataSource):
         self._error = "Null device has no samples"
         return False
 
-    def read_cplx_samples(self) -> Tuple[np.array, float]:
+    def read_cplx_samples(self, number_samples: int) -> Tuple[np.array, float]:
         """
             Always no samples
         """

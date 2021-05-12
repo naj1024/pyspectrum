@@ -72,7 +72,6 @@ class DataSourceFactory:
     def create(self,
                input_type: str,
                name: str,
-               number_complex_samples: int,
                data_type: str,
                sample_rate: float,
                centre_frequency: float,
@@ -83,7 +82,6 @@ class DataSourceFactory:
 
         :param input_type: One of the supported input types
         :param name: The underlying name that the new type requires to work, e.g. filename or ip address
-        :param number_complex_samples: The number of complex samples we are going to get each time we ask for samples
         :param data_type: The data type the source understands, the data will be converted by the source
         :param sample_rate: The sample rate this source is producing at, can be overridden
         :param centre_frequency: The frequency the source is tuned to
@@ -97,7 +95,6 @@ class DataSourceFactory:
             raise ValueError(msg)
 
         source = creator(name,
-                         number_complex_samples,
                          data_type,
                          sample_rate,
                          centre_frequency,

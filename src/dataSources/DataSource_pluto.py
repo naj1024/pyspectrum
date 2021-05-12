@@ -52,7 +52,6 @@ class Input(DataSource.DataSource):
 
     def __init__(self,
                  ip_address: str,
-                 number_complex_samples: int,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
@@ -66,7 +65,6 @@ class Input(DataSource.DataSource):
         then you may find that random signals will appear below 300MHz.
 
         :param ip_address: The address the device should be on
-        :param number_complex_samples: The number of complex samples we will get each time
         :param data_type: Not used
         :param sample_rate: The sample rate the pluto device will be set to, AND it's BW
         :param centre_frequency: The Centre frequency we will tune to
@@ -74,8 +72,7 @@ class Input(DataSource.DataSource):
         """
         # Driver converts to floating point for us, underlying data from ad936x was 16bit i/q
         self._constant_data_type = "16tle"
-        super().__init__(ip_address, number_complex_samples, self._constant_data_type, sample_rate,
-                         centre_frequency, input_bw)
+        super().__init__(ip_address, self._constant_data_type, sample_rate, centre_frequency, input_bw)
         self._sdr = None
         self._connected = False
         self._gain_modes = ["manual", "fast_attack", "slow_attack", "hybrid"]  # would ask, but can't
@@ -84,11 +81,11 @@ class Input(DataSource.DataSource):
         super().set_web_help(web_help_string)
 
         # for supporting read of blocks which we partition out
-        self._read_block_size = 16384  # MUST be a power of 2
-        self._index = self._read_block_size  # force read on first access
-        self._rx_time = 0  # first sample time
         self._complex_data = None  # the block store
-        self._block_time = self._number_complex_samples / self._sample_rate_sps
+        self._read_block_size = 16384  # MUST be a power of 2 - AND is the MAX fft size
+        self._rx_time = 0  # first sample time
+
+        self._index = self._read_block_size  # force read on first access
 
     def open(self) -> bool:
         global import_error_msg
@@ -157,10 +154,6 @@ class Input(DataSource.DataSource):
             self._error += f"str(msgs),\n"
             logger.error(msgs)
             raise ValueError(msgs)
-
-        if self._number_complex_samples < 1024:
-            msgs = f"Best with sample sizes above 1024"
-            logger.warning(msgs)
 
         logger.debug(f"{module_type}: {self._centre_frequency_hz / 1e6:.6}MHz @ {self._sample_rate_sps / 1e6:.3f}Msps")
         self._connected = True
@@ -272,7 +265,7 @@ class Input(DataSource.DataSource):
             self._bandwidth_hz = self._sdr.rx_rf_bandwidth
         return self._bandwidth_hz
 
-    def read_cplx_samples(self) -> Tuple[np.array, float]:
+    def read_cplx_samples(self, number_samples: int) -> Tuple[np.array, float]:
         """
         Get complex float samples from the device
 
@@ -287,6 +280,7 @@ class Input(DataSource.DataSource):
             # do we need to read in the next big block
             if self._index >= self._read_block_size:
                 try:
+                    # we don't append to the end
                     self._complex_data = self._sdr.rx()  # the samples here are complex128 i.e. full doubles
                     self._rx_time = self.get_time_ns()
                     self._index = 0
@@ -296,13 +290,13 @@ class Input(DataSource.DataSource):
                     logger.error(self._error)
                     raise ValueError(err)
 
-            last_sample = self._index + self._number_complex_samples
+            last_sample = self._index + number_samples
             complex_data = np.array(self._complex_data[self._index:last_sample], dtype=np.complex64)
             complex_data /= 4096.0  # 12bit
             rx_time = self._rx_time
 
             # ready for the next block
-            self._rx_time += self._block_time
-            self._index += self._number_complex_samples
+            self._rx_time += (number_samples / self._sample_rate_sps)
+            self._index += number_samples
 
         return complex_data, rx_time

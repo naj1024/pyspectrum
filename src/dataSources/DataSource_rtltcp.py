@@ -73,7 +73,6 @@ class Input(DataSource.DataSource):
 
     def __init__(self,
                  source: str,
-                 number_complex_samples: int,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
@@ -82,15 +81,13 @@ class Input(DataSource.DataSource):
         The rtltcp input source
 
         :param source: Ip and port as a string, e.g. 127.0.0.1:3456
-        :param number_complex_samples: The number of complex samples we require each request
         :param data_type: ignored, we will be getting 8bit offset binary, '8o'
         :param sample_rate: The sample rate we will set the source to, note true sps is set from the device
         :param centre_frequency: The centre frequency the source will be set to
         :param input_bw: The filtering of the input, may not be configurable
         """
         self._constant_data_type = "8o"
-        super().__init__(source, number_complex_samples, self._constant_data_type, sample_rate,
-                         centre_frequency, input_bw)
+        super().__init__(source, self._constant_data_type, sample_rate, centre_frequency, input_bw)
 
         self._socket = None
         self._connected = False
@@ -267,7 +264,7 @@ class Input(DataSource.DataSource):
             else:
                 self.set_tuner_gain_mode(1)
 
-    def read_cplx_samples(self) -> Tuple[np.array, float]:
+    def read_cplx_samples(self, number_samples: int) -> Tuple[np.array, float]:
         """
         Return complex float samples from the device
 
@@ -277,12 +274,13 @@ class Input(DataSource.DataSource):
         rx_time = 0
 
         if self._connected:
-            raw_bytes, rx_time = self.get_bytes(self._bytes_per_snap)
-            if len(raw_bytes) == self._bytes_per_snap:
+            total_bytes = self._bytes_per_complex_sample * number_samples
+            raw_bytes, rx_time = self.get_bytes(total_bytes)
+            if len(raw_bytes) == total_bytes:
                 complex_data = self.unpack_data(raw_bytes)
             else:
                 complex_data = np.empty(0)
-                logger.error(f'rtltcp gave incorrect # of bytes, got {len(raw_bytes)} expected {self._bytes_per_snap}')
+                logger.error(f'rtltcp gave incorrect # of bytes, got {len(raw_bytes)} expected {total_bytes}')
 
         return complex_data, rx_time
 

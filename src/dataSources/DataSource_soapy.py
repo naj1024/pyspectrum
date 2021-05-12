@@ -49,7 +49,6 @@ class Input(DataSource.DataSource):
 
     def __init__(self,
                  source: str,
-                 number_complex_samples: int,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
@@ -58,20 +57,18 @@ class Input(DataSource.DataSource):
         The soapy input source
 
         :param source: Name of the soapy driver to use
-        :param number_complex_samples: The number of complex samples we require each request
         :param data_type: Not required, we set complex 32f
         :param sample_rate: The sample rate we will set the source to
         :param centre_frequency: The centre frequency the source will be set to
         :param input_bw: The filtering of the input, may not be configurable
         """
-        super().__init__(source, number_complex_samples, data_type, sample_rate, centre_frequency, input_bw)
+        super().__init__(source, data_type, sample_rate, centre_frequency, input_bw)
         self._connected = False
         self._sdr = None
         self._channel = 0  # we will use channel zero for now
         self._tmp = None
         self._tmp_size = 0
         self._complex_data = None
-        self._output_size = 0
         self._rx_stream = None
         self._gain_modes = []
         self._gain_mode = "auto"
@@ -123,14 +120,6 @@ class Input(DataSource.DataSource):
         logger.debug(f"Connected to {module_type}")
         # for sr in self._sdr.listSampleRates(SoapySDR.SOAPY_SDR_RX, self._channel):
         #     pp.pprint(sr)
-
-        # Create numpy array for received samples, for reading into as we can get partial reads
-        self._tmp = np.array([0] * self._number_complex_samples, np.complex64)
-        self._tmp_size = self._tmp.size
-
-        # Create numpy array for received samples, for output
-        self._complex_data = np.array([0] * self._number_complex_samples, np.complex64)
-        self._output_size = self._complex_data.size
 
         # NOTE soapy may not range check any values, may just go quiet and give no samples
         try:
@@ -232,8 +221,6 @@ class Input(DataSource.DataSource):
                 set_freq = self._sdr.getFrequency(SoapySDR.SOAPY_SDR_RX, self._channel)
                 if set_freq != freq:
                     print(f"failed to set freq {set_freq} != {freq}")
-                else:
-                    print("set freq")
 
     def get_gain(self) -> float:
         if self._sdr:
@@ -258,7 +245,7 @@ class Input(DataSource.DataSource):
                 if on:
                     self._gain_mode = "auto"
                 else:
-                    self._gain_mode = "false"
+                    self._gain_mode = "manual"
         return self._gain_mode
 
     def set_gain_mode(self, mode: str) -> None:
@@ -318,11 +305,13 @@ class Input(DataSource.DataSource):
                 pass
         return self._bandwidth_hz
 
-    def read_cplx_samples(self) -> Tuple[np.array, float]:
+    def read_cplx_samples(self, number_samples: int) -> Tuple[np.array, float]:
         """
         Get complex float samples from the device
 
         Note that we don't use unpack() for this device
+
+        Always read exactly what we are asked for
 
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
@@ -335,9 +324,18 @@ class Input(DataSource.DataSource):
             # Receive all samples
             index = 0
             wait = 10
-            while index < self._output_size:
+            # first time through we will set these two up
+            if (self._tmp is None) or (self._tmp.size != number_samples):
+                # Create numpy array for received samples, for reading into as we can get partial reads
+                self._tmp = np.array([0] * number_samples, np.complex64)
+            if (self._complex_data is None) or (self._complex_data.size != number_samples):
+                # Create numpy array for received samples, for output
+                self._complex_data = np.array([0] * number_samples, np.complex64)
+
+            while index < self._complex_data.size:
                 # readStream() doesn't seem to be a blocking call
-                read = self._sdr.readStream(self._rx_stream, [self._tmp], self._tmp_size, timeoutUs=1000000)
+                num_to_get = number_samples - index
+                read = self._sdr.readStream(self._rx_stream, [self._tmp], num_to_get, timeoutUs=1000000)
 
                 # set time stamp as first set of samples provided
                 if index == 0:
@@ -352,17 +350,26 @@ class Input(DataSource.DataSource):
                     # if we are timing out then return if this happens too often - allows a programme to terminate
                     wait -= 1
                     if not wait:
-                        zeros = np.array([0] * self._number_complex_samples, np.complex64)
+                        zeros = np.array([0] * number_samples, np.complex64)
                         return zeros, rx_time
                 if read.ret > 0:
                     wait = 10
-                    # copy into output buffer
-                    self._complex_data[index:index + read.ret] = self._tmp[:min(read.ret, self._output_size - index)]
-                    index += read.ret
+                    try:
+                        # copy into output buffer
+                        self._complex_data[index:index + read.ret] = self._tmp[:min(read.ret, self._complex_data.size - index)]
+                        index += read.ret
+                    except Exception as gg:
+                        self._error = f"{module_type} problem {gg}"
+                        logger.error(self._error)
+                        return None, 0
                 elif read.ret < 0:
-                    zeros = np.array([0] * self._number_complex_samples, np.complex64)
-                    self._error = f"SoapySDR {read.ret} {SoapySDR.SoapySDR_errToStr(read.ret)}"
-                    logger.error(f"SoapySDR {read.ret} {SoapySDR.SoapySDR_errToStr(read.ret)}")
+                    if read.ret == -4:
+                        self._overflows += 1
+                    else:
+                        zeros = np.array([0] * number_samples, np.complex64)
+                        self._error = f"{module_type} {read.ret} {SoapySDR.SoapySDR_errToStr(read.ret)}"
+                        logger.error(self._error)
+                        print(self._error)
                     return zeros, rx_time
 
                 # read.ret error codes

@@ -154,37 +154,39 @@ def is_available() -> Tuple[str, str]:
 # A queue for the audio streamer callback to put samples in to, 4 deep for low latency
 audio_q = queue.Queue(4)
 
-input_overflows = 0
-
 
 def audio_callback(incoming_samples: np.ndarray, frames: int, time_1, status) -> None:
     if status:
         if status.input_overflow:
-            # only ever seen overflows when on a linux vm (virtualbox)
-            global input_overflows
-            input_overflows += 1
-            logger.error(f"audio input overflow {input_overflows}")
+            DataSource.write_overflow(1)
+            logger.error(f"{module_type} input overflow")
         else:
             err = f"Error: {module_type} had a problem, {status}"
             logger.error(err)
-            raise ValueError(err)
 
     # make complex array with left/right as real/imaginary
     # you should be feeding the audio LR with a complex source
     # frames is the number of left/right sample pairs, i.e. the samples
-    complex_data = np.empty(shape=(frames,), dtype=np.complex64)
 
-    for n in range(frames):
-        complex_data[n] = complex(incoming_samples[n][0], incoming_samples[n][1])
+    if (incoming_samples is not None) and (frames > 0):
+        complex_data = np.empty(shape=(frames,), dtype=np.complex64)
 
-    audio_q.put(complex_data.copy())
+        # handle stereo/mono incoming_samples
+        if incoming_samples.shape[1] >= 2:
+            for n in range(frames):
+                complex_data[n] = complex(incoming_samples[n][0], incoming_samples[n][1])
+        else:
+            # must be mono
+            for n in range(frames):
+                complex_data[n] = complex(incoming_samples[n], incoming_samples[n])
+
+        audio_q.put(complex_data.copy())
 
 
 class Input(DataSource.DataSource):
 
     def __init__(self,
                  source: str,
-                 number_complex_samples: int,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
@@ -194,7 +196,6 @@ class Input(DataSource.DataSource):
         The audio input source
 
         :param source: Number of the device to use, or 'L' for a list
-        :param number_complex_samples: The number of complex samples we require each request
         :param data_type: Not used
         :param sample_rate: Not used
         :param centre_frequency: Not used
@@ -202,8 +203,7 @@ class Input(DataSource.DataSource):
         """
         self._constant_data_type = "16tle"
 
-        super().__init__(source, number_complex_samples, self._constant_data_type, sample_rate,
-                         centre_frequency, input_bw)
+        super().__init__(source, self._constant_data_type, sample_rate, centre_frequency, input_bw)
 
         self._connected = False
         self._channels = 2  # we are really expecting stereo
@@ -213,6 +213,12 @@ class Input(DataSource.DataSource):
         self._funcube_type = None
         super().set_help(help_string)
         super().set_web_help(web_help_string)
+
+        # we will read samples from the actual source in a different size from that requested
+        # so that we can divorce one from the other, need index to tell where we are
+        self._complex_data = None
+        self._read_block_size = 2048  #
+        self._rx_time = 0  # first sample time
 
         # sounddevice seems to require a reboot quite often before it works on windows,
         # probably driver problems after an OS sleep
@@ -272,7 +278,7 @@ class Input(DataSource.DataSource):
                                                 device=self._device_number,
                                                 channels=self._channels,
                                                 callback=audio_callback,
-                                                blocksize=self._number_complex_samples,  # NOTE the size, not zero
+                                                blocksize=self._read_block_size,
                                                 dtype="int16")
             self._audio_stream.start()  # required as we are not using 'with'
 
@@ -367,11 +373,39 @@ class Input(DataSource.DataSource):
             except Exception as hid_err:
                 self._error = f"{module_type} failed to set frequency via usb hid command, {hid_err}"
                 logger.error(self._error)
+        else:
+            self._error = f"No support for {module_type} control via hid/usb"
+            logger.error(self._error)
 
     def set_bandwidth_hz(self, bw: float) -> None:
         self._error = f"{module_type} can't change bandwidth"
 
-    def read_cplx_samples(self) -> Tuple[np.array, float]:
+    def _read_source_samples(self, num_samples: int):
+        # read a minimum of num_samples from the queue
+
+        # read blocks until we have at least the required number of samples
+        samples_got = 0
+        empty_count = 0
+        while samples_got < num_samples:
+            try:
+                complex_data = audio_q.get(block=False)
+                if samples_got == 0:
+                    if self._complex_data.size == 0:
+                        self._rx_time = self.get_time_ns()
+                empty_count = 0
+                self._complex_data = np.append(self._complex_data, complex_data)
+                samples_got += complex_data.size
+            except queue.Empty:
+                time.sleep(num_samples / self._sample_rate_sps)  # how long we expect samples to take to arrive
+                empty_count += 1
+                if empty_count > 10000:
+                    msgs = f"{module_type} not producing samples"
+                    self._error = str(msgs)
+                    logger.error(msgs)
+                    print(msgs)
+                    raise ValueError(msgs)
+
+    def read_cplx_samples(self, number_samples: int) -> Tuple[np.array, float]:
         """
         Get complex float samples from the device
         :return: A tuple of a numpy array of complex samples and time in nsec
@@ -381,21 +415,26 @@ class Input(DataSource.DataSource):
 
         if self._connected:
             global audio_q
-            try:
-                complex_data = audio_q.get(block=False)
-                rx_time = self.get_time_ns()
-                self._empty_count = 0
-                complex_data /= 32767.0  # normalise the data, assumes 16bit
 
-            except queue.Empty:
-                time.sleep(0.001)
-                self._empty_count += 1
-                if self._empty_count > 10000:
-                    msgs = f"{module_type} not producing samples, reboot required?"
-                    self._error = str(msgs)
-                    logger.error(msgs)
-                    print(msgs)
-                    self._empty_count = 0
-                    raise ValueError(msgs)
+            # create an empty array to store things if it is not there already
+            if self._complex_data is None:
+                self._complex_data = np.empty(shape=0, dtype='complex64')
+
+            # do we need to read in more samples
+            if number_samples > self._complex_data.size:
+                self._read_source_samples(number_samples)
+
+            if self._complex_data.size >= number_samples:
+                # get the array we wish to pass back
+                complex_data = np.array(self._complex_data[:number_samples], dtype=np.complex64)
+                rx_time = self._rx_time
+
+                # drop the used samples
+                self._complex_data = np.array(self._complex_data[number_samples:], dtype=np.complex64)
+                # following time will be overwritten if the _complex_data is now empty
+                self._rx_time += number_samples / self._sample_rate_sps
+
+            self._overflows += DataSource.read_and_reest_overflow()
 
         return complex_data, rx_time
+

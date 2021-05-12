@@ -106,7 +106,6 @@ def create_source(configuration: SdrVariables, factory) -> DataSource:
     """
     data_source = factory.create(configuration.input_source,
                                  configuration.input_params,
-                                 configuration.fft_size,
                                  configuration.sample_type,
                                  configuration.sample_rate,
                                  configuration.centre_frequency_hz,

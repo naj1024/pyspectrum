@@ -475,6 +475,7 @@ function updateConfigTableCurrent(spec) {
     $('#currentDelay').empty().append(sdrState.getUiDelay());
     $('#currentReadRatio').empty().append(sdrState.getReadRatio().toFixed(2));
     $('#currentHeadroom').empty().append(sdrState.getHeadroom().toFixed(1) +'%');
+    $('#currentOverflows').empty().append(sdrState.getOverflows());
     $('#currentRBW').empty().append(spec.convertFrequencyForDisplay(sps / sdrState.getFftSize(),3));
     $('#currentAvg').empty().append(spec.averaging);
     $('#currentZoom').empty().append(spec.zoom);

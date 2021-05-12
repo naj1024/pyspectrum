@@ -30,14 +30,14 @@ class SpectrumPicture:
         peaks_squared = np.full(self._fft_size, -200)
         try:
             file_str = str(filename)
-            source = DataSource_file.Input(file_str, self._fft_size, "16tle", 1.0, 0.0, 1.0)
+            source = DataSource_file.Input(file_str, "16tle", 1.0, 0.0, 1.0)
             source.set_rewind(False)
             source.set_sleep(False)
             ok = source.open()
             count = 0
             while ok:
                 try:
-                    samples, _ = source.read_cplx_samples()
+                    samples, _ = source.read_cplx_samples(self._fft_size)
                     count += 1
                     mags_squared = spec.mag_spectrum(samples, True)
                     peaks_squared = np.maximum.reduce([mags_squared, peaks_squared])

@@ -51,6 +51,7 @@ class SdrVariables:
         self.input_params = ""  # the parameters for the source, e.g. filename or ip address ...
         self.time_first_spectrum: float = 0
         self.source_connected = False
+        self.input_overflows = 0
 
         # List of data source, discovered by looking in dataSources directory
         self.input_sources = []
