@@ -427,6 +427,7 @@ class Input(DataSource.DataSource):
             if self._complex_data.size >= number_samples:
                 # get the array we wish to pass back
                 complex_data = np.array(self._complex_data[:number_samples], dtype=np.complex64)
+                complex_data /= 32768.0
                 rx_time = self._rx_time
 
                 # drop the used samples
