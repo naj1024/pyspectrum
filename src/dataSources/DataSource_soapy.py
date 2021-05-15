@@ -19,9 +19,10 @@ On Linux, debian bullseye ():
             /home/username/.local/share/virtualenvs/username-w79atRX8/lib/python3.9/site-packages/
 """
 
-import numpy as np
-from typing import Tuple
 import logging
+from typing import Tuple
+
+import numpy as np
 
 from dataSources import DataSource
 
@@ -62,7 +63,9 @@ class Input(DataSource.DataSource):
         :param centre_frequency: The centre frequency the source will be set to
         :param input_bw: The filtering of the input, may not be configurable
         """
-        super().__init__(source, data_type, sample_rate, centre_frequency, input_bw)
+        self._constant_data_type = "32fle"
+
+        super().__init__(source, self._constant_data_type, sample_rate, centre_frequency, input_bw)
         self._connected = False
         self._sdr = None
         self._channel = 0  # we will use channel zero for now
@@ -72,13 +75,15 @@ class Input(DataSource.DataSource):
         self._rx_stream = None
         self._gain_modes = []
         self._gain_mode = "auto"
-        self._max_gain = 100
-        self._min_gain = 0
+        self._max_gain: float = 100
+        self._min_gain: float = 0.0
         # not correctly setting min,max on sps and freq yet
-        self._min_sps = 0
-        self._max_sps = 8e6
-        self._min_cf = 0
-        self._max_cf = 2e9
+        self._min_sps: float = 0.0
+        self._max_sps: float = 8e6
+        self._allowed_sps = []
+        self._min_cf: float = 50.0e6
+        self._max_cf: float = 1.0e9
+        self._allowed_bws = []
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 
@@ -134,8 +139,9 @@ class Input(DataSource.DataSource):
                 self.get_gain()
                 # and what can we set things to
                 gains = self._sdr.getGainRange(SoapySDR.SOAPY_SDR_RX, self._channel)
-                self._max_gain = gains.maximum()
                 self._min_gain = gains.minimum()
+                self._max_gain = gains.maximum()
+                logger.info(f"{module_type} {self._source} gain range {self._min_gain} to {self._max_gain}")
 
             # ranges may return different types of thing
             # could be a:
@@ -144,16 +150,41 @@ class Input(DataSource.DataSource):
             #    a SoapySDR.Range, i.e. not a tuple of them
             #
             # sr_range = self._sdr.getSampleRateRange(SoapySDR.SOAPY_SDR_RX, self._channel)
-            # print(f"sr range; {sr_range}")
+            # for sr in sr_range:
+            #     print(f"sr: {sr.minimum()} {sr.maximum()}")
             # self._min_sps = sr_range.minimum()
-            # self._max_sps = sr_range.maximum()
+            # self._max_sps = sr_range.maximum
+            #
+            # probably sdrplay specific
+            sr_list = self._sdr.listSampleRates(SoapySDR.SOAPY_SDR_RX, self._channel)
+            allowed_srs = set()
+            for sr in sr_list:
+                allowed_srs.add(sr)
+            self._allowed_sps = list(allowed_srs)
+            self._allowed_sps.sort()
+            logger.info(f"{module_type} {self._source} samples rates {self._allowed_sps}")
 
-            # cf_range = self._sdr.getFrequencyRange(SoapySDR.SOAPY_SDR_RX, self._channel)
-            # print(f"cf range; {cf_range}")
-            # self._min_cf = cf_range.minimum()
-            # self._max_cf = cf_range.maximum()
+            # probably sdrplay specific
+            # find min and max centre frequencies
+            cf_range = self._sdr.getFrequencyRange(SoapySDR.SOAPY_SDR_RX, self._channel)
+            for cf in cf_range:
+                if cf.minimum() < self._min_cf:
+                    self._min_cf = cf.minimum()
+                if cf.maximum() > self._max_cf:
+                    self._max_cf = cf.maximum()
+            logger.info(f"{module_type} {self._source} cf min {self._min_cf}, max {self._max_cf}")
 
             self.get_ppm()
+
+            # probably sdrplay specific
+            bw_list = self._sdr.listBandwidths(SoapySDR.SOAPY_SDR_RX, self._channel)  # tuple, min to max
+            allowed_bws = set()
+            for bw in bw_list:
+                allowed_bws.add(bw)
+            self._allowed_bws = list(allowed_bws)
+            self._allowed_bws.sort()
+            logger.info(f"{module_type} {self._source} bandwidths {self._allowed_bws}")
+
             self.get_bandwidth_hz()
 
             # turn on the stream
@@ -181,23 +212,24 @@ class Input(DataSource.DataSource):
             self._sample_rate_sps = self._sdr.getSampleRate(SoapySDR.SOAPY_SDR_RX, self._channel)
         return self._sample_rate_sps
 
+    def set_sample_rate_sps(self, sr: float) -> None:
+        if self._sdr:
+            # find an allowed sr from the set
+            min_sr = max(self._allowed_sps)
+            for asr in self._allowed_sps:
+                if asr >= sr:
+                    min_sr = asr
+                    break
+            self._sample_rate_sps = min_sr
+            self._sdr.setSampleRate(SoapySDR.SOAPY_SDR_RX, self._channel, self._sample_rate_sps)
+            self.get_sample_rate_sps()
+
     def get_centre_frequency_hz(self) -> float:
         if self._sdr:
             # if this object is compensating we can't ask the front end
             if self._hw_ppm_compensation:
                 self._centre_frequency_hz = self._sdr.getFrequency(SoapySDR.SOAPY_SDR_RX, self._channel)
         return self._centre_frequency_hz
-
-    def set_sample_rate_sps(self, sr: float) -> None:
-        if self._sdr:
-            if sr < self._min_sps:
-                self._sample_rate_sps = self._min_sps
-            elif sr > self._max_sps:
-                self._sample_rate_sps = self._max_sps
-            else:
-                self._sample_rate_sps = sr
-            self._sdr.setSampleRate(SoapySDR.SOAPY_SDR_RX, self._channel, self._sample_rate_sps)
-            self.get_sample_rate_sps()
 
     def set_centre_frequency_hz(self, cf: float) -> None:
         if self._sdr:
@@ -215,12 +247,20 @@ class Input(DataSource.DataSource):
                 freq = self.get_ppm_corrected(cf)
                 if freq < self._min_cf:
                     freq = self._min_cf
+                    self._centre_frequency_hz = self._min_cf
                 elif freq > self._max_cf:
                     freq = self._max_cf
+                    self._centre_frequency_hz = self._max_cf
+                else:
+                    self._centre_frequency_hz = cf  # non compensated frequency
                 self._sdr.setFrequency(SoapySDR.SOAPY_SDR_RX, self._channel, freq)
                 set_freq = self._sdr.getFrequency(SoapySDR.SOAPY_SDR_RX, self._channel)
                 if set_freq != freq:
                     print(f"failed to set freq {set_freq} != {freq}")
+
+    def set_sample_type(self, data_type: str) -> None:
+        # we can't set a different sample type on this source
+        super().set_sample_type(self._constant_data_type)
 
     def get_gain(self) -> float:
         if self._sdr:
@@ -287,9 +327,8 @@ class Input(DataSource.DataSource):
     def set_bandwidth_hz(self, bw: float) -> None:
         if self._sdr:
             try:
-                # find a bw, bws is a tuple of floats here - which may be empty
-                bws = self._sdr.listBandwidths(SoapySDR.SOAPY_SDR_RX, self._channel)  # tuple, min to max
-                for bw_entry in bws:
+                # find a bw
+                for bw_entry in self._allowed_bws:
                     self._bandwidth_hz = bw_entry
                     if bw_entry >= bw:
                         break  # take first BW above what we require
@@ -335,7 +374,8 @@ class Input(DataSource.DataSource):
             while index < self._complex_data.size:
                 # readStream() doesn't seem to be a blocking call
                 num_to_get = number_samples - index
-                read = self._sdr.readStream(self._rx_stream, [self._tmp], num_to_get, timeoutUs=1000000)
+
+                read = self._sdr.readStream(self._rx_stream, [self._tmp], num_to_get, timeoutUs=2000000)
 
                 # set time stamp as first set of samples provided
                 if index == 0:
@@ -350,13 +390,15 @@ class Input(DataSource.DataSource):
                     # if we are timing out then return if this happens too often - allows a programme to terminate
                     wait -= 1
                     if not wait:
-                        zeros = np.array([0] * number_samples, np.complex64)
-                        return zeros, rx_time
+                        self._error = f"{module_type} {read.ret} {SoapySDR.SoapySDR_errToStr(read.ret)}"
+                        logger.error(self._error)
+                        return None, 0
                 if read.ret > 0:
                     wait = 10
                     try:
                         # copy into output buffer
-                        self._complex_data[index:index + read.ret] = self._tmp[:min(read.ret, self._complex_data.size - index)]
+                        self._complex_data[index:index + read.ret] = self._tmp[
+                                                                     :min(read.ret, self._complex_data.size - index)]
                         index += read.ret
                     except Exception as gg:
                         self._error = f"{module_type} problem {gg}"
@@ -366,11 +408,9 @@ class Input(DataSource.DataSource):
                     if read.ret == -4:
                         self._overflows += 1
                     else:
-                        zeros = np.array([0] * number_samples, np.complex64)
                         self._error = f"{module_type} {read.ret} {SoapySDR.SoapySDR_errToStr(read.ret)}"
                         logger.error(self._error)
-                        print(self._error)
-                    return zeros, rx_time
+                        return None, 0
 
                 # read.ret error codes
                 # SOAPY_SDR_TIMEOUT -1
