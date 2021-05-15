@@ -47,7 +47,7 @@ def audio_callback(incoming_samples: np.ndarray, frames: int, time_1, status) ->
     if status:
         if status.input_overflow:
             DataSource.write_overflow(1)
-            logger.error(f"{module_type} input overflow")
+            logger.info(f"{module_type} input overflow")
         else:
             err = f"Error: {module_type} had a problem, {status}"
             logger.error(err)
