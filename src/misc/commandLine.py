@@ -22,12 +22,20 @@ def parse_command_line(configuration: SdrVariables, logger: logging.Logger) -> N
     parser = argparse.ArgumentParser(epilog='',
                                      formatter_class=argparse.RawDescriptionHelpFormatter,
                                      description=textwrap.dedent('''\
-        Provide a spectral web UI of a stream of digitised complex samples.
-        A variety of different input sources are supported.
-        The web interface uses two ports, a web server and a websocket.
-        The sample rate must be set for the programme to work correctly. When
-        file input is used this sample rate may be recovered from the filename or
-        from the meta data in a wav file.
+        Provide a spectral web UI for a stream of digitised complex samples.
+        A web interface is provided and uses requires two ports.
+        
+        Try:
+            python3 ./SpectrumAnalyser.py -i? 
+                Add -vvv for more debug
+        
+            Web
+            python3 ./SpectrumAnalyser.py 
+            
+        Best to configure through the web interface, default is on port 8080.
+        Select a source and type and give '?' as the option to see available sources
+        
+        Check log files under src/logs
         '''),
                                      )
 

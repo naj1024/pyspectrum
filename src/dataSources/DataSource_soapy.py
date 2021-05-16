@@ -1,22 +1,27 @@
 """
 Soapy class wrapper
 
-This has really only been tested on an sdrplay. Things that are probably specific are:
-    1. bws are a discrete set
-    2. there is no hardware ppm, soapy says there is but then fails to set it, don't actually know of sdrplay has ppm
-    3. sdrplay gains seems to be upside down, i.e. its an attenuator
-    4. sdrplay gains are from zero to 42 as a max/min range not discrete
-    5. don't yet check for proper ranges on freq or sample rate, soapy will silently ignore wrong ones
+This has really only been tested on an sdrplay & rtlsdr. Things that are probably specific are:
+    1. sdrplay gains seems to be upside down, i.e. its an attenuator
 
 On Linux, debian bullseye ():
     apt install python3-soapysdr
     dpkg -L python3-soapysdr
 
-    Copy the files in dist-packages (.py and .so) to your virtual environments site-packages
-    cp /usr/lib/python3/dist-packages/SoapySDR.py
+    If using virtual environments then copy the files in dist-packages (.py and .so) to your
+    virtual environments site-packages
+        cp /usr/lib/python3/dist-packages/SoapySDR.py
             /home/username/.local/share/virtualenvs/username-w79atRX8/lib/python3.9/site-packages/
-    cp /usr/lib/python3/dist-packages/_SoapySDR.cpython-39-x86_64-linux-gnu.so
+        cp /usr/lib/python3/dist-packages/_SoapySDR.cpython-39-x86_64-linux-gnu.so
             /home/username/.local/share/virtualenvs/username-w79atRX8/lib/python3.9/site-packages/
+
+    For rtlsdr you may need to blacklist the use of dvb which will claim the rtlsdr
+    create no-dvb.conf in /etc/modprobe.d with contents:
+
+        blacklist dvb_usb_rtl28xxu
+        blacklist rtl2832
+        blacklist rtl2830
+
 """
 
 import logging
@@ -90,7 +95,7 @@ class Input(DataSource.DataSource):
     def open(self) -> bool:
         global import_error_msg
         if import_error_msg != "":
-            msgs = f"No {module_type} support available, {import_error_msg}"
+            msgs = f"{module_type} {self._source} no support available, {import_error_msg}"
             self._error = msgs
             logger.error(msgs)
             raise ValueError(msgs)
@@ -115,14 +120,14 @@ class Input(DataSource.DataSource):
         try:
             self._sdr = SoapySDR.Device(f'driver={self._source}')
         except Exception as msg_err:
-            msgs = f"{module_type} {msg_err}"
+            msgs = f"{module_type} {self._source} open error, {msg_err}"
             self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)
 
         self._channel = 0  # we will use channel zero for now
 
-        logger.debug(f"Connected to {module_type}")
+        logger.debug(f"Connected to {module_type} {self._source} using channel {self._channel}")
         # for sr in self._sdr.listSampleRates(SoapySDR.SOAPY_SDR_RX, self._channel):
         #     pp.pprint(sr)
 
@@ -142,6 +147,8 @@ class Input(DataSource.DataSource):
                 self._min_gain = gains.minimum()
                 self._max_gain = gains.maximum()
                 logger.info(f"{module_type} {self._source} gain range {self._min_gain} to {self._max_gain}")
+            else:
+                logger.info(f"{module_type} {self._source} has no gain mode")
 
             # ranges may return different types of thing
             # could be a:
@@ -190,7 +197,7 @@ class Input(DataSource.DataSource):
             # turn on the stream
             self._sdr.activateStream(self._rx_stream)  # start streaming
         except Exception as err_msg:
-            msgs = f"{module_type} {err_msg}"
+            msgs = f"{module_type} {self._source} configuration problem, {err_msg}"
             logger.error(msgs)
             raise ValueError(msgs) from None
 
@@ -390,7 +397,7 @@ class Input(DataSource.DataSource):
                     # if we are timing out then return if this happens too often - allows a programme to terminate
                     wait -= 1
                     if not wait:
-                        self._error = f"{module_type} {read.ret} {SoapySDR.SoapySDR_errToStr(read.ret)}"
+                        self._error = f"{module_type} {read.ret} empty, {SoapySDR.SoapySDR_errToStr(read.ret)}"
                         logger.error(self._error)
                         return None, 0
                 if read.ret > 0:
@@ -408,7 +415,7 @@ class Input(DataSource.DataSource):
                     if read.ret == -4:
                         self._overflows += 1
                     else:
-                        self._error = f"{module_type} {read.ret} {SoapySDR.SoapySDR_errToStr(read.ret)}"
+                        self._error = f"{module_type} {read.ret} other error, {SoapySDR.SoapySDR_errToStr(read.ret)}"
                         logger.error(self._error)
                         return None, 0
 
@@ -416,7 +423,7 @@ class Input(DataSource.DataSource):
                 # SOAPY_SDR_TIMEOUT -1
                 # SOAPY_SDR_STREAM_ERROR -2
                 # SOAPY_SDR_CORRUPTION -3
-                # SOAPY_SDR_OVERFLOW -4   <- i.e. buffers are over flowing because cant read fast enough
+                # SOAPY_SDR_OVERFLOW -4   <- i.e. buffers are over flowing because can't read fast enough
                 # SOAPY_SDR_NOT_SUPPORTED -5
                 # SOAPY_SDR_TIME_ERROR -6
                 # SOAPY_SDR_UNDERFLOW -7

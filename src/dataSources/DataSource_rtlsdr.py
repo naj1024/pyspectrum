@@ -4,6 +4,14 @@ RTLSDR class wrapper
 Used with USB IP input
 Requires librtlsdr to be installed, tested on Linux only
 Requires pyrtlsdr to be installed - provides RtlSdr
+
+Under Linux
+    You may need to blacklist the use of dvb which will claim the rtlsdr
+    create no-dvb.conf in /etc/modprobe.d with contents:
+
+        blacklist dvb_usb_rtl28xxu
+        blacklist rtl2832
+        blacklist rtl2830
 """
 
 import logging
@@ -143,7 +151,7 @@ class Input(DataSource.DataSource):
                 # addresses = sdr.get_device_serial_addresses() # permissions required
                 sdr.close()
                 devices += f"device {device}, type {type_of_tuner} {allowed_tuner_types[type_of_tuner]}\n"
-            except Exception as err:
+            except Exception:
                 pass
         if devices == "":
             devices = f"No rtlsdr devices found, scanned 0 to {max_device-1}"

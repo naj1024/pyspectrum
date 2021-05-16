@@ -22,7 +22,7 @@ def time_spectral(configuration: SdrVariables):
         print("data \tusec \tnsec/sample\ttype")
         print("===================================")
         for data_type in DataSource.supported_data_types:
-            converter = DataSource.DataSource("null", data_size, data_type, 1e6, 1e6, 0)
+            converter = DataSource.DataSource("null", data_type, 1e6, 1e6, 0)
 
             iterations = 1000
             time_start = time.perf_counter()
