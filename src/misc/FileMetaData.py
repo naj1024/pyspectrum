@@ -1,5 +1,12 @@
 """
-File open class
+File open class which hopefully alos gets the meta data:
+
+    metadata            source
+    sample type         wav, filename
+    sample rate         wav, filename
+    centre frequency    filename
+
+Only sampel type and sample rate will be recovered from a wav file.
 
 Handles binary and wav files
 Returns the open file and the associated metadata
@@ -86,15 +93,19 @@ def parse_filename(filename: str) -> Tuple[bool, str, bool, float, float]:
     return ok, data_type, complex_flag, sample_rate_hz, centre_frequency
 
 
-class FileOpen:
+class FileMetaData:
 
     def __init__(self, file_name: str):
         """
-        File input class
+        Open and get meta data from a file, in filename or inbuilt, say from .wav format
 
         :param file_name: File name including path if required
         """
         self._filename = file_name
+        self._has_meta_data = True  # default that we managed to recover meta data for this file
+
+    def has_meta_data(self) -> bool:
+        return self._has_meta_data
 
     def open(self) -> Tuple[bool, TextIOWrapper, bool, str, float, float]:
         """
@@ -146,13 +157,16 @@ class FileOpen:
                         logger.error(msgs)
                         raise ValueError(msgs)
                 else:
+                    # don't set ok as these values were not recovered
+                    # by not setting ok they can be overridden
                     cf = 0.0  # default
                     sps = 10000.0  # default
                     data_type = "16tle"  # default
-                    msgs = f"No meta data on file raw binary file {self._filename}"
-                    logger.error(msgs)
-                    # don't set ok as these values were not recovered
-                    # by not setting ok they can be overridden
+                    self._has_meta_data = False  # say we don't know what this file is
+                    # don't log these as the picture generator will keep trying
+                    # msgs = f"No meta data recovered for raw binary file {self._filename}"
+                    # logger.warning(msgs)
+
 
             except OSError as e:
                 msgs = f"Failed to open file {self._filename}, {e}"

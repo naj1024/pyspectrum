@@ -4,7 +4,6 @@ Provide a basic spectrum analyser for digitised complex samples
 
 ## TODOs, in no particular order
     * TODO: Convert inputs to streaming interfaces.
-    * TODO: Drop receivers?
     * TODO: Add a seconds marker to the bottom (left) of the spectrogram
     * TODO: Plugin for triggering snapshot on fft bin power, with masks
     * TODO: On web interface update just the rows that changed on the configuration table
@@ -15,9 +14,7 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: UI responsiveness is tied to data arriving, should be independent of arriving spectrum data
     * TODO: Favourites tab for source, freq, rate etc
     * TODO: Support controlling the FUNcube, frequency done on linux but not windows
-    * TODO: Change input sources so they can handle a fft size change without having to be recreated
     * TODO: sample rate, centre frequency, bandwidths need to handle ranges and discrete lists
-
 """
 
 import json
@@ -126,6 +123,7 @@ def main() -> None:
             processing = False  # we will exit mow as we lost our processes
 
         # if there is a control message then it may change whats happening
+        # NOTE we can get a different data_source here, bit strange
         data_source, data_sink = handle_from_ui_queue(configuration, snap_configuration,
                                                       to_ui_control_queue, from_ui_queue,
                                                       data_source, source_factory, data_sink,

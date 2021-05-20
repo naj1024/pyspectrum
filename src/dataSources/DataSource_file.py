@@ -11,7 +11,7 @@ from typing import Tuple
 import numpy as np
 
 from dataSources import DataSource
-from misc import FileOpen
+from misc import FileMetaData
 from misc import SnapVariables
 
 logger = logging.getLogger('spectrum_logger')
@@ -55,6 +55,8 @@ class Input(DataSource.DataSource):
         self._sleep = True  # may want to read file as fast as possible
         self._samples_time_ns = 0.0  # how long these samples should take to arrive
 
+        self._has_meta_data = True  ## assume that we will know the sample type etc of the file
+
         try:
             self._create_time = time.time_ns()
         except AttributeError:
@@ -71,6 +73,9 @@ class Input(DataSource.DataSource):
     def set_sleep(self, sleep: bool):
         self._sleep = sleep
 
+    def has_meta_data(self) -> bool:
+        return self._has_meta_data
+
     def set_sample_rate_sps(self, sr: float) -> None:
         if sr <= 0:
             sr = 10000.0  # small default, but not too small
@@ -85,10 +90,14 @@ class Input(DataSource.DataSource):
         try:
             # patch up correct filename
             fn = os.path.basename(self._source)
-            full = pathlib.PurePath(SnapVariables.SNAPSHOT_DIRECTORY, fn)
-            full = str(full)
-            file = FileOpen.FileOpen(full)
+            full_path = pathlib.PurePath(SnapVariables.SNAPSHOT_DIRECTORY, fn)
+            full_path = str(full_path)
+
+            # now open the actual file
+            file = FileMetaData.FileMetaData(full_path)
             ok, self._file, self._is_wav_file, data_type, sps, cf = file.open()
+            self._has_meta_data = file.has_meta_data()
+
             # only update the following if we managed to recover them on the open()
             if ok:
                 self.set_sample_type(data_type)

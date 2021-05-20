@@ -25,7 +25,7 @@ class SpectrumPicture:
         self._thumbnail_dir = thumbnail_dir
         matplotlib.use('Agg')
 
-    def create_picture(self, filename: pathlib.PurePath):
+    def create_picture(self, filename: pathlib.PurePath) -> bool:
         spec = Spectrum.Spectrum(self._fft_size, Spectrum.get_windows()[0])
         peaks_squared = np.full(self._fft_size, -200)
         try:
@@ -34,38 +34,43 @@ class SpectrumPicture:
             source.set_rewind(False)
             source.set_sleep(False)
             ok = source.open()
-            count = 0
-            while ok:
-                try:
-                    samples, _ = source.read_cplx_samples(self._fft_size)
-                    count += 1
-                    mags_squared = spec.mag_spectrum(samples, True)
-                    peaks_squared = np.maximum.reduce([mags_squared, peaks_squared])
-                except ValueError:
-                    ok = False  # end of file
-                except OSError:
-                    ok = False  # end of file
+
+            # can't produce spectrums if we don't know what the file samples are
+            if source.has_meta_data():
+                spec = Spectrum.Spectrum(self._fft_size, Spectrum.get_windows()[0])
+                peaks_squared = np.full(self._fft_size, -200)
+                count = 0
+                while ok:
+                    try:
+                        samples, _ = source.read_cplx_samples(self._fft_size)
+                        count += 1
+                        mags_squared = spec.mag_spectrum(samples, True)
+                        peaks_squared = np.maximum.reduce([mags_squared, peaks_squared])
+                    except ValueError:
+                        ok = False  # end of file
+                    except OSError:
+                        ok = False  # end of file
+
+                if count > 0:
+                    powers = Spectrum.get_powers(peaks_squared)
+                    average = np.average(powers)
+                    maximum = np.max(powers)
+                    # set everything below average to the average
+                    np.clip(powers, average, maximum, out=powers)
+
+                    plt.clf()
+                    pic_name = pathlib.PurePath(file_str + ".png")
+                    fig, ax = plt.subplots()
+                    f = np.arange(0, self._fft_size, 1)
+                    ax.plot(f, powers)
+                    ax.set_xticks([])
+                    ax.set_yticks([])
+                    fig.savefig(pic_name)
+                    # create a thumbnail for the web
+                    thumb_name = pathlib.PurePath(self._thumbnail_dir, os.path.basename(filename) + ".png")
+                    image.thumbnail(str(pic_name), str(thumb_name), scale=0.10)  # unix won't take pathlib for this
 
             source.close()
-
-            if count > 0:
-                powers = Spectrum.get_powers(peaks_squared)
-                average = np.average(powers)
-                maximum = np.max(powers)
-                # set everything below average to the average
-                np.clip(powers, average, maximum, out=powers)
-
-                plt.clf()
-                pic_name = pathlib.PurePath(file_str + ".png")
-                fig, ax = plt.subplots()
-                f = np.arange(0, self._fft_size, 1)
-                ax.plot(f, powers)
-                ax.set_xticks([])
-                ax.set_yticks([])
-                fig.savefig(pic_name)
-                # create a thumbnail for the web
-                thumb_name = pathlib.PurePath(self._thumbnail_dir, os.path.basename(filename) + ".png")
-                image.thumbnail(str(pic_name), str(thumb_name), scale=0.10)  # unix won't take pathlib for this
 
         except ValueError as msg:
             raise ValueError(msg)

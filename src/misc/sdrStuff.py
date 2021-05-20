@@ -75,8 +75,6 @@ def handle_sdr_message(configuration: SdrVariables, new_config: Dict, data_sourc
 
         if new_config['fftSize'] != configuration.fft_size:
             configuration.fft_size = new_config['fftSize']
-            data_source.close()  # can't change the block size without opening again
-            data_source = update_source(configuration, source_factory)
 
         if new_config['gain'] != configuration.gain:
             configuration.gain = new_config['gain']

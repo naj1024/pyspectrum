@@ -148,14 +148,10 @@ class FileOutput:
                 msg = f"Record: {path_and_filename} {round(seconds, 6)}s, {written} samples"
                 logger.info(msg)
 
-                # reset, Use post samples to fill pre for another trigger event
-                # extra pre samples will get dropped on depth check
-                if self._required_pre_data_samples > 0:
-                    self._complex_pre_data = self._complex_post_data
-                    self._pre_data_samples = self._post_data_samples
-                else:
-                    self._complex_pre_data = []
-                    self._pre_data_samples = 0
+                # reset
+                # Start again otherwise you will end up with samples being duplicated between quick triggers
+                self._complex_pre_data = []
+                self._pre_data_samples = 0
                 self._complex_post_data = []
                 self._post_data_samples = 0
                 self._triggered = False

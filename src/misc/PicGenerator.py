@@ -76,12 +76,11 @@ class PicGenerator(multiprocessing.Process):
                         png_filename = pathlib.PurePath(path.parent, path.name+".png")
                         if not os.path.isfile(png_filename):
                             try:
-                                logger.info(f"pic for {path}")
-                                gen.create_picture(path)
+                                _ = gen.create_picture(path)  # returns True if managed to create picture
                             except ValueError as msg:
                                 logger.error(f"PicGenerator {msg}")
 
-                time.sleep(1)
+                time.sleep(1)  # check every second
 
             except Exception as msg:
                 logger.error(f"PicGenerator {msg}")
