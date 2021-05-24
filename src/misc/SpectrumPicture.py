@@ -13,9 +13,19 @@ from dataProcessing import Spectrum
 from dataSources import DataSource_file
 
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib
-import matplotlib.image as image
+
+
+# may not have matplotlib, broken matplotlib on ubuntu 20.04 LTS
+try:
+    import matplotlib
+except ImportError as msg:
+    matplotlib = None
+
+
+def can_create_pictures() -> bool:
+    if matplotlib:
+        return True
+    return False
 
 
 class SpectrumPicture:
@@ -23,11 +33,10 @@ class SpectrumPicture:
     def __init__(self, thumbnail_dir: str):
         self._fft_size = 2048
         self._thumbnail_dir = thumbnail_dir
-        matplotlib.use('Agg')
+        if matplotlib:
+            matplotlib.use('Agg')
 
     def create_picture(self, filename: pathlib.PurePath) -> bool:
-        spec = Spectrum.Spectrum(self._fft_size, Spectrum.get_windows()[0])
-        peaks_squared = np.full(self._fft_size, -200)
         try:
             file_str = str(filename)
             source = DataSource_file.Input(file_str, "16tle", 1.0, 0.0, 1.0)
@@ -58,9 +67,9 @@ class SpectrumPicture:
                     # set everything below average to the average
                     np.clip(powers, average, maximum, out=powers)
 
-                    plt.clf()
+                    matplotlib.pyplot.clf()
                     pic_name = pathlib.PurePath(file_str + ".png")
-                    fig, ax = plt.subplots()
+                    fig, ax = matplotlib.pyplot.subplots()
                     f = np.arange(0, self._fft_size, 1)
                     ax.plot(f, powers)
                     ax.set_xticks([])
@@ -68,9 +77,11 @@ class SpectrumPicture:
                     fig.savefig(pic_name)
                     # create a thumbnail for the web
                     thumb_name = pathlib.PurePath(self._thumbnail_dir, os.path.basename(filename) + ".png")
-                    image.thumbnail(str(pic_name), str(thumb_name), scale=0.10)  # unix won't take pathlib for this
+                    matplotlib.image.thumbnail(str(pic_name), str(thumb_name), scale=0.10)  # unix won't take pathlib for this
 
             source.close()
 
         except ValueError as msg:
             raise ValueError(msg)
+
+        return True

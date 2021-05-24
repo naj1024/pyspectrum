@@ -65,26 +65,29 @@ class PicGenerator(multiprocessing.Process):
         logger.info(f"paths '{self._snap_dir}'")
         logger.info(f"thumbs '{self._thumb_dir}'")
 
-        gen = SpectrumPicture.SpectrumPicture(str(self._thumb_dir))
-        while not self._shutdown:
-            try:
-                # get all the non hidden and non png files in snapshot dir
-                for path in pathlib.Path(self._snap_dir).iterdir():
-                    filename = os.path.basename(path)
-                    if not filename.startswith(".") and not filename.endswith("png"):
-                        # if png does not exist then create one
-                        png_filename = pathlib.PurePath(path.parent, path.name+".png")
-                        if not os.path.isfile(png_filename):
-                            try:
-                                _ = gen.create_picture(path)  # returns True if managed to create picture
-                            except ValueError as msg:
-                                logger.error(f"PicGenerator {msg}")
+        if SpectrumPicture.can_create_pictures():
+            gen = SpectrumPicture.SpectrumPicture(str(self._thumb_dir))
+            while not self._shutdown:
+                try:
+                    # get all the non hidden and non png files in snapshot dir
+                    for path in pathlib.Path(self._snap_dir).iterdir():
+                        filename = os.path.basename(path)
+                        if not filename.startswith(".") and not filename.endswith("png"):
+                            # if png does not exist then create one
+                            png_filename = pathlib.PurePath(path.parent, path.name+".png")
+                            if not os.path.isfile(png_filename):
+                                try:
+                                    _ = gen.create_picture(path)  # returns True if managed to create picture
+                                except ValueError as msg:
+                                    logger.error(f"PicGenerator {msg}")
 
-                time.sleep(1)  # check every second
+                    time.sleep(1)  # check every second
 
-            except Exception as msg:
-                logger.error(f"PicGenerator {msg}")
-                time.sleep(1)
+                except Exception as msg:
+                    logger.error(f"PicGenerator {msg}")
+                    time.sleep(1)
+        else:
+            logger.error("Cant create spectral pictures, spectrumPicture failed")
 
-        logger.error("PicGenerator process exited")
+        logger.error("Process exited")
         return
