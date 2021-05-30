@@ -426,19 +426,26 @@ Spectrum.prototype.roundTo10 =  function(num) {
 
 Spectrum.prototype.autoRange = function() {
     // Find max and min
-    let max = -100; // suitable small dB
-    let min = 100; // suitable large dB
+    let max = -200; // suitably small dB
+    let min = 100; // suitably large dB
+    // find the max over the last N spectrums, held in spectrogram data = this.spectrums[]
     // need work on what we see at the top of the spectrogram
     let start=this.currentSpectrumIndex;
-    for (let num=0; num<32; num++) {
+    let numSpectrums = 32;
+    for (let num=0; num<numSpectrums; num++) {
+        // find the index to the correct spectrum
         let index = start - num;
         if (index < 0) {
             index = this.spectrums.length-1;
         }
-        let spec = this.spectrums[index];
+        // only get peak over centre 70%
+        let len = this.spectrums[index].magnitudes[0].length;
+        let begin = parseInt(len * 0.15)
+        let end = parseInt(len * 0.85)
+        let spec = this.spectrums[index].magnitudes[0].slice(begin, end);
         if (spec) {
-            let smax = Math.max(...spec.magnitudes[0]);
-            let smin = Math.min(...spec.magnitudes[0]);
+            let smax = Math.max(...spec);
+            let smin = Math.min(...spec);
             if (smin < min)
                 min = smin;
             if (smax > max)
