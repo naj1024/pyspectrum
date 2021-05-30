@@ -197,7 +197,7 @@ Spectrum.prototype.updateAxes = function() {
     this.ctx_axes.clearRect(0, 0, width, height);
 
     // Draw axes
-    this.ctx_axes.font = "12px sans-serif";
+    this.ctx_axes.font = this.spectrumAxesFont;
     this.ctx_axes.fillStyle = this.canvasTextColour;
     this.ctx_axes.textBaseline = "middle";
 
@@ -1041,7 +1041,7 @@ Spectrum.prototype.drawLiveMarker = function() {
         return;
 
     var context = this.canvas.getContext('2d');
-    context.font = '12px sans-serif'; // if text px changed y offset for diff text has to be changed
+    context.font = this.spectrumLiveMarkerFont; // if text px changed y offset for diff text has to be changed
     context.fillStyle = this.liveMarkerColour;
     context.textAlign = "left";
 
@@ -1142,7 +1142,7 @@ Spectrum.prototype.drawIndexedMarkers = function() {
     $('#theMarkerTable').show();
 
     var context = this.canvas.getContext('2d');
-    context.font = '12px sans-serif'; // if text px changed y offset for diff text has to be changed
+    context.font = this.spectrumMarkersFont; // if text px changed y offset for diff text has to be changed
     context.fillStyle = this.liveMarkerColour;
     context.textAlign = "left";
 
@@ -1615,6 +1615,11 @@ function Spectrum(id, options) {
     this.liveMarkerColour = "black";
     this.lockedSpectrumMarkerColour = "black"
     this.spectrumGradient = false;
+
+    // fonts
+    this.spectrumAxesFont = "14px sans-serif";
+    this.spectrumLiveMarkerFont = "14px sans-serif";
+    this.spectrumMarkersFont = "14px sans-serif";
 
     // Create main canvas and adjust dimensions to match actual
     this.canvas = document.getElementById(id);
