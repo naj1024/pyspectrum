@@ -37,6 +37,9 @@ class SpectrumPicture:
             matplotlib.use('Agg')
 
     def create_picture(self, filename: pathlib.PurePath) -> bool:
+        if not matplotlib:
+            return False
+
         try:
             file_str = str(filename)
             source = DataSource_file.Input(file_str, "16tle", 1.0, 0.0, 1.0)
