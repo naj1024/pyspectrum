@@ -207,20 +207,21 @@ class Input(DataSource.DataSource):
 
         # read blocks until we have at least the required number of samples
         samples_got = 0
-        empty_count = 0
+        max_wait_count =  ( (5 * self._sample_rate_sps) / num_samples)  # 5 seconds max wait
+        empty_count = max_wait_count
         while samples_got < num_samples:
             try:
                 complex_data = audio_q.get(block=False)
                 if samples_got == 0:
                     if self._complex_data.size == 0:
                         self._rx_time = self.get_time_ns()
-                empty_count = 0
+                empty_count = max_wait_count
                 self._complex_data = np.append(self._complex_data, complex_data)
                 samples_got += complex_data.size
             except queue.Empty:
                 time.sleep(num_samples / self._sample_rate_sps)  # how long we expect samples to take to arrive
-                empty_count += 1
-                if empty_count > 10000:
+                empty_count -= 1
+                if empty_count <= 0:
                     msgs = f"{module_type} not producing samples"
                     self._error = str(msgs)
                     logger.error(msgs)

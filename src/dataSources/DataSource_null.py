@@ -49,7 +49,7 @@ class Input(DataSource.DataSource):
         super().set_web_help(web_help_string)
 
     def open(self) -> bool:
-        self._error = "Null device has no samples"
+        self._error = "Null device"
         return False
 
     def read_cplx_samples(self, number_samples: int) -> Tuple[np.array, float]:
