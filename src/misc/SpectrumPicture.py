@@ -18,8 +18,11 @@ import numpy as np
 # may not have matplotlib, broken matplotlib on ubuntu 20.04 LTS
 try:
     import matplotlib
-except ImportError as msg:
+except ImportError:
     matplotlib = None
+
+if matplotlib:
+    import matplotlib.pyplot as plt
 
 
 def can_create_pictures() -> bool:
@@ -70,9 +73,9 @@ class SpectrumPicture:
                     # set everything below average to the average
                     np.clip(powers, average, maximum, out=powers)
 
-                    matplotlib.pyplot.clf()
+                    plt.clf()
                     pic_name = pathlib.PurePath(file_str + ".png")
-                    fig, ax = matplotlib.pyplot.subplots()
+                    fig, ax = plt.subplots()
                     f = np.arange(0, self._fft_size, 1)
                     ax.plot(f, powers)
                     ax.set_xticks([])
@@ -80,7 +83,7 @@ class SpectrumPicture:
                     fig.savefig(pic_name)
                     # create a thumbnail for the web
                     thumb_name = pathlib.PurePath(self._thumbnail_dir, os.path.basename(filename) + ".png")
-                    matplotlib.image.thumbnail(str(pic_name), str(thumb_name), scale=0.10)  # unix won't take pathlib for this
+                    matplotlib.image.thumbnail(str(pic_name), str(thumb_name), scale=0.10)  # unix won't take pathlib
 
             source.close()
 

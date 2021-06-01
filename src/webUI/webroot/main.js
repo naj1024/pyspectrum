@@ -316,7 +316,10 @@ function updateSnapFileList() {
     let row_count = 0;
     for (const file of snapState.getDirectoryList()) {
         let new_row='<tr>';
-        let fname = '<div title="'+file[0]+'" class="CropLongTexts180">'+file[0]+'</div>';
+        let fname = '<div title="'+file[0]+'" class="CropLongTexts180">';
+        // link to the file so we can download it, hardcoded snapshot directory name !
+        fname += '<a href="snapshots/'+file[0]+'">'+file[0]+'</a>';
+        fname +='</div>';
         new_row += '<td>'+fname+'</td>';
         // size with a hover over of a png showing a spectrum image
         // new_row += '<td><span>'+file[1]+'</span><img src="./thumbnails/'+file[0]+'.png"></td>';

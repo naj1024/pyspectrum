@@ -1566,7 +1566,7 @@ function Spectrum(id, options) {
     this.live_marker_on = true;
     this.live_peak_search = false;
 
-    this.maxNumMarkers = 8;
+    this.maxNumMarkers = 16;
     this.hideAllMarkers = false;
     this.firstTime = 0;          // set to time of first spectrum so we can do relative to the start of the run
     this.currentTime = 0;        // the most recent time we have, not updated when paused

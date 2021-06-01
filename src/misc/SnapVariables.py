@@ -10,7 +10,10 @@ import os
 
 from misc import global_vars
 
-SNAPSHOT_DIRECTORY = pathlib.PurePath(f"{os.path.dirname(__file__)}/../{global_vars.snapshot_dir}")
+# put snapshot directory in webroot so we can make web links to allow downloading of the snaps
+# if the snapshots directory name is changed then you must edit main.js as well updateSnapFileList()
+SNAPSHOT_DIRECTORY = pathlib.PurePath(f"{os.path.dirname(__file__)}", "..",
+                                      "webUI", "webroot", global_vars.snapshot_dir)
 
 
 class SnapVariables:

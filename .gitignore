@@ -12,12 +12,12 @@ venv/
 *.log
 
 # snapshots, spectrum pics and thumbnails
-src/snapshots/*.wav
-src/snapshots/*.png
-src/snapshots/*.bin
-src/snapshots/*.32fle
-src/snapshots/*.8o
-src/snapshots/*.16tle
+src/webUI/webroot/snapshots/*.wav
+src/webUI/webroot/snapshots/*.png
+src/webUI/webroot/snapshots/*.bin
+src/webUI/webroot/snapshots/*.32fle
+src/webUI/webroot/snapshots/*.8o
+src/webUI/webroot/snapshots/*.16tle
 
 src/webUI/webroot/thumbnails/*.png
 

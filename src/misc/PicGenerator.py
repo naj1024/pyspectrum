@@ -61,7 +61,7 @@ class PicGenerator(multiprocessing.Process):
         # but it can send us a signal, then we can shutdown our self
         signal.signal(signal.SIGINT, self.signal_handler)
 
-        logger.info(f"Pic generator started, paths '{self._snap_dir}' and '{self._thumb_dir}'")
+        logger.info("Pic generator started")
         logger.info(f"paths '{self._snap_dir}'")
         logger.info(f"thumbs '{self._thumb_dir}'")
 
