@@ -154,14 +154,14 @@ class Input(DataSource.DataSource):
                     sock = self._served_connection
 
                 if sock:
-                    while sock and (len(raw_bytes) != total_bytes):
+                    while sock and (total_bytes > 0):
                         got: bytearray = sock.recv(total_bytes)  # will get a MAXIMUM of this number of bytes
-                        if rx_time == 0:
-                            rx_time = self.get_time_ns()
                         if len(got) == 0:
                             self.close()
                             logger.info('Socket connection closed')
                             raise ValueError('Socket connection closed')
+                        if rx_time == 0:
+                            rx_time = self.get_time_ns()
                         raw_bytes += got
                         total_bytes -= len(got)
 
@@ -185,7 +185,7 @@ class Input(DataSource.DataSource):
             # t2 = time.perf_counter()
             # print(f"{1000000.0 * (t2 - t1) / 10000.0}usec")
 
-            if len(raw_bytes) == total_bytes:
+            if len(raw_bytes) == self._bytes_per_complex_sample * number_samples:
                 complex_data = self.unpack_data(raw_bytes)
             else:
                 complex_data = np.empty(0)

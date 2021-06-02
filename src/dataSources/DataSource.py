@@ -19,13 +19,15 @@ supported_data_types = ["8t", "8o", "16tbe", "16tle", "32fle", "32fbe"]
 overflow_lock = threading.Lock()
 overflow_count = 0
 
+
 def write_overflow(count: int):
     overflow_lock.acquire()
     global overflow_count
     overflow_count += count
     overflow_lock.release()
 
-def read_and_reest_overflow() -> int:
+
+def read_and_reset_overflow() -> int:
     overflow_lock.acquire()
     global overflow_count
     tmp = overflow_count
@@ -84,7 +86,7 @@ class DataSource:
         self._error = ""
 
         self._overflows = 0
-        _ = read_and_reest_overflow()
+        _ = read_and_reset_overflow()
 
         self._bytes_per_complex_sample = 0  # used for input sources that need to know bytes per sample
         self._data_type = ""

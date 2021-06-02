@@ -435,7 +435,7 @@ class Input(DataSource.DataSource):
                 # following time will be overwritten if the _complex_data is now empty
                 self._rx_time += number_samples / self._sample_rate_sps
 
-            self._overflows += DataSource.read_and_reest_overflow()
+            self._overflows += DataSource.read_and_reset_overflow()
 
         return complex_data, rx_time
 
