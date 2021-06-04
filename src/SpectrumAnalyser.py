@@ -3,7 +3,6 @@
 Provide a basic spectrum analyser for digitised complex samples
 
 ## TODOs, in no particular order
-    * TODO: Convert inputs to streaming interfaces.
     * TODO: Add a seconds marker to the bottom (left) of the spectrogram
     * TODO: Plugin for triggering snapshot on fft bin power, with masks
     * TODO: On web interface update just the rows that changed on the configuration table
