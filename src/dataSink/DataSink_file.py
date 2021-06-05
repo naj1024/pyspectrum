@@ -39,7 +39,7 @@ class FileOutput:
         self._pre_milliseconds = config.preTriggerMilliSec
         max_file_size = config.max_file_size
         self._wav_flag = False
-        if config.wav_flag == "On":
+        if config.file_format == "wav":
             self._wav_flag = True
 
         self._max_total_samples = self._sample_rate_sps * ((self._pre_milliseconds + self._post_milliseconds) / 1000)

@@ -57,7 +57,6 @@
                     </ul>
 
                     <div class="tab-content">
-
                         <div id="configTab" class="tab-pane active">
                             <table id="configTable" class="table table-hover table-striped table-bordered table-sm">
                                 <thead class="thead-dark">
@@ -85,17 +84,6 @@
                                     <tr title="Parts per million error on frequency">
                                         <td><b>ppm</b></td><td><div id="currentPpm"></div></td><td><div id="newPpm"></div></td></tr>
                                     <tr class="blank_row"><td bgcolor="#000" colspan="3">&nbsp;</td></tr>
-                                    <tr title="FFT size">
-                                        <td><b>FFT</b></td><td><div id="currentFft"></div></td><td><div id="newFft"></div></td></tr>
-                                    <tr title="FFT bin size">
-                                        <td><b>RBW</b></td><td><div id="currentRBW"></div></td><td><div id="newRBW"></div></td><td/></tr>
-                                    <tr title="Window applied to samples">
-                                        <td><b>Window</b></td><td><div id="currentFftWindow"></div></td><td><div id="newFftWindow"></div></td></tr>
-                                    <tr title="Zoom level on display">
-                                        <td><b>Zoom</b></td><td><div id="currentZoom"></div></td><td><div id="newZoom"></div></td><td/></tr>
-                                    <tr title="Span of the display, with zoom">
-                                        <td><b>Span</b></td><td><div id="currentSpan"></div></td><td/></tr>
-                                    <tr class="blank_row"><td bgcolor="#000" colspan="3">&nbsp;</td></tr>
                                     <tr title="Type of gain control">
                                         <td><b>Gmode</b></td><td><div id="currentGmode"></div></td><td><div id="newGmode"></div></td></tr>
                                     <tr title="Gain in dB">
@@ -111,11 +99,34 @@
                                         <td><b>Headroom</b></td><td><div id="currentHeadroom"></div></td><td/></tr>
                                     <tr title="Overflows on input buffer from device">
                                         <td><b>Overflows</b></td><td><div id="currentOverflows"></div></td><td/></tr>
-                                </tbody>
+                                 </tbody>
                             </table>
                         </div>
 
                         <div id="buttonTab" class="tab-pane">
+                            <div>
+                                <table id="fftTable" class="table table-hover table-striped table-bordered table-sm">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th scope="col">Param</th>
+                                        <th scope="col">Current</th>
+                                        <th scope="col">New</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr title="FFT size">
+                                        <td><b>FFT</b></td><td><div id="currentFft"></div></td><td><div id="newFft"></div></td></tr>
+                                    <tr title="FFT bin size">
+                                        <td><b>RBW</b></td><td><div id="currentRBW"></div></td><td><div id="newRBW"></div></td><td/></tr>
+                                    <tr title="Window applied to samples">
+                                        <td><b>Window</b></td><td><div id="currentFftWindow"></div></td><td><div id="newFftWindow"></div></td></tr>
+                                    <tr title="Zoom level on display">
+                                        <td><b>Zoom</b></td><td><div id="currentZoom"></div></td><td><div id="newZoom"></div></td><td/></tr>
+                                    <tr title="Span of the display, with zoom">
+                                        <td><b>Span</b></td><td><div id="currentSpan"></div></td><td/></tr>
+                                </tbody>
+                            </table>
+                            </div>
                             <div id="buttons">
                                 <h4>Stream</h4>
                                 <div>
@@ -227,7 +238,7 @@
                                     <tr><td><b>Trigger</b></td><td><div id="currentSnapTriggerState"></div></td><td><div id="newSnapTriggerState"></div></td></tr>
                                     <tr><td><b>Trigger type</b></td><td><div id="currentSnapTriggerType"></div></td><td><div id="newSnapTriggerType"></div></td></tr>
                                     <tr><td><b>baseName</b></td><td><div id="currentSnapBaseName"></div></td><td><div id="newSnapBaseName"></div></td></tr>
-                                    <tr><td title="Non-standard wave file"><b>wavFile</b></td><td><div id="currentWavFlag"></div></td><td><div id="newWavFlag"></div></td></tr>
+                                    <tr><td title="File format"><b>Format</b></td><td><div id="currentFileFormat"></div></td><td><div id="newFileFormat"></div></td></tr>
                                     <tr><td><b>PreTrigger</b></td><td><div id="currentSnapPreTrigger"></div></td><td><div id="newSnapPreTrigger"></div></td></tr>
                                     <tr><td><b>PostTrigger</b></td><td><div id="currentSnapPostTrigger"></div></td><td><div id="newSnapPostTrigger"></div></td></tr>
                                     <tr><td><b>Size</b></td><td><div id="currentSnapSize"></div></td><td><div id="newSnapSize"></div></td></tr>

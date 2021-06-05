@@ -38,8 +38,8 @@ snapState.prototype.setDirectoryList = function(dirList) {
 snapState.prototype.setDeleteFilename = function(name) {
     this.deleteFileName = name;
 }
-snapState.prototype.setWavFlag = function(wavFlag) {
-    this.wavFlag = wavFlag;
+snapState.prototype.setFileFormat = function(fileFormat) {
+    this.fileFormat = fileFormat;
 }
 
 
@@ -76,8 +76,8 @@ snapState.prototype.getDirectoryList = function() {
 snapState.prototype.getDeleteFilename = function() {
     return this.deleteFileName;
 }
-snapState.prototype.getWavFlag = function() {
-    return this.wavFlag;
+snapState.prototype.getFileFormat = function() {
+    return this.fileFormat;
 }
 snapState.prototype.getDirectoryListEntries = function() {
     return this.directoryList.length;
@@ -123,8 +123,8 @@ snapState.prototype.setSnapFromJason = function(jsonConfig) {
         snapState.setExpectedSize(jsonConfig.expectedSizeMbytes);
         updateSnapTable = true;
     }
-    if (jsonConfig.wav_flag != snapState.getWavFlag()) {
-        snapState.setWavFlag(jsonConfig.wav_flag);
+    if (jsonConfig.file_format != snapState.getFileFormat()) {
+        snapState.setFileFormat(jsonConfig.file_format);
     }
 
     // just on size discrepancy for now
@@ -169,8 +169,8 @@ function handleSnapPostTriggerChange(millisec) {
     snapState.setPostTriggerMilliSec(millisec);
     snapState.setSnapStateUpdated();
 }
-function handleSnapWavFlagModeChange(wavFlag) {
-    snapState.setWavFlag(wavFlag);
+function handleSnapFileFormatChange(fileFormat) {
+    snapState.setFileFormat(fileFormat);
     snapState.setSnapStateUpdated();
 }
 
@@ -190,5 +190,5 @@ function snapState() {
     this.snapExpectedSize = 0;
     this.directoryList = [];
     this.deleteFileName = "";
-    this.wavFlag = "Off";  // On/Off as getting True/False/true/false to work through json&web was impossible
+    this.fileFormat = "bin";
 }

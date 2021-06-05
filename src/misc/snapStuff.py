@@ -31,8 +31,8 @@ def handle_snap_message(data_sink: DataSink_file, snap_config: SnapVariables,
         snap_config.baseFilename = new_config['baseFilename']
         changed = True
 
-    if new_config['wavFlag'] != snap_config.wav_flag:
-        snap_config.wav_flag = new_config['wavFlag']
+    if new_config['fileFormat'] != snap_config.file_format:
+        snap_config.file_format = new_config['fileFormat']
         changed = True
 
     if new_config['snapState'] != snap_config.snapState:
