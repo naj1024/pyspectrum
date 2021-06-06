@@ -26,6 +26,10 @@ canvas {
   line-height: 1px;
 }
 
+hr {
+    border: 3px solid #000;
+}
+
 /* the marker table, don't seem to be able to select it with #markerTable */
 .marker-table-condensed tr {
     font-family:sans-serif;
