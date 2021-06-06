@@ -4,8 +4,8 @@ Support for rtlsdr, pluto, funcube, sdrplay (soapy), audio, socket, file.
 
 ![Screenshot](screenShot_web.png)
 
-* Web javascript UI with spectrum and spectrogram.
-* Samples from a selectable.
+* Python processing.
+* Web javascript UI.
 * Spectrums are done at the sample rate. 
 * Useful for detecting short bursting signals.
 * Plugin architecture for sources and analysis of spectrums.
