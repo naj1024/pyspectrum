@@ -32,6 +32,9 @@ class FileOutput:
         :param snap_dir: where the snaps go
         """
         self._base_filename = config.baseFilename
+        if len(self._base_filename) == 0:
+            self._base_filename = "snap"
+            config.baseFilename = self._base_filename
         self._base_directory = snap_dir
         self._centre_freq_hz = config.cf
         self._sample_rate_sps = config.sps
