@@ -48,7 +48,7 @@ I have certainly kept up with streams of data at over 3Msps.
 Should be similar to the linux install, but
 
 * No support for hid control of funcube, we can stream samples but not control the device.
-* No support for sdr, as we don't have SoapySDR support - don't know how to install on windows.
+* No support for sdrplay, as we don't have SoapySDR support - don't know how to install on windows.
 
 ## Installation - linux
 
