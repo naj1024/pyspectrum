@@ -142,3 +142,15 @@ The following python modules should be installed. Optional ones provide specific
         paho-mqtt   - mqtt plugin (client)
         hid         - funcube control through usb hid, linux only?
 
+## AD936x pluto XO support
+We can add support for pluto frequency correction in ppm by adding the following to the file ad936x.py when 
+pyadi-iio is installed. You should find the ad936x.py file under the adi directory in the site packages
+traversed by your environment. Insert the lines in the ad9364 class definitions.
+
+    @property
+    def xo_correction(self):
+        return self._get_iio_dev_attr("xo_correction")
+
+    @xo_correction.setter
+    def xo_correction(self, value):
+        self._set_iio_dev_attr_str("xo_correction", value)

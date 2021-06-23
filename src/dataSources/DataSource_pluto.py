@@ -9,7 +9,9 @@ NOTE that the pluto device will accept 70Mhz to 6GHz frequency and 60MHz samplin
 
 NOTE: Had to read large blocks from pluto otherwise data was being dropped somewhere
 
-NOTE: added support for xo-correction by adding the following to ad936x.py from pyadi-iio
+NOTE:
+    Added support for xo-correction by adding the following to ad936x.py from pyadi-iio
+    Insert the lines in the ad9364 class definitions
 
     @property
     def xo_correction(self):
