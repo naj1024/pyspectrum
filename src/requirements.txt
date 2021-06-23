@@ -1,44 +1,43 @@
 # python requirements:
 #
-# edit to add support for rtl and pluto devices
+# edit required input sources etc
 #
 
+# processing
+matplotlib>=3.3.4
+numpy>=1.20.1
+scipy>=1.6.1
+
+# audio input source
+sounddevice>=0.4.1
+
 # analog device pluto device
-# pyadi-iio>=0.0.7
-# pylibiio>=0.21
+pyadi-iio>=0.0.7
+pylibiio>=0.21
 
 # rtl devices
-# pyrtlsdr>=0.2.92
+pyrtlsdr>=0.2.92
 
-atomicwrites>=1.4.0
-attrs>=19.3.0
-certifi>=2020.11.8
-cffi>=1.14.0
-chardet>=3.0.4
-colorama>=0.4.3
-colored>=1.4.2
-cycler>=0.10.0
-idna>=2.10
-kiwisolver>=1.2.0
-matplotlib>=3.3.4
-more-itertools>=8.3.0
-numpy>=1.20.1
-packaging>=20.4
+# soapy devices, SoapySDR
+# Not supported by pip install
+# Install using your package manager and copy files to the virtual env lib directory
+# apt install python3-soapysdr
+# dpkg -L dpkg -L python3-soapysdr
+# cp /usr/lib/python3/dist-packages/SoapySDR.py ~/.local/share/virtualenvs/sid-xxxx/lib/python3.9/site-packages/
+# cp /usr/lib/python3/dist-packages/_SoapySDR.cpython-39-x86_64-linux-gnu.so ~/.local/share/virtualenvs/sid-xxxx/lib/python3.9/site-packages/
+
+# funcube dongle, control under linux
+hid>=1.0.4
+
+# mqtt plugin
 paho-mqtt>=1.5.1
-psutil>=5.7.0
-py>=1.8.1
-pycparser>=2.20
-pyparsing>=2.4.7
-pytest>=5.4.3
-python-dateutil>=2.8.1
-requests>=2.25.0
-scipy>=1.6.1
-six>=1.15.0
-sounddevice>=0.4.1
-urllib3>=1.26.4
-wcwidth>=0.2.3
+
+# web interface
 websockets>=8.1
-wxPython>=4.0.7
+
+# testing
+#pytest>=5.4.3
+
 
 
 

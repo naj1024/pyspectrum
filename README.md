@@ -41,8 +41,44 @@ I have certainly kept up with streams of data at over 3Msps.
 * 32bit ieee float big endian
 
 ## Problems
-* If the programme exceptions immediately, check the dependencies are met.
-* funcube will exception under windows when closed, which we do when changing source
+* If the programme exceptions immediately, check the dependencies.
+* funcube will exception under windows when closed, which we do when changing the source
+
+## Installation - windows
+Should be similar to the linux install, but
+
+* No support for hid control of funcube, we can stream samples but not control the device.
+* No support for sdr, as we don't have SoapySDR support - don't know how to install on windows.
+
+## Installation - linux
+
+    cd ~
+    git clone https://github.com/naj1024/pyspectrum.git
+
+Edit requirements.txt for required input sources.
+
+    vi ./pyspectrum/src/requirements.txt
+
+I'm using pipenv for a virtual environment.
+
+    pipenv shell
+    pip install -r ./pyspectrum/src/requirements.txt
+
+Run, then connect to localhost:8080 in a browser
+    
+    python3 ./pyspectrum/src/SpectrumAnalyser.py
+
+# Soapy support - linux
+The easiest way to get SoapySDR support is to install it from your distributions repository
+
+    apt install python3-soapysdr
+    dpkg -L dpkg -L python3-soapysdr
+
+then copy to your virtual environment, say it is called sid-xxxx
+
+    cp /usr/lib/python3/dist-packages/SoapySDR.py ~/.local/share/virtualenvs/sid-xxxx/lib/python3.9/site-packages/
+    cp /usr/lib/python3/dist-packages/_SoapySDR.cpython-39-x86_64-linux-gnu.so ~/.local/share/virtualenvs/sid-xxxx/lib/python3.9/site-packages/
+
 
 ## TODO
 * hackrf input would be nice to try, don't have one :(
@@ -64,7 +100,8 @@ Some examples for running from command line
 
     python ./SpectrumAnalyser.py -i?     - list input sources that are available
 
-    Some default input selections, normally select trhough web interface:
+Some default input selections, you normally select through web interface:
+
       python ./SpectrumAnalyser.py -ipluto:192.168.2.1 -c433.92e6 -s600e3   - pluto at 433MHz and 600ksps
   
       python ./SpectrumAnalyser.py -ipluto:192.168.2.1 -c433.92e6 -s1e6 
@@ -77,7 +114,7 @@ Some examples for running from command line
   
       python ./SpectrumAnalyser.py -irtlsdr:kk -c433.92e6 -s1e6   - rtlsdr
 
-    SOAPY may not work:
+    SOAPY:
       python ./src/SpectrumAnalyser.py -isoapy:audio -s48000 -c0  - soapy input
       python ./src/SpectrumAnalyser.py -isoapy:sdrplay -s2e6 c433.92e6 
 
@@ -89,22 +126,19 @@ The following python modules should be installed. Optional ones provide specific
     Required:
         numpy
         websockets
+        matplotlib
         
     Testing:
         pytest
         
     Optional:
         scipy       - another FFT library
-        pyfftw      - another FFT library, faster above 8k size
+        pyfftw      - another FFT library, faster above 8k size (for me)
         pyadi-iio   - pluto device
         iio         - pluto device
         pyrtlsdr    - rtlsdr devices
         sounddevice - audio and funcube devices
         soapysdr    - soapy support
-        paho-mqtt   - mqtt functionality (client)
-        hid         - control of funcube through usb hid
+        paho-mqtt   - mqtt plugin (client)
+        hid         - funcube control through usb hid, linux only?
 
-
-```
-pip3 install -r src/requirements.txt
-```
