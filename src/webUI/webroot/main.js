@@ -95,7 +95,7 @@ async function handleBlob(binary_blob_data) {
             }
             spectrum.addData(peaks, start_time_sec, start_time_nsec, end_time_sec, end_time_nsec);
             if (update) {
-                updateConfigTable(spectrum);
+                updateConfig(spectrum);
             }
         }
     }
@@ -160,7 +160,7 @@ async function handleJsonControl(controlData) {
             }
             let updateCfgTable = sdrState.setConfigFromJason(control);
             spectrum.updateAxes();
-            updateConfigTable(spectrum); // update Current and maybe new
+            updateConfig(spectrum); // update Current and maybe new
         }
         else {
             console.log("Unknown control json:", control)
@@ -176,7 +176,7 @@ function handleCfChange(newCfMHz) {
     if (newCf >= 0) {
         sdrState.setCentreFrequencyHz(newCf);
         spectrum.setCentreFreqHz(sdrState.getRealCentreFrequencyHz());
-        configTableFocusOut();
+        configFocusOut();
         sdrState.setUiStateUpdated();
     }
 }
@@ -185,7 +185,7 @@ function handleCfOffsetChange(newCfOffsetMHz) {
     if (newCf >= 0) {
         sdrState.setCentreFrequencyOffsetHz(newCfOffsetMHz*1e6);
         spectrum.setCentreFreqHz(sdrState.getRealCentreFrequencyHz());
-        configTableFocusOut();
+        configFocusOut();
         sdrState.setUiStateUpdated();
     }
 }
@@ -213,45 +213,45 @@ function handleSpsChange(newSps) {
     // force the sdr input bw to the same as the sps
     sdrState.setSdrBwHz(newSps*1e6);
     spectrum.setSps(newSps);
-    configTableFocusOut();
+    configFocusOut();
     sdrState.setUiStateUpdated();
 }
 
 function handleSdrBwChange(newBwMHz) {
     sdrState.setSdrBwHz(newBwMHz*1e6);
-    configTableFocusOut();
+    configFocusOut();
     sdrState.setUiStateUpdated();
 }
 
 function handlePpmChange(newPpm) {
     sdrState.setPpmError(newPpm);
-    configTableFocusOut();
+    configFocusOut();
     sdrState.setUiStateUpdated();
 }
 
 function handleFftChange(newFft) {
     sdrState.setFftSize(newFft);
     // spec.setFftSize(num_floats); // don't do this here as spectrum has to know it changed
-    configTableFocusOut();
+    configFocusOut();
     sdrState.setUiStateUpdated();
 }
 
 function handleFftWindowChange(newWindow) {
     sdrState.setFftWindow(newWindow);
-    configTableFocusOut();
+    configFocusOut();
     sdrState.setUiStateUpdated();
 }
 
 function handleInputChange(newSource, newParams) {
     sdrState.setInputSource(newSource);
     sdrState.setInputSourceParams(newParams);
-    configTableFocusOut();
+    configFocusOut();
     sdrState.setUiStateUpdated();
 }
 
 function handleDataFormatChange(newFormat) {
     sdrState.setDataFormat(newFormat);
-    configTableFocusOut();
+    configFocusOut();
     sdrState.setUiStateUpdated();
 }
 
@@ -262,17 +262,17 @@ function handleFpsChange(newFps) {
         let jsonString= JSON.stringify(fps);
         websocket.send(jsonString);
     }
-    configTableFocusOut();
+    configFocusOut();
 }
 
 function handleGainChange(newGain) {
     sdrState.setGain(newGain);
-    configTableFocusOut();
+    configFocusOut();
     sdrState.setUiStateUpdated();
 }
 function handleGainModeChange(newMode) {
     sdrState.setGainMode(newMode);
-    configTableFocusOut();
+    configFocusOut();
     sdrState.setUiStateUpdated();
 }
 
@@ -449,14 +449,14 @@ function snapTableFocusOut(){
     snapFormInFocus = false;
 }
 
-function updateConfigTable(spec) {
-    updateConfigTableCurrent(spec);
+function updateConfig(spec) {
+    updateConfigCurrent(spec);
     if (sdrState.getResetSdrStateUpdated()) {
-        updateConfigTableNew(spec);
+        updateConfigNew(spec);
     }
 }
 
-function updateConfigTableCurrent(spec) {
+function updateConfigCurrent(spec) {
     let src = '<div>'+sdrState.getInputSource()+'</div>';
     src += '<div title="'+sdrState.getInputSourceParams()+'" class="CropLongTexts100">'+sdrState.getInputSourceParams()+'</div>'
     src += '<div>'+(sdrState.getSourceConnected()?'Connected':'Not Connected')+'</div>';
@@ -486,7 +486,7 @@ function updateConfigTableCurrent(spec) {
     $('#currentSpan').empty().append(spec.convertFrequencyForDisplay(zoomBw,3));
 }
 
-function updateConfigTableNew(spec) {
+function updateConfigNew(spec) {
     // this rewrites all the values in the configuration table 'new' column
 
     // if we have focus on a form then don't update the table
@@ -503,7 +503,7 @@ function updateConfigTableNew(spec) {
     let sources = sdrState.getInputSources();
     if (sources.length > 0) {
         new_html = '<form ';
-        new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+        new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
         new_html += ' action="javascript:handleInputChange(inputSource2.value, inputSourceParams.value)">';
         // the possible sources
         new_html += '<select id="inputSource2" name="inputSource2">';
@@ -514,7 +514,7 @@ function updateConfigTableNew(spec) {
         // the parameters for the source
         let help = source+' '+sourceParams+'\n'+sdrState.getInputSourceParamHelp(source);
         new_html += '<input data-toggle="tooltip" title="'+help+'" type="text" size="10"';
-        new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+        new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
         new_html += ' value="'+ sourceParams + '" id="inputSourceParams" name="inputSourceParams">';
         new_html += '<input type="submit" value="Change">';
         new_html += '</form>';
@@ -530,7 +530,7 @@ function updateConfigTableNew(spec) {
     let dataFormats = sdrState.getDataFormats();
     if (dataFormats.length > 0) {
         new_html = '<form ';
-        new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+        new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
         new_html += ' action="javascript:handleDataFormatChange(dataFormatInput.value)">';
         new_html += '<select id="dataFormatInput" name="dataFormatInput" onchange="this.form.submit()">';
         dataFormats.forEach(function(dtype) {
@@ -548,7 +548,7 @@ function updateConfigTableNew(spec) {
     ///////
     let cf_step = 0.000001; // 1Hz - annoyingly if we set it to sps/4 say then you can't go finer than that
     new_html = '<form ';
-    new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+    new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
     new_html += ' action="javascript:handleCfChange(centreFrequencyInput.value)">';
     // as we remove the number inc/dec arrows in css the size parameter does work
     new_html += '<input type="number" size="12" min="0" max="40000" ';
@@ -565,7 +565,7 @@ function updateConfigTableNew(spec) {
     // centre frequency offset, for up/down converters
     ///////
     new_html = '<form ';
-    new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+    new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
     new_html += ' action="javascript:handleCfOffsetChange(centreFrequencyOffsetInput.value)">';
     // as we remove the number inc/dec arrows in css the size parameter does work
     new_html += '<input type="number" size="12" min="-30000" max="30000" ';
@@ -584,7 +584,7 @@ function updateConfigTableNew(spec) {
     let sps = sdrState.getSps();
     let sps_step = 0.000001; // 1Hz
     new_html = '<form ';
-    new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+    new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
     new_html += 'action="javascript:handleSpsChange(spsInput.value)">';
     // as we remove the number inc/dec arrows in css the size parameter does work
     new_html += '<input type="number" size="9" min="0" max="100" step="';
@@ -601,7 +601,7 @@ function updateConfigTableNew(spec) {
     let sdrBwHz = sdrState.getSdrBwHz();
     let sdrbw_step = 0.01; // 10kHz
     new_html = '<form ';
-    new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+    new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
     new_html += 'action="javascript:handleSdrBwChange(sdrBwInput.value)">';
     // as we remove the number inc/dec arrows in css the size parameter does work
     new_html += '<input type="number" size="3" min="0" max="100" step="';
@@ -618,7 +618,7 @@ function updateConfigTableNew(spec) {
     let ppm = sdrState.getPpmError();
     let ppm_step = 0.0001;
     new_html = '<form ';
-    new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+    new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
     new_html += 'action="javascript:handlePpmChange(sdrPpmInput.value)">';
     // as we remove the number inc/dec arrows in css the size parameter does work
     new_html += '<input type="number" size="9" min="-500" max="500" step="';
@@ -634,7 +634,7 @@ function updateConfigTableNew(spec) {
     ///////
     let fftSize = sdrState.getFftSize();
     new_html = '<form ';
-    new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+    new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
     new_html += 'action="javascript:handleFftChange(fftSizeInput.value)">';
     new_html += '<select id="fftSizeInput" name="fftSizeInput" onchange="this.form.submit()">';
     new_html += '<option value="16384" '+((fftSize==16384)?"selected":"")+'>16384</option>';
@@ -654,7 +654,7 @@ function updateConfigTableNew(spec) {
     let fftWindows = sdrState.getFftWindows();
     if (fftWindows.length > 0) {
         new_html = '<form ';
-        new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+        new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
         new_html += 'action="javascript:handleFftWindowChange(fftWindowInput.value)">';
         new_html += '<select id="fftWindowInput" name="fftWindowInput" onchange="this.form.submit()">';
         fftWindows.forEach(function(win) {
@@ -673,7 +673,7 @@ function updateConfigTableNew(spec) {
     let gainMode = sdrState.getGainMode();
     if (gainModes.length > 0) {
         new_html = '<form';
-        new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+        new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
         new_html += ' action="javascript:handleGainModeChange(gainModeInput.value)">';
         new_html += '<select id="gainModeInput" name="gainModeInput" onchange="this.form.submit()">';
         gainModes.forEach(function(mode) {
@@ -691,7 +691,7 @@ function updateConfigTableNew(spec) {
     ///////
     let gain_step = 0.1;
     new_html = '<form ';
-    new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+    new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
     new_html += ' action="javascript:handleGainChange(gainInput.value)">';
     // as we remove the number inc/dec arrows in css the size parameter does work
     new_html += '<input type="number" size="2" min="0" max="100" ';
@@ -709,7 +709,7 @@ function updateConfigTableNew(spec) {
     ///////
     let fpsV = sdrState.getFps();
     new_html = '<form ';
-    new_html += ' onfocusin="configTableFocusIn()" onfocusout="configTableFocusOut()" ';
+    new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
     new_html += 'action="javascript:handleFpsChange(fpsSizeInput.value)">';
     new_html += '<select id="fpsSizeInput" name="fpsSizeInput" onchange="this.form.submit()">';
     new_html += '<option value="1" '+((fpsV==1)?"selected":"")+'>1</option>';
@@ -726,10 +726,10 @@ function updateConfigTableNew(spec) {
     $('#newFPS').empty().append(new_html);
 }
 
-function configTableFocusIn(){
+function configFocusIn(){
     configFormInFocus = true;
 }
-function configTableFocusOut(){
+function configFocusOut(){
     configFormInFocus = false;
 }
 
@@ -976,7 +976,7 @@ function Main() {
     if (offset != null) {
         sdrState.setCentreFrequencyOffsetHz(offset);
     }
-    updateConfigTable(spectrum);
+    updateConfig(spectrum);
 
     // Connect to websocket
     connectWebSocket(spectrum);
