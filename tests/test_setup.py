@@ -21,7 +21,7 @@ def test_logging_dir():
 
 def test_snapshot_dir():
     _ = setup_snap_config()
-    snap_dir = pathlib.PurePath(os.path.dirname(__file__), "..", "src", "snapshots")
+    snap_dir = pathlib.PurePath(os.path.dirname(__file__), "..", "src", "webUI", "webroot", "snapshots")
     assert os.path.isdir(snap_dir)
 
 
