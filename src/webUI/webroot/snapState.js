@@ -23,9 +23,6 @@ snapState.prototype.setPreTriggerMilliSec = function(preMilliSec) {
 snapState.prototype.setPostTriggerMilliSec = function(postMilliSec) {
     this.postTriggerMilliSec = parseInt(postMilliSec);
 }
-snapState.prototype.setSnapState = function(state) {
-    this.snapState = state;
-}
 snapState.prototype.setCurrentSize = function(size) {
     this.snapCurrentSize = size;
 }
@@ -40,6 +37,9 @@ snapState.prototype.setDeleteFilename = function(name) {
 }
 snapState.prototype.setFileFormat = function(fileFormat) {
     this.fileFormat = fileFormat;
+}
+snapState.prototype.setFileFormats = function(fileFormats) {
+    this.fileFormats = fileFormats;
 }
 
 
@@ -61,9 +61,6 @@ snapState.prototype.getPreTriggerMilliSec = function() {
 snapState.prototype.getPostTriggerMilliSec = function() {
     return this.postTriggerMilliSec;
 }
-snapState.prototype.getSnapState = function() {
-    return this.snapState;
-}
 snapState.prototype.getCurrentSize = function() {
     return this.snapCurrentSize;
 }
@@ -79,6 +76,9 @@ snapState.prototype.getDeleteFilename = function() {
 snapState.prototype.getFileFormat = function() {
     return this.fileFormat;
 }
+snapState.prototype.getFileFormats = function() {
+    return this.fileFormats;
+}
 snapState.prototype.getDirectoryListEntries = function() {
     return this.directoryList.length;
 }
@@ -87,108 +87,122 @@ snapState.prototype.setSnapFromJason = function(jsonConfig) {
     snapState.setDeleteFilename("");
 
     //console.log(jsonConfig)
-    let updateSnapTable = false;
-    if (jsonConfig.baseFilename != snapState.getBaseName()) {
-        snapState.setBaseName(jsonConfig.baseFilename);
-        updateSnapTable = true;
+
+    if (jsonConfig.snapName != undefined) {
+        snapState.setBaseName(jsonConfig.snapName.split('/').reverse()[0]);
     }
-    if (jsonConfig.triggerType != snapState.getTriggerType()) {
-        snapState.setTriggerType(jsonConfig.triggerType);
-        updateSnapTable = true;
+    if (jsonConfig.snapTriggerSource != undefined) {
+        snapState.setTriggerType(jsonConfig.snapTriggerSource);
     }
-    if (JSON.stringify(jsonConfig.triggers) != JSON.stringify(snapState.getTriggers())) {
-        snapState.setTriggers(jsonConfig.triggers);
-        updateSnapTable = true;
+    if (jsonConfig.snapTriggerSources != undefined) {
+        snapState.setTriggers(jsonConfig.snapTriggerSources);
     }
-    if (jsonConfig.preTriggerMilliSec != snapState.getPreTriggerMilliSec()) {
-        snapState.setPreTriggerMilliSec(jsonConfig.preTriggerMilliSec);
-        updateSnapTable = true;
+    if (jsonConfig.snapPreTrigger != undefined) {
+        snapState.setPreTriggerMilliSec(jsonConfig.snapPreTrigger);
     }
-    if (jsonConfig.postTriggerMilliSec != snapState.getPostTriggerMilliSec()) {
-        snapState.setPostTriggerMilliSec(jsonConfig.postTriggerMilliSec);
-        updateSnapTable = true;
+    if (jsonConfig.snapPostTrigger != undefined) {
+        snapState.setPostTriggerMilliSec(jsonConfig.snapPostTrigger);
     }
-    if (jsonConfig.snapState != snapState.getSnapState()) {
-        snapState.setSnapState(jsonConfig.snapState);
+    if (jsonConfig.snapTrigger != undefined) {
+        snapState.setTriggerState(jsonConfig.snapTrigger);
     }
-    if (jsonConfig.triggerState != snapState.getTriggerState()) {
-        snapState.setTriggerState(jsonConfig.triggerState);
-        updateSnapTable = true;
+    if (jsonConfig.snapFormats != undefined) {
+        snapState.setFileFormats(jsonConfig.snapFormats);
     }
-    if (jsonConfig.currentSizeMbytes != snapState.getCurrentSize()) {
-        snapState.setCurrentSize(jsonConfig.currentSizeMbytes);
-        updateSnapTable = true;
-    }
-    if (jsonConfig.expectedSizeMbytes != snapState.getExpectedSize()) {
-        snapState.setExpectedSize(jsonConfig.expectedSizeMbytes);
-        updateSnapTable = true;
-    }
-    if (jsonConfig.file_format != snapState.getFileFormat()) {
-        snapState.setFileFormat(jsonConfig.file_format);
+    if (jsonConfig.snapFormat != undefined) {
+        snapState.setFileFormat(jsonConfig.snapFormat);
     }
 
     // just on size discrepancy for now
-    if(!(jsonConfig.directory_list.length === snapState.directoryList.length)) {
-        snapState.setDirectoryList(jsonConfig.directory_list);
-        updateSnapTable = true;
+    if(jsonConfig.snaps != undefined) {
+        snapState.setDirectoryList(jsonConfig.snaps);
     }
-    return updateSnapTable;
-}
-
-snapState.prototype.getResetSnapStateUpdated = function() {
-    let state = this.snapStateUpdated;
-    if (state) {
-        this.snapStateUpdated = false;
-    }
-    return state;
-}
-snapState.prototype.setSnapStateUpdated = function() {
-    this.snapStateUpdated = true;
-}
-snapState.prototype.getSnapStateUpdated = function() {
-    return this.snapStateUpdated;
 }
 
 function handleSnapTrigger() {
-    snapState.setSnapState("start");
-    snapState.setSnapStateUpdated();
+    fetch("./snapshot/snapTrigger", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"snapTrigger":true})
+    }).then(response => {
+        return response.json();
+    });
 }
 function handleSnapBaseNameChange(name) {
+    fetch("./snapshot/snapName", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"snapName":(name)})
+    }).then(response => {
+        return response.json();
+    });
     snapState.setBaseName(name);
-    snapState.setSnapStateUpdated();
 }
 function handleSnapTriggerModeChange(triggerType) {
+    fetch("./snapshot/snapTriggerSource", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"snapTriggerSource":(triggerType)})
+    }).then(response => {
+        return response.json();
+    });
     snapState.setTriggerType(triggerType);
-    snapState.setSnapStateUpdated();
 }
 function handleSnapPreTriggerChange(millisec) {
+    fetch("./snapshot/snapPreTrigger", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"snapPreTrigger":(millisec)})
+    }).then(response => {
+        return response.json();
+    });
     snapState.setPreTriggerMilliSec(millisec);
-    snapState.setSnapStateUpdated();
 }
 function handleSnapPostTriggerChange(millisec) {
+    fetch("./snapshot/snapPostTrigger", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"snapPostTrigger":(millisec)})
+    }).then(response => {
+        return response.json();
+    });
     snapState.setPostTriggerMilliSec(millisec);
-    snapState.setSnapStateUpdated();
 }
 function handleSnapFileFormatChange(fileFormat) {
+    fetch("./snapshot/snapFormat", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"snapFormat":(fileFormat)})
+    }).then(response => {
+        return response.json();
+    });
     snapState.setFileFormat(fileFormat);
-    snapState.setSnapStateUpdated();
 }
 
 
 function snapState() {
-    this.type = "snapUpdate";
-    this.snapStateUpdated = false;
-
     this.baseFilename = "";
-    this.snapState = ""; // start to trigger
     this.preTriggerMilliSec = 0;
     this.postTriggerMilliSec = 0;
-    this.triggerState = "0";
+    this.triggerState = false;
     this.triggerType = "0";
     this.triggers = [];
     this.snapCurrentSize = 0;
     this.snapExpectedSize = 0;
     this.directoryList = [];
     this.deleteFileName = "";
-    this.fileFormat = "bin";
+    this.fileFormats = [];
+    this.fileFormat = "";
 }

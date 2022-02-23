@@ -81,7 +81,7 @@ class FileOutput:
 
     def get_current_size_mbytes(self) -> float:
         # 8bytes per sample
-        return (8*(self._post_data_samples + self._pre_data_samples)) / (1024*1024)
+        return (8 * (self._post_data_samples + self._pre_data_samples)) / (1024 * 1024)
 
     def get_size_mbytes(self) -> float:
         return (8 * self._max_total_samples) / (1024 * 1024)
@@ -122,7 +122,6 @@ class FileOutput:
                 filename += ".wav"
 
             path_and_filename = pathlib.PurePath(self._base_directory, filename)
-
             try:
                 if self._wav_flag:
                     file = wave.open(str(path_and_filename), "wb")
@@ -186,7 +185,6 @@ class FileOutput:
         :return: None
         """
         end = False
-
         if not self._triggered:
             if trigger:
                 self._start(time_rx_nsec)  # sets self._triggered

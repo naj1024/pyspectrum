@@ -132,7 +132,7 @@ class FileMetaData:
             if sample_width == 2 and data_type == wave.WAVE_FORMAT_PCM:
                 data_type = "16tle"  # wav files are little endian
             elif sample_width == 4 and data_type == wave.WAVE_FORMAT_IEEE_FLOAT:
-                # assume we wrote the file so it will be 32fle
+                # assume (!) we wrote the file so it will be 32fle
                 # wav module has no support for determining the format
                 data_type = "32fle"  # wav files are little endian
             else:
@@ -140,6 +140,8 @@ class FileMetaData:
                 logger.error(msgs)
                 raise ValueError(msgs)
 
+            # extract the cf from the filename if present
+            ok, _, _, _, cf = parse_filename(self._filename)
             sps = file.getframerate()
             ok = True
             wav_file = True

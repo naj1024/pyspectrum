@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 
 import asyncio
+import logging
 import multiprocessing
 import os
 import pathlib
 import queue
 import struct
-import logging
 import time
 from builtins import Exception
 
 import websockets
 from websockets import WebSocketServerProtocol
+
 from misc import global_vars
 
 # for logging in the webSocket
@@ -25,31 +26,28 @@ class WebSocketServer(multiprocessing.Process):
 
     def __init__(self,
                  to_ui_queue: multiprocessing.Queue,
-                 to_ui_control_queue: multiprocessing.Queue,
-                 from_ui_queue: multiprocessing.Queue,
                  log_level: int,
-                 websocket_port: int):
+                 websocket_port: int,
+                 config: dict):
         """
         Configure the basics of this class
 
         :param to_ui_queue: we will receive structured spectrum data from this queue
-        :param to_ui_control_queue: we will receive structured control data from this queue
-        :param from_ui_queue: Future use as data to be sent back from whatever UI will hang of us
         :param log_level: The logging level we wish to use
         :param websocket_port: The port the web socket will be on
         """
         multiprocessing.Process.__init__(self)
         self._to_ui_queue = to_ui_queue
-        self._to_ui_control_queue = to_ui_control_queue
-        self._from_ui_queue = from_ui_queue
         self._port = websocket_port
         self._exit_now = False
         self._log_level = log_level
 
-    def exit_loop(self) -> None:
+    def shutdown(self) -> None:
+        logger.debug("WebSocketServer Shutting down")
         self._exit_now = True
         # https://www.programcreek.com/python/example/94580/websockets.serve example 5
         asyncio.get_event_loop().call_soon_threadsafe(asyncio.get_event_loop().stop)
+        logger.debug("WebSocketServer shutdown")
 
     def run(self):
         """
@@ -91,10 +89,9 @@ class WebSocketServer(multiprocessing.Process):
 
     async def handler(self, web_socket: WebSocketServerProtocol, path: str):
         """
-        Handle both Rx and Tx to the client on of the websocket
+        Handle Tx to the client on the websocket
 
         Tx goes from us (_data_queue) to the web client
-        Rx comes from the web client to us (_control_queue)
 
         :param web_socket:
         :param path: Not used, default is '/'
@@ -106,36 +103,13 @@ class WebSocketServer(multiprocessing.Process):
 
         tx_task = asyncio.ensure_future(
             self.tx_handler(web_socket))
-        rx_task = asyncio.ensure_future(
-            self.rx_handler(web_socket))
         done, pending = await asyncio.wait(
-            [tx_task, rx_task],
+            [tx_task],
             return_when=asyncio.FIRST_COMPLETED,
         )
         for task in pending:
             task.cancel()
         logger.info(f"WebSocket exited serving client {client} {path}")
-
-    async def rx_handler(self, web_socket: WebSocketServerProtocol):
-        """
-        Receive JSON data from the UI client
-
-        :param web_socket: The client connection
-        :return: None
-        """
-
-        client = web_socket.remote_address[0]
-        logger.info(f"web socket Rx for client {client}")
-        try:
-            async for message in web_socket:
-                try:
-                    self._from_ui_queue.put(message, timeout=0.1)
-                except queue.Full:
-                    print("Failed in websocketserver to put onto from_ui_queue")
-                    pass
-
-        except Exception as msg:
-            logger.error(f"WebSocket socket Rx exception for {client}, {msg}")
 
     async def tx_handler(self, web_socket: WebSocketServerProtocol):
         """
@@ -153,14 +127,6 @@ class WebSocketServer(multiprocessing.Process):
         # we force an exit
         try:
             while not self._exit_now:
-                # check for control messages first
-                try:
-                    state = self._to_ui_control_queue.get(block=False)
-                    if state:
-                        await web_socket.send(state)  # it is json
-                except queue.Empty:
-                    pass
-
                 # timeout on queue read so we can, if we wanted to, exit our forever loop
                 try:
                     sps, centre, magnitudes, time_start, time_end = self._to_ui_queue.get(timeout=0.1)

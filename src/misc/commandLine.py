@@ -112,7 +112,7 @@ def parse_command_line(configuration: SdrVariables, logger: logging.Logger) -> N
         configuration.sample_type = args['type']
 
     # allow for conversion frequency
-    configuration.real_centre_frequency_hz = configuration.centre_frequency_hz + configuration.conversion_frequency_hz
+    configuration.sdr_centre_frequency_hz = configuration.centre_frequency_hz - configuration.conversion_frequency_hz
 
     if args['input'] is not None:
         full_source_name = args['input']

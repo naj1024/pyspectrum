@@ -5,8 +5,8 @@ Passed to the UI as a jason string when required
 """
 
 import json
-import pathlib
 import os
+import pathlib
 
 from misc import global_vars
 
@@ -21,7 +21,6 @@ class SnapVariables:
         self.type = "snap"  # for use by javascript to distinguish control types
 
         self.baseFilename = "snap"
-        self.snapState = "stop"  # start, stop
         self.preTriggerMilliSec = 1000  # milliseconds of capture before a trigger event
         self.postTriggerMilliSec = 1000  # milliseconds of capture after a trigger event
         self.triggerState = "wait"  # "wait", "triggered"
@@ -36,6 +35,7 @@ class SnapVariables:
         self.sps = 0
 
         self.max_file_size = 500000000  # This is held in memory until the end when it is written out
+        self.file_formats = ['bin', 'wav']
         self.file_format = "bin"
         self.directory_list = []  # each entry will be name, date, sizeMbytes
 
