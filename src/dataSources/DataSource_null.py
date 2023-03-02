@@ -44,7 +44,7 @@ class Input(DataSource.DataSource):
         """
         super().__init__(source, data_type, sample_rate, centre_frequency, input_bw)
 
-        self._connected = True
+        self._connected = False
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 

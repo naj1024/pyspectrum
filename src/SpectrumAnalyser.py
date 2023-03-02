@@ -81,11 +81,8 @@ def main() -> None:
     multip_config = manager.dict()
 
     # all our things
-    data_source, display, websocket, to_ui_queue, processor, \
-    plugin_manager, source_factory, pic_generator, multip_config = initialise(configuration,
-                                                                              snap_configuration,
-                                                                              thumbs_dir,
-                                                                              multip_config)
+    data_source, display, websocket, to_ui_queue, processor, plugin_manager, source_factory, pic_generator, \
+        multip_config = initialise(configuration, snap_configuration, thumbs_dir, multip_config)
 
     # the snapshot config
     snap_configuration.cf = configuration.centre_frequency_hz
@@ -137,10 +134,17 @@ def main() -> None:
         # Get and process the complex samples we will work on
         ######################
         try:
-            time_start = time.perf_counter()
-            samples, time_rx_nsec = data_source.read_cplx_samples(configuration.fft_size)
-            time_end = time.perf_counter()
-            configuration.input_overflows = data_source.get_overflows()
+            if not configuration.stop:
+                time_start = time.perf_counter()
+                samples, time_rx_nsec = data_source.read_cplx_samples(configuration.fft_size)
+                time_end = time.perf_counter()
+                configuration.input_overflows = data_source.get_overflows()
+            else:
+                samples = None
+
+            # stop doing cpu heavy things if we are told to stop
+            #if configuration.stop:
+            #    samples = None
 
             if samples is None:
                 time.sleep(0.001)  # rate limit on trying to get samples
@@ -148,8 +152,7 @@ def main() -> None:
                 _ = capture_time.average(time_end - time_start)
                 # read ratio will be > 1.0 if we take longer to get samples than we expect
                 # it should be less than we expect as the driver will be getting samples while we do other things
-                configuration.read_ratio = (
-                                                       configuration.sample_rate * capture_time.get_ewma()) / configuration.fft_size
+                configuration.read_ratio = (configuration.sample_rate * capture_time.get_ewma()) / configuration.fft_size
 
                 # record start time so we can average how long processing is taking
                 time_start = time.perf_counter()
@@ -282,7 +285,7 @@ def main() -> None:
             sdrStuff.update_source_state(configuration, data_source)
             config_time = now + 1
             total_time = process_time.get_ewma() + analysis_time.get_ewma() + reporting_time.get_ewma() + \
-                         snap_time.get_ewma() + ui_time.get_ewma()
+                            snap_time.get_ewma() + ui_time.get_ewma()
             data_time = (configuration.fft_size / configuration.sample_rate)
             configuration.headroom = 100.0 * (data_time - total_time) / data_time
 
@@ -410,11 +413,12 @@ def initialise(configuration: SdrVariables, snap_config: SnapVariables, thumbs_d
                  PicGenerator.PicGenerator,
                  dict]:
     """
-    Initialise everything we need
+     Initialise everything we need
 
-    :param configuration: How we will be configured
+    :param configuration: main config options
+    :param snap_config: snapshot config options
     :param thumbs_dir: Where the picture generator will store thumbnails
-    :param dddd: dictionary of configuration items
+    :param config: dictionary shared for multi-processing use
     :return: Lots
     """
     try:
@@ -435,7 +439,7 @@ def initialise(configuration: SdrVariables, snap_config: SnapVariables, thumbs_d
         display.start()
         logger.debug(f"Started WebServer, {display}")
 
-        web_socket = WebSocketServer.WebSocketServer(to_ui_queue, logger.level, configuration.web_port + 1, config)
+        web_socket = WebSocketServer.WebSocketServer(to_ui_queue, logger.level, configuration.web_port + 1)
         web_socket.start()
         logger.debug(f"Started WebSocket, {web_socket}")
 
@@ -475,7 +479,7 @@ def fill_config_fast(config: dict, configuration: SdrVariables, snap_config: Sna
 
     # control stuff
     config['fps'] = ({'set': configuration.fps,
-                                'measured': configuration.measured_fps})
+                      'measured': configuration.measured_fps})
     config['stop'] = configuration.stop
     config['delay'] = configuration.ui_delay
     config['readRatio'] = configuration.read_ratio
@@ -556,6 +560,19 @@ def sync_config(configuration: SdrVariables,
                 processor: ProcessSamples,
                 conf: dict,
                 config_changed: bool):
+    """
+
+    :param configuration: config
+    :param snap_configuration: config
+    :param data_source: the current data source
+    :param source_factory: for generating a new source
+    :param snap_sink: the sink used for snapshots
+    :param thumb_dir: Thumbnail directory
+    :param processor: the current processor (fft's)
+    :param conf: dictionary for sharing to mulit-processing
+    :param config_changed: something has changed
+    :return:
+    """
     # -> Tuple[Type[DataSource.DataSource], DataSink_file.FileOutput,
     #                             SdrVariables, SnapVariables]:
     # conf  multiprocessing dictionary
@@ -586,7 +603,8 @@ def sync_config(configuration: SdrVariables,
         configuration.ackTime = conf['ackTime']
 
     freq = conf['frequency']
-    if freq['value'] != configuration.centre_frequency_hz or freq['conversion'] != configuration.conversion_frequency_hz:
+    if freq['value'] != configuration.centre_frequency_hz \
+            or freq['conversion'] != configuration.conversion_frequency_hz:
         new_sdr_cf = freq['value']
         new_dc = freq['conversion']
         if 0 < new_dc < new_sdr_cf:
@@ -616,6 +634,10 @@ def sync_config(configuration: SdrVariables,
         data_source.set_sample_rate_sps(conf['digitiserSampleRate'])
         SdrVariables.add_to_error(configuration, data_source.get_and_reset_error())
         configuration.sample_rate = data_source.get_sample_rate_sps()
+        config_changed = True
+
+    if conf['stop'] != configuration.stop:
+        configuration.stop = conf['stop']
         config_changed = True
 
     if conf['fftWindow'] != configuration.window:
@@ -712,7 +734,7 @@ def send_to_ui(configuration: SdrVariables,
     :param peak_powers_since_last_display: The powers since we last updated the UI
     :param current_peak_count: count of spectrums we have peak held on
     :param max_peak_count: maximum since last time it was reset
-    :param time_spectrum: Time of this spectrum in nano seconds
+    :param time_spectrum: Time of this spectrum in nanoseconds
     :return: array of updated peak powers
     """
 

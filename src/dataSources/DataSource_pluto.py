@@ -22,9 +22,10 @@ NOTE:
         self._set_iio_dev_attr_str("xo_correction", value)
 """
 
-import numpy as np
-from typing import Tuple
 import logging
+from typing import Tuple
+
+import numpy as np
 
 from dataSources import DataSource
 

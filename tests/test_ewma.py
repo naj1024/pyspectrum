@@ -1,4 +1,3 @@
-
 import pytest
 
 from misc import Ewma

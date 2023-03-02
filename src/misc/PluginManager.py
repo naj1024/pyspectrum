@@ -4,9 +4,9 @@ A manager for the plugins
   From Pro Python System Administration by Rytis Sileika
 """
 
-import sys
-import os
 import logging
+import os
+import sys
 
 logger = logging.getLogger('spectrum_logger')
 

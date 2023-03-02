@@ -1,6 +1,6 @@
+from numpy import allclose
 from numpy import array
 from numpy import complex64
-from numpy import allclose
 
 from dataProcessing import Spectrum
 

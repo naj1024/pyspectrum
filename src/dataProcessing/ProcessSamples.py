@@ -1,10 +1,12 @@
-import numpy as np
-from typing import List
 import logging
-# import line_profiler
+from typing import List
+
+import numpy as np
 
 from dataProcessing import Spectrum
 from misc import SdrVariables
+
+# import line_profiler
 
 logger = logging.getLogger('spectrum_logger')
 

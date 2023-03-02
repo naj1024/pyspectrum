@@ -258,7 +258,8 @@ class Control(Resource):
 
     def get(self, thing):
         try:
-            allowed = ['presetFps', 'fps', 'stop', 'fpsMeasured', 'delay', 'readRatio', 'headroom', 'overflows', 'oneInN']
+            allowed = ['presetFps', 'fps', 'stop', 'fpsMeasured', 'delay', 'readRatio', 'headroom', 'overflows',
+                       'oneInN']
             if thing in allowed:
                 return jsonify({thing: self._config[thing]})
         except KeyError:
@@ -270,14 +271,11 @@ class Control(Resource):
             if thing == 'stop':
                 self._config[thing] = request.json[thing]
             if thing == 'fps':
-                set = abs(int(request.json[thing]['set']))
+                set_fps = abs(int(request.json[thing]['set']))
                 measured = self._config['fps']['measured']
-                self._config[thing] = {'set': set, 'measured': measured}
+                self._config[thing] = {'set': set_fps, 'measured': measured}
                 return "ok"
             elif thing == 'ackTime':
-                self._config[thing] = request.json[thing]
-                return "ok"
-            elif thing == 'stop':
                 self._config[thing] = request.json[thing]
                 return "ok"
         except (KeyError, ValueError):

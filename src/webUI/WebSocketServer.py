@@ -27,8 +27,7 @@ class WebSocketServer(multiprocessing.Process):
     def __init__(self,
                  to_ui_queue: multiprocessing.Queue,
                  log_level: int,
-                 websocket_port: int,
-                 config: dict):
+                 websocket_port: int):
         """
         Configure the basics of this class
 

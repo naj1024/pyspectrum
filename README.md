@@ -1,4 +1,4 @@
-# A Python/webUI RF spectrum analyser 
+# A Python/webUI RF spectrum analyser
 
 Support for rtlsdr, pluto, funcube, sdrplay (soapy), audio, socket, file.
 
@@ -6,33 +6,35 @@ Support for rtlsdr, pluto, funcube, sdrplay (soapy), audio, socket, file.
 
 * Python processing.
 * Web javascript UI.
-* Spectrums are done at the sample rate. 
+* Spectrums are done at the sample rate.
 * Useful for detecting short bursting signals.
 * Plugin architecture for sources and analysis of spectrums.
 * Snapshot file upon an event, currently a manual trigger.
 * Has a web based UI that can be used to take measurements on the spectrum.
 * Processing runs with no web client attached.
 
-This was an exercise in writing some python which expanded into providing a web based UI. 
-The fft computations are done by libraries in Python, so not the fastest.
+This was an exercise in writing some python which expanded into providing a web based UI. The fft computations are done
+by libraries in Python, so not the fastest.
 
-If you have some sort of sdr working with other tools then after installing the required
-python dependencies it should just work.
+If you have some sort of sdr working with other tools then after installing the required python dependencies it should
+just work.
 
-Performance depends on your machine and how the supporting fft libraries were compiled. 
-I have certainly kept up with streams of data at over 3Msps.
+Performance depends on your machine and how the supporting fft libraries were compiled. I have certainly kept up with
+streams of data at over 3Msps.
 
 ## Input modules:
-* audio       - Useful for testing
-* file        - wav and raw binary supported, all files must be in the snapshot directory
+
+* audio - Useful for testing
+* file - wav and raw binary supported, all files must be in the snapshot directory
 * pluto (IP)  - Analog devices pluto SDR, 70MHz to 6GHz with wide open front end
-* rtlsdr      - USB source
-* rtltcp      - rtl over tcp
-* socket      - A stream of IQ samples
-* funcube     - Pro and pro+ as audio devices, hid control supported in Linux only
-* soapy       - Support for sdrplay under Linux
+* rtlsdr - USB source
+* rtltcp - rtl over tcp
+* socket - A stream of IQ samples
+* funcube - Pro and pro+ as audio devices, hid control supported in Linux only
+* soapy - Support for sdrplay under Linux
 
 ## Input data IQ types:
+
 * 8bit offset binary
 * 8bit 2's complement
 * 16bit 2's complement little endian (x86)
@@ -41,10 +43,12 @@ I have certainly kept up with streams of data at over 3Msps.
 * 32bit ieee float big endian
 
 ## Problems
+
 * If the programme exceptions immediately, check the dependencies.
 * funcube will exception under windows when closed, which we do when changing the source
 
 ## Installation - windows
+
 Should be similar to the linux install, but
 
 * No support for hid control of funcube, we can stream samples but not control the device.
@@ -65,10 +69,11 @@ I'm using pipenv for a virtual environment.
     pip install -r ./pyspectrum/src/requirements.txt
 
 Run, then connect to localhost:8080 in a browser
-    
+
     python3 ./pyspectrum/src/SpectrumAnalyser.py
 
 # Soapy support - linux
+
 The easiest way to get SoapySDR support is to install it from your distributions repository
 
     apt install python3-soapysdr
@@ -79,19 +84,21 @@ then copy to your virtual environment, say it is called sid-xxxx
     cp /usr/lib/python3/dist-packages/SoapySDR.py ~/.local/share/virtualenvs/sid-xxxx/lib/python3.9/site-packages/
     cp /usr/lib/python3/dist-packages/_SoapySDR.cpython-39-x86_64-linux-gnu.so ~/.local/share/virtualenvs/sid-xxxx/lib/python3.9/site-packages/
 
-
 ## TODO
+
 * hackrf input would be nice to try, don't have one :(
 * Detect and record automatically
 
 ## Tested with the following:
+
     Windows: audio, file, pluto, rtlsdr, rtltcp, socket, funcube
     Linux  : audio, file, pluto, rtlsdr, rtltcp, socket, funcube
              soapy(audio, rtlsdr, sdrplay)
     
     On windows make sure you have the correct rlibrtlsdr.dll for your python 32bit/64bit
-        
+
 ## Examples
+
 Some examples for running from command line
 
     python ./SpectrumAnalyser.py         - Then goto http://127.0.0.1:8080 and configure the source
@@ -118,7 +125,6 @@ Some default input selections, you normally select through web interface:
       python ./src/SpectrumAnalyser.py -isoapy:audio -s48000 -c0  - soapy input
       python ./src/SpectrumAnalyser.py -isoapy:sdrplay -s2e6 c433.92e6 
 
-
 ## Dependencies
 
 The following python modules should be installed. Optional ones provide specific capabilities.
@@ -143,9 +149,10 @@ The following python modules should be installed. Optional ones provide specific
         hid         - funcube control through usb hid, linux only?
 
 ## AD936x pluto XO support
-We can add support for pluto frequency correction in ppm by adding the following to the file ad936x.py when 
-pyadi-iio is installed. You should find the ad936x.py file under the adi directory in the site packages
-traversed by your environment. Insert the lines in the ad9364 class definitions.
+
+We can add support for pluto frequency correction in ppm by adding the following to the file ad936x.py when pyadi-iio is
+installed. You should find the ad936x.py file under the adi directory in the site packages traversed by your
+environment. Insert the lines in the ad9364 class definitions.
 
     @property
     def xo_correction(self):

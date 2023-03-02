@@ -4,14 +4,14 @@ Audio input wrapper
 We expect a stereo input with something external doing a proper IQ split and feeding the left/right audio
 inputs.
 
-Configuring the blocksize seems critical, if it is widely different from the wanted fft size then under
+Configuring the block size seems critical, if it is widely different from the wanted fft size then under
 Windows we can just exit python with no exceptions, just a null ptr error code
 
 If we have a mono input we duplicate each sample into both I and Q samples
 """
 
-import queue
 import logging
+import queue
 import time
 from typing import Tuple
 
@@ -189,7 +189,7 @@ class Input(DataSource.DataSource):
             # can't find min/max sample rate allowed so just catch the exception
             sd.check_input_settings(device=self._device_number, samplerate=self._sample_rate_sps)
         except sd.PortAudioError:
-            self._error += f"Unsupported audio source sample rate {self._sample_rate_sps/1e6}Msps, setting 0.048Msps"
+            self._error += f"Unsupported audio source sample rate {self._sample_rate_sps / 1e6}Msps, setting 0.048Msps"
             logger.error(self._error)
             self._sample_rate_sps = 48000.0
 
@@ -207,7 +207,7 @@ class Input(DataSource.DataSource):
 
         # read blocks until we have at least the required number of samples
         samples_got = 0
-        max_wait_count =  ( (5 * self._sample_rate_sps) / num_samples)  # 5 seconds max wait
+        max_wait_count = ((5 * self._sample_rate_sps) / num_samples)  # 5 seconds max wait
         empty_count = max_wait_count
         while samples_got < num_samples:
             try:

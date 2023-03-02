@@ -2,10 +2,10 @@
 File input class
 
 """
+import logging
 import os
 import pathlib
 import time
-import logging
 from typing import Tuple
 
 import numpy as np
@@ -55,7 +55,7 @@ class Input(DataSource.DataSource):
         self._sleep = True  # may want to read file as fast as possible
         self._samples_time_ns = 0.0  # how long these samples should take to arrive
 
-        self._has_meta_data = True  ## assume that we will know the sample type etc of the file
+        self._has_meta_data = True  # assume that we will know the sample type etc of the file
 
         try:
             self._create_time = time.time_ns()

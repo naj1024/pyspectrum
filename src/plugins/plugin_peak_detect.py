@@ -1,7 +1,7 @@
-from typing import Tuple
-from typing import List
-import textwrap
 import logging
+import textwrap
+from typing import List
+from typing import Tuple
 
 import numpy as np
 

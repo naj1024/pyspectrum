@@ -113,10 +113,10 @@ FUNcube pro ?
        bInterval        :    0x1
 """
 
-import queue
 import logging
-import time
 import platform  # for detecting windows, as my portaudio core dumps on close (stop() actually does it)
+import queue
+import time
 from typing import Tuple
 
 import numpy as np
@@ -438,4 +438,3 @@ class Input(DataSource.DataSource):
             self._overflows += DataSource.read_and_reset_overflow()
 
         return complex_data, rx_time
-

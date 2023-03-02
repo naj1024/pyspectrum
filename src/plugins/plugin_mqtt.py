@@ -1,9 +1,8 @@
+import json
+import logging
+import textwrap
 import time
 from typing import List
-import textwrap
-import logging
-
-import json
 
 from misc.PluginManager import Plugin
 

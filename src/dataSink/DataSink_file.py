@@ -111,10 +111,10 @@ class FileOutput:
         """
         if len(self._complex_post_data):
             then = int(self._start_time_nsec / 1e9)
-            fract_sec = (self._start_time_nsec / 1e9) - then
+            fractional_sec = (self._start_time_nsec / 1e9) - then
             date_time = datetime.datetime.utcfromtimestamp(then).strftime('%Y-%m-%d_%H-%M-%S')
-            fract_sec = str(round(fract_sec, 3)).lstrip('0')
-            filename = self._base_filename + f".{date_time}{fract_sec}" \
+            fractional_sec = str(round(fractional_sec, 3)).lstrip('0')
+            filename = self._base_filename + f".{date_time}{fractional_sec}" \
                                              f".cf{self._centre_freq_hz / 1e6:.6f}" \
                                              f".cplx.{self._sample_rate_sps:.0f}.32fle"
 

@@ -9,11 +9,10 @@ The png filename will be the input filename with .png appended
 import os
 import pathlib
 
-from dataProcessing import Spectrum
-from dataSources import DataSource_file
-
 import numpy as np
 
+from dataProcessing import Spectrum
+from dataSources import DataSource_file
 
 # may not have matplotlib, broken matplotlib on ubuntu 20.04 LTS
 try:

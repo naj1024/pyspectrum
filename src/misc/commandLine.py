@@ -1,12 +1,12 @@
 import argparse
+import logging
 import os
 import textwrap
-import logging
 
-from misc import SdrVariables
-from dataSources import DataSourceFactory
 from dataSources import DataSource
+from dataSources import DataSourceFactory
 from misc import PluginManager
+from misc import SdrVariables
 from misc import timeSpectral
 
 

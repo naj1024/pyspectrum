@@ -43,9 +43,9 @@ the device. Each buffer is 128k complex samples (256k bytes):
         }
 """
 
+import logging
 import socket
 import struct
-import logging
 from typing import Tuple
 
 import numpy as np
@@ -108,7 +108,7 @@ class Input(DataSource.DataSource):
             return False
 
         parts = self._source.split(':')
-        if len(parts) <= 2:
+        if len(parts) < 2:
             raise ValueError("input specification does not contain two colon separated items, "
                              f"{self._source}")
         self._ip_address = parts[0]

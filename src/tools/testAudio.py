@@ -1,8 +1,8 @@
 import queue
 import time
 
-import sounddevice as sd
 import numpy as np
+import sounddevice as sd
 
 deviceA = 0
 audio_q = queue.Queue(3)

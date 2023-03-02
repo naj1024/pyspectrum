@@ -13,8 +13,8 @@ Returns the open file and the associated metadata
 
 """
 import logging
-from typing import Tuple
 from io import TextIOWrapper
+from typing import Tuple
 
 from misc import wave_b as wave
 
@@ -168,7 +168,6 @@ class FileMetaData:
                     # don't log these as the picture generator will keep trying
                     # msgs = f"No meta data recovered for raw binary file {self._filename}"
                     # logger.warning(msgs)
-
 
             except OSError as e:
                 msgs = f"Failed to open file {self._filename}, {e}"

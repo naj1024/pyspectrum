@@ -1,6 +1,6 @@
 import logging
-import time
 import threading
+import time
 from typing import List
 
 import numpy as np
@@ -14,7 +14,6 @@ import_error_msg = ""
 logger = logging.getLogger('spectrum_logger')
 
 supported_data_types = ["8t", "8o", "16tbe", "16tle", "32fle", "32fbe"]
-
 
 overflow_lock = threading.Lock()
 overflow_count = 0
@@ -58,7 +57,7 @@ class DataSource:
         """
         A wrapper around different types of data source that we may wish to have
 
-        Creating a source dpoes not start the connection. We need to be able to detect errors on connecting
+        Creating a source will not start the connection. We need to be able to detect errors on connecting
         to a source. So the creation must not fail. When we open the device we may fail
 
         :param source: This source name is meaningful to the DataSource only

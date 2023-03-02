@@ -1,11 +1,11 @@
-import time
 import random
+import time
 
 import numpy as np
 
-from misc import SdrVariables
-from dataSources import DataSource
 from dataProcessing import ProcessSamples
+from dataSources import DataSource
+from misc import SdrVariables
 
 
 def time_spectral(configuration: SdrVariables):

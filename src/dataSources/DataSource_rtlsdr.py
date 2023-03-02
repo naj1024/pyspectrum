@@ -36,7 +36,6 @@ allowed_tuner_types = {0: "Unknown",
                        5: "R820T",
                        6: "R828D"}
 
-
 try:
     import_error_msg = ""
     from rtlsdr import RtlSdr
@@ -154,7 +153,7 @@ class Input(DataSource.DataSource):
             except Exception:
                 pass
         if devices == "":
-            devices = f"No rtlsdr devices found, scanned 0 to {max_device-1}"
+            devices = f"No rtlsdr devices found, scanned 0 to {max_device - 1}"
         print(devices)
         return devices
 

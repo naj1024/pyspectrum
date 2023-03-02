@@ -963,7 +963,7 @@ function syncCurrentFast() {
     fetch('./control/oneInN').then(function (response) {
         return response.json();
     }).then(function (obj) {
-        $('#currentOneInN').empty().append(obj.oneInN.toFixed(1));
+        $('#currentOneInN').empty().append(obj.oneInN.toFixed(1)+" traces");
     }).catch(function (error) {
     });
 

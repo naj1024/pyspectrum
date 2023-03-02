@@ -1,18 +1,21 @@
-import time
-import os
-from typing import List
 import logging
-# import line_profiler
+import os
+import time
+from typing import List
 
 import numpy as np
+
+# import line_profiler
 
 logger = logging.getLogger('spectrum_logger')
 
 try:
     import scipy
     from scipy import fftpack
+    from scipy import signal
 except ImportError:
     fftpack = None
+    signal = None
     logger.info("No scipy support in environment")
 
 try:
@@ -92,12 +95,16 @@ def get_powers(mag_squared: np.ndarray) -> np.ndarray:
     scale = 10 * np.log10(mag_squared.size)
     # should be 5 not 10 on the power as we have mag^2 not mag so 1/2 of 10
     # but that doesn't tie up with real spec analyser or other sdr ones
-    powers = 10 * np.log10(mag_squared) - scale  # dB and normalise to fft size
+    powers = 10 * np.log10(mag_squared) - scale  # dB and normalisation by fft size
     return powers
 
 
 def get_windows() -> []:
-    return ['Hamming', 'Hanning', 'Blackman', 'Kaiser_16', 'Bartlett', 'rectangular']
+    if fftpack:
+        return ['Hanning', 'flattop', 'Blackman', 'Bartlett', 'Kaiser_16', 'rectangular', 'Hamming']
+    else:
+        # no flat top
+        return ['Hanning', 'Blackman', 'Bartlett', 'Kaiser_16', 'rectangular', 'Hamming']
 
 
 class Spectrum:
@@ -115,26 +122,49 @@ class Spectrum:
         self.set_fft()
 
     def set_window(self, window: str) -> None:
-        if window in get_windows():
-            self._window_type = window
-            if self._window_type == 'Hamming':
-                self._win = np.hamming(self._fft_size)
-            elif self._window_type == 'Hanning':
-                self._win = np.hanning(self._fft_size)
-            elif self._window_type == 'Blackman':
-                self._win = np.blackman(self._fft_size)
-            elif self._window_type == 'Kaiser_16':
-                self._win = np.kaiser(self._fft_size, 16)
-            elif self._window_type == 'Bartlett':
-                self._win = np.bartlett(self._fft_size)
-            elif self._window_type == 'rectangular':
-                self._win = np.kaiser(self._fft_size, 0.0)
+        # window_gain_compensation values adjusted by matching the
+        # rectangular window average power on the spectrum
+        window_gain_compensation = 1.0
+        try:
+            if window in get_windows():
+                self._window_type = window
+                if self._window_type == 'rectangular':
+                    window_gain_compensation = 1.0 / 1.0
+                    self._win = np.kaiser(self._fft_size, 0.0)
+                elif self._window_type == 'flattop':
+                    if signal:
+                        window_gain_compensation = 1.0 / 0.4
+                        self._win = signal.windows.flattop(self._fft_size, False)
+                    else:
+                        raise ValueError()
+                elif self._window_type == 'Hanning':
+                    window_gain_compensation = 1.0 / 0.68
+                    self._win = np.hanning(self._fft_size)
+                elif self._window_type == 'Hamming':
+                    window_gain_compensation = 1.0 / 0.67
+                    self._win = np.hamming(self._fft_size)
+                elif self._window_type == 'Blackman':
+                    window_gain_compensation = 1.0 / 0.55
+                    self._win = np.blackman(self._fft_size)
+                elif self._window_type == 'Kaiser_16':
+                    window_gain_compensation = 1.0 / 0.48
+                    self._win = np.kaiser(self._fft_size, 16)
+                elif self._window_type == 'Bartlett':
+                    window_gain_compensation = 1.0 / 0.55
+                    self._win = np.bartlett(self._fft_size)
+                else:
+                    raise ValueError()
             else:
-                self._win = np.hamming(self._fft_size)  # silently use a default
-                self._window_type = "Hamming"
-        else:
-            self._window_type = "Hamming"
-            self._win = np.hamming(self._fft_size)  # silently use a default
+                raise ValueError()
+        except ValueError:
+            # default window is hanning
+            window_gain_compensation = 1.0 / 0.68
+            self._win = np.hanning(self._fft_size)
+            self._window_type = "Hanning"
+
+        # a window compensation value based on the sum of the windows terms does not work
+        # self._window_gain_compensation = 1 /(sum(self._win)/self._fft_size)
+        self._win *= window_gain_compensation
 
     def get_window(self) -> str:
         return self._window_type
@@ -190,7 +220,7 @@ class Spectrum:
             self._fft_size = complex_samples.size
             self.set_fft()
 
-        # normalisation by dividing by fft size not done here, faster elsewhere
+        # normalisation by dividing by fft size not done here, do it when we convert ot dB in get_powers()
         if self._use_scipy_fft:
             signals_fft = fftpack.fft(complex_samples * self._win)
         elif self._use_fftw_fft:
@@ -208,6 +238,7 @@ class Spectrum:
         # profiled and timed to find fastest way to get magnitude
         # magnitudes = abs(np.fft.fftshift(signals_fft))  # note this updates signals_fft as well
         # magnitudes = abs(signals_fft)  # note this updates signals_fft as well
+
         magnitudes_squared = (signals_fft * signals_fft.conj()).real
 
         return magnitudes_squared

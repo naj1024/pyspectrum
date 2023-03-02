@@ -1,6 +1,6 @@
+import logging
 import socket
 from typing import Tuple
-import logging
 
 import numpy as np
 

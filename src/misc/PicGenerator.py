@@ -6,12 +6,12 @@ This is a separate process that will run until the main program exits
 
 """
 
-import multiprocessing
 import logging
-import signal
-import time
+import multiprocessing
 import os
 import pathlib
+import signal
+import time
 
 from misc import SpectrumPicture
 from misc import global_vars
@@ -46,7 +46,7 @@ class PicGenerator(multiprocessing.Process):
 
     def run(self):
         global logger
-        log_file = pathlib.PurePath(os.path.dirname(__file__), "..", global_vars.log_dir, __name__+".log")
+        log_file = pathlib.PurePath(os.path.dirname(__file__), "..", global_vars.log_dir, __name__ + ".log")
         # define file handler and set formatter
         file_handler = logging.FileHandler(log_file, mode="w")
         formatter = logging.Formatter('%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
@@ -74,7 +74,7 @@ class PicGenerator(multiprocessing.Process):
                         filename = os.path.basename(path)
                         if not filename.startswith(".") and not filename.endswith("png"):
                             # if png does not exist then create one
-                            png_filename = pathlib.PurePath(path.parent, path.name+".png")
+                            png_filename = pathlib.PurePath(path.parent, path.name + ".png")
                             if not os.path.isfile(png_filename):
                                 try:
                                     _ = gen.create_picture(path)  # returns True if managed to create picture

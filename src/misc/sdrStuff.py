@@ -38,38 +38,38 @@ def create_source(configuration: SdrVariables, factory) -> DataSource:
     return data_source
 
 
-def open_source(configuration: SdrVariables, data_source: DataSource) -> None:
+def open_source(config: SdrVariables, data_source: DataSource) -> None:
     """
     Open the source, just creating a source will not open it as the creation cannot fail but the open can
 
-    :param configuration: Stores how the source is configured for our use
+    :param config: Stores how the source is configured for our use
     :param data_source: The source we will open
     :return: None
     """
     # few other things to configure first before the open()
-    data_source.set_gain_mode(configuration.gain_mode)
-    data_source.set_gain(configuration.gain)
+    data_source.set_gain_mode(config.gain_mode)
+    data_source.set_gain(config.gain)
 
     if data_source.open():
         # may have updated various things
-        configuration.sample_type = data_source.get_sample_type()
-        configuration.sample_rate = data_source.get_sample_rate_sps()
-        configuration.sdr_centre_frequency_hz = data_source.get_centre_frequency_hz()
-        configuration.centre_frequency_hz = configuration.sdr_centre_frequency_hz + configuration.conversion_frequency_hz
-        configuration.gain = data_source.get_gain()
-        configuration.gain_modes = data_source.get_gain_modes()
-        configuration.gain_mode = data_source.get_gain_mode()
-        configuration.input_bw_hz = data_source.get_bandwidth_hz()
+        config.sample_type = data_source.get_sample_type()
+        config.sample_rate = data_source.get_sample_rate_sps()
+        config.sdr_centre_frequency_hz = data_source.get_centre_frequency_hz()
+        config.centre_frequency_hz = config.sdr_centre_frequency_hz + config.conversion_frequency_hz
+        config.gain = data_source.get_gain()
+        config.gain_modes = data_source.get_gain_modes()
+        config.gain_mode = data_source.get_gain_mode()
+        config.input_bw_hz = data_source.get_bandwidth_hz()
         ppm = data_source.get_ppm()
         if ppm == 0.0:
-            data_source.set_ppm(configuration.ppm_error)
+            data_source.set_ppm(config.ppm_error)
         else:
-            configuration.ppm_error = ppm
+            config.ppm_error = ppm
 
             # state any errors or warning
-        configuration.source_connected = data_source.connected()
+        config.source_connected = data_source.connected()
 
-    SdrVariables.add_to_error(configuration, data_source.get_and_reset_error())
+    SdrVariables.add_to_error(config, data_source.get_and_reset_error())
 
 
 def update_source_state(configuration: SdrVariables, data_source: DataSource) -> None:

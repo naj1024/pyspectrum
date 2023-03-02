@@ -1,5 +1,6 @@
-from dataSources import DataSource_socket
 import pytest
+
+from dataSources import DataSource_socket
 
 
 def test_socket_connection_fails():

@@ -1,7 +1,7 @@
+import logging
+import textwrap
 import time
 from typing import List
-import textwrap
-import logging
 
 from misc.PluginManager import Plugin
 
