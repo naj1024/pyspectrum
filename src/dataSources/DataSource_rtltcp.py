@@ -43,9 +43,9 @@ the device. Each buffer is 128k complex samples (256k bytes):
         }
 """
 
-import logging
 import socket
 import struct
+import logging
 from typing import Tuple
 
 import numpy as np
@@ -156,7 +156,7 @@ class Input(DataSource.DataSource):
 
             # say what we want
             self.set_sample_rate_sps(int(self._sample_rate_sps))
-            self.set_center_frequency(int(self._centre_frequency_hz))
+            self.set_centre_frequency_hz(int(self._centre_frequency_hz))
             # not found a description of gain_mode / agc_mode ...
             self.set_tuner_gain_mode(1)
 
@@ -298,10 +298,13 @@ class Input(DataSource.DataSource):
         :param value: command value
         :return:  Number of bytes sent
         """
-        command = struct.pack('!BI', command & 0xff, value)  # command:bytes
-        return self._socket.sendall(command)
+        command = struct.pack('!BI', command & 0xff, int(value))  # command:bytes
+        ret = 0
+        if self._socket:
+            ret = self._socket.sendall(command)
+        return ret
 
-    def set_center_frequency(self, frequency: int) -> int:
+    def set_centre_frequency_hz(self, frequency: float) -> None:
         # limits depend on tuner type: from https://wiki.radioreference.com/index.php/RTL-SDR
         # Tuner 	             Frequency Range
         # =======================================
@@ -355,11 +358,9 @@ class Input(DataSource.DataSource):
             self._centre_frequency_hz = frequency
             if not self._hw_ppm_compensation:
                 frequency = self.get_ppm_corrected(frequency)
-            return self.send_command(0x01, frequency)
+            self.send_command(0x01, int(frequency))
 
-        return 0
-
-    def set_sample_rate_sps(self, sample_rate: int) -> int:
+    def set_sample_rate_sps(self, sample_rate: float) -> None:
         # rtlsdr has limits on allowed sample rates
         # from librtlsdr.c data_source.get_bytes_per_sample()
         # 	/* check if the rate is supported by the resampler */
@@ -376,7 +377,7 @@ class Input(DataSource.DataSource):
             sample_rate = int(1e6)
         self._sample_rate_sps = sample_rate
         logger.info(f"Set sample rate {sample_rate}sps")
-        return self.send_command(0x02, sample_rate)
+        self.send_command(0x02, int(sample_rate))
 
     def set_tuner_gain_mode(self, value: int) -> int:
         return self.send_command(0x03, value)
