@@ -7,7 +7,7 @@ logger = logging.getLogger('spectrum_logger')
 
 
 def change_source(data_source, source_factory, configuration: SdrVariables, source, params):
-    if source != "" and params != "":
+    if source != "":
         configuration.input_source = source
         configuration.input_params = params
         logger.info(f"changing source to '{configuration.input_source}' "

@@ -38,11 +38,40 @@ allowed_tuner_types = {0: "Unknown",
 
 try:
     import_error_msg = ""
-    from rtlsdr import RtlSdr
-except ImportError as msg:
+    # is the import likely to find its underlying library
+    from platform import system as _system
+    from ctypes.util import find_library
+    from os import environ
+
+    lib = "rtl"
+    found =  None
+    # Windows is a mess for rtl libraries, can be librtlsdr.dll or rtlsdr.dll
+    # rtlsdr for python expects rtlsdr.dll, for now - may change
+    # where it is located is a mystery, put in on your path in environment variables
+    if "Windows" in _system():
+        lib = "rtlsdr.dll"
+    found = find_library(lib)
+    if not found and "Windows" in _system():
+        # maybe it is librtlsdr.dll in windows
+        lib = "librtlsdr.dll"
+        found = find_library(lib)
+        if found:
+            mm = f"found {lib}, but this is not what the rtlsdr module requires, it expects rtlsdr.dll"
+            logger.error(mm)
+        mm = f"rtlsdr.dll search path was: {environ['PATH']}"
+        logger.error(mm)
+    if found:
+        from rtlsdr import RtlSdr
+    else:
+        mm = f"rtlsdr library search path was: {environ['PATH']}"
+        logger.error(mm)
+        mm = f"Can't find library {lib}"
+        raise ValueError(mm)
+
+except (ImportError, ValueError)  as msg:
     RtlSdr = None
-    import_error_msg = f"{module_type} source has an issue, " + str(msg)
-    logger.info(import_error_msg)
+    import_error_msg = f"{module_type} source has an issue: " + str(msg)
+    logger.error(import_error_msg)
 
 
 # return an error string if we are not available
@@ -53,7 +82,7 @@ def is_available() -> Tuple[str, str]:
 class Input(DataSource.DataSource):
 
     def __init__(self,
-                 source: str,
+                 parameters: str,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
@@ -61,7 +90,7 @@ class Input(DataSource.DataSource):
         """
         The rtlsdr input source
 
-        :param source: The device number, normally zero
+        :param parameters: The device number, normally zero
         :param data_type: The data type the rtlsdr is providing, we will convert this
         :param sample_rate: The sample rate we will set the source to, note true sps is set from the device
         :param centre_frequency: The centre frequency the source will be set to
@@ -69,7 +98,10 @@ class Input(DataSource.DataSource):
         """
         # Driver converts to floating point for us, underlying is 8o?
         self._constant_data_type = "16tle"
-        super().__init__(source, self._constant_data_type, sample_rate, centre_frequency, input_bw)
+        if not parameters or parameters == "":
+            parameters = "0" # default
+        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
+        self._name = module_type
         self._connected = False
         self._sdr = None
         self._tuner_type = 0
@@ -87,14 +119,14 @@ class Input(DataSource.DataSource):
             logger.error(msgs)
             raise ValueError(msgs)
 
-        if self._source == "?":
+        if self._parameters == "?":
             self._error = self.find_devices()
             return False
 
         try:
-            self._device_index = int(self._source)
+            self._device_index = int(self._parameters)
         except ValueError as err:
-            msgs = f"port number from {self._source}, {err}"
+            msgs = f"port number from {self._parameters}, {err}"
             self._error = str(err)
             logger.error(msgs)
             raise ValueError(err)
@@ -189,6 +221,7 @@ class Input(DataSource.DataSource):
             logger.error(err)
             sample_rate = 1e6  # something safe
 
+        self._rx_time = 0
         self._sample_rate_sps = sample_rate
         if self._sdr:
             try:
@@ -334,7 +367,7 @@ class Input(DataSource.DataSource):
         if self._sdr and self._connected:
             try:
                 complex_data = self._sdr.read_samples(number_samples)  # will return np.complex128
-                rx_time = self.get_time_ns()
+                rx_time = self.get_time_ns(number_samples)
                 complex_data = np.array(complex_data, dtype=np.complex64)  # (?) we need all values to be 32bit floats
             except Exception as err:
                 self._connected = False

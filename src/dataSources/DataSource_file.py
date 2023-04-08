@@ -30,7 +30,7 @@ def is_available() -> Tuple[str, str]:
 class Input(DataSource.DataSource):
 
     def __init__(self,
-                 file_name: str,
+                 parameters: str,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
@@ -38,7 +38,7 @@ class Input(DataSource.DataSource):
         """
         File input class
 
-        :param file_name: File name including path if required
+        :param parameters: File name including path if required
         :param data_type: The type of data we have in the file
         :param sample_rate: The sample rate this source is supposed to be working at, in Hz
         :param centre_frequency: The centre frequency this input is supposed to be at, in Hz
@@ -46,16 +46,17 @@ class Input(DataSource.DataSource):
         """
         self._is_wav_file = False  # until we work it out
 
-        super().__init__(file_name, data_type, sample_rate, centre_frequency, input_bw)
+        if not parameters or parameters == "":
+            parameters = "not-given" # default
+        super().__init__(parameters, data_type, sample_rate, centre_frequency, input_bw)
 
+        self._name = module_type
         self._file = None
         self._rewind = True  # true if we will rewind the file each time it ends
         self._connected = False
 
         self._sleep = True  # may want to read file as fast as possible
         self._samples_time_ns = 0.0  # how long these samples should take to arrive
-
-        self._has_meta_data = True  # assume that we will know the sample type etc of the file
 
         try:
             self._create_time = time.time_ns()
@@ -73,9 +74,6 @@ class Input(DataSource.DataSource):
     def set_sleep(self, sleep: bool):
         self._sleep = sleep
 
-    def has_meta_data(self) -> bool:
-        return self._has_meta_data
-
     def set_sample_rate_sps(self, sr: float) -> None:
         if sr <= 0:
             sr = 10000.0  # small default, but not too small
@@ -83,20 +81,20 @@ class Input(DataSource.DataSource):
 
     def open(self) -> bool:
 
-        if self._source == "?":
+        if self._parameters == "?":
             self._error = "Use snapshot tab to see files available"
             return False
 
         try:
             # patch up correct filename
-            fn = os.path.basename(self._source)
+            fn = os.path.basename(self._parameters)
             full_path = pathlib.PurePath(SnapVariables.SNAPSHOT_DIRECTORY, fn)
             full_path = str(full_path)
 
             # now open the actual file
             file = FileMetaData.FileMetaData(full_path)
             ok, self._file, self._is_wav_file, data_type, sps, cf = file.open()
-            self._has_meta_data = file.has_meta_data()
+            super().set_has_meta_data(file.has_meta_data())  
 
             # only update the following if we managed to recover them on the open()
             if ok:
@@ -141,7 +139,7 @@ class Input(DataSource.DataSource):
             # otherwise the acks coming back will allow huge tcp buffer storage
             # self._file_time = self._create_time  # start again
         except OSError as msg:
-            msgs = f'Failed to rewind {self._source}, {msg}'
+            msgs = f'Failed to rewind {self._parameters}, {msg}'
             self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)

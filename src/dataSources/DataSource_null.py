@@ -27,7 +27,7 @@ def is_available() -> Tuple[str, str]:
 class Input(DataSource.DataSource):
 
     def __init__(self,
-                 source: str,
+                 parameters: str,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
@@ -35,22 +35,25 @@ class Input(DataSource.DataSource):
         """
         The null input source
 
-        :param source: xxx, ignored
+        :param parameters: xxx, ignored
         :param data_type: Not used
         :param sample_rate: The sample rate we will set the source to
         :param centre_frequency: Not used
         :param sleep_time: Time in seconds between reads, not used on most sources
         :param input_bw: The filtering of the input, may not be configurable
         """
-        super().__init__(source, data_type, sample_rate, centre_frequency, input_bw)
+        if not parameters or parameters == "":
+            parameters = "0" # default
+        super().__init__(parameters, data_type, sample_rate, centre_frequency, input_bw)
 
+        self._name = module_type
         self._connected = False
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 
     def open(self) -> bool:
-        self._error = "Null device"
-        return False
+        self._error = ""
+        return True
 
     def read_cplx_samples(self, number_samples: int) -> Tuple[np.array, float]:
         """

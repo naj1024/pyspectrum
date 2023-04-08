@@ -38,6 +38,7 @@ class WebSocketServer(multiprocessing.Process):
         multiprocessing.Process.__init__(self)
         self._to_ui_queue = to_ui_queue
         self._port = websocket_port
+        print(f"web socket port {self._port}")
         self._exit_now = False
         self._log_level = log_level
 

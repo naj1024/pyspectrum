@@ -48,7 +48,7 @@ class DataSource:
     """
 
     def __init__(self,
-                 source: str,
+                 parameters: str,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
@@ -60,15 +60,15 @@ class DataSource:
         Creating a source will not start the connection. We need to be able to detect errors on connecting
         to a source. So the creation must not fail. When we open the device we may fail
 
-        :param source: This source name is meaningful to the DataSource only
+        :param parameters: This source name is meaningful to the DataSource only
         :param data_type: The type of data that this source will be converting to complex floats/doubles
         :param sample_rate: The sample rate this source is supposed to be working at, in Hz
         :param centre_frequency: The centre frequency this input is supposed to be at, in Hz
         :param input_bw: The filtering of the input, may not be configurable, in Hz
 
         """
-        self._source = source
-        self._display_name = source
+        self._name = ""
+        self._parameters = parameters
         self._sample_rate_sps = sample_rate
         if self._sample_rate_sps <= 0:
             self._sample_rate_sps = 10000.0  # don't make default to small as things may take a long time
@@ -82,7 +82,10 @@ class DataSource:
         self._gain_modes = ['None']
         self._gain_mode = "None"
 
+        self._has_meta_data = False
         self._error = ""
+
+        self._rx_time =0
 
         self._overflows = 0
         _ = read_and_reset_overflow()
@@ -117,6 +120,12 @@ class DataSource:
         """
         return self._connected
 
+    def get_name(self):
+        return self._name
+
+    def get_parameters(self):
+        return self._parameters
+
     def get_and_reset_error(self) -> str:
         err = self._error
         self._error = ""
@@ -125,9 +134,16 @@ class DataSource:
     def get_overflows(self):
         return self._overflows
 
+    def set_has_meta_data(self, has):
+        self._has_meta_data = has
+
+    def has_meta_data(self) -> bool:
+        return self._has_meta_data
+
     def set_sample_rate_sps(self, sr: float) -> None:
         if sr <= 0:
             sr = 10000.0  # small default, but not too small
+        self._rx_time = 0
         self._sample_rate_sps = sr
 
     def get_sample_rate_sps(self) -> float:
@@ -162,9 +178,6 @@ class DataSource:
     def get_ppm(self) -> float:
         # override if hw supports ppm compensation, see pluto source
         return self._ppm
-
-    def get_display_name(self) -> str:
-        return self._display_name
 
     @staticmethod
     def get_sample_types() -> List:
@@ -230,13 +243,17 @@ class DataSource:
     def get_gain(self) -> float:
         return self._gain
 
-    @staticmethod
-    def get_time_ns() -> float:
-        # python 3.7 and above has time.time_ns()
-        try:
-            return time.time_ns()
-        except AttributeError:
-            return time.time() * 1e9
+    def get_time_ns(self, number_samples: int) -> float:
+        tt = self._rx_time  # time of last sample of previous number_samples
+        if tt == 0:
+            # python 3.7 and above has time.time_ns()
+            try:
+                self._rx_time = time.time_ns()
+            except AttributeError:
+                self._rx_time = time.time() * 1e9
+        # next time in nsec, not sure about the resolution of this
+        self._rx_time += (1e9 * number_samples) / self._sample_rate_sps
+        return tt
 
     def get_bytes_per_complex_sample(self) -> float:
         return self._bytes_per_complex_sample
@@ -313,8 +330,8 @@ class DataSource:
             logger.error(err_msg)
             raise ValueError(err_msg)
 
-        # TODO: would the following be faster?
-        #  rtlsdr.py uses the following, for 8bit offset binary?
+        # TODO: Would the following method be faster?
+        # rtlsdr.py uses the following, for 8bit offset binary?
         #   data = np.ctypeslib.as_array(bytes)
         #   iq = data.astype(np.float64).view(np.complex128)
         #   iq /= 127.5

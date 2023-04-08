@@ -73,3 +73,9 @@ class SdrVariables:
 def add_to_error(config: SdrVariables, err: str) -> None:
     if len(err) != 0:
         config.error += f"{err}\n"
+
+
+def get_and_reset_error(config: SdrVariables) -> str:
+    tmp = config.error
+    config.error = ""
+    return tmp

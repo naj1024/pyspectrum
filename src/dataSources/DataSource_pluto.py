@@ -38,12 +38,25 @@ web_help_string = "IP address - The Ip or resolvable name of the Pluto device, e
 
 try:
     import_error_msg = ""
-    import adi  # analog devices device specifics for using iio
-except ImportError as msg:
-    adi = None
-    import_error_msg = f"{module_type} source has issue, " + str(msg)
-    logger.info(import_error_msg)
+    # is the import likely to find its underlying library
+    from platform import system as _system
+    from ctypes.util import find_library
 
+    lib = "iio"
+    found = None
+    if "Windows" in _system():
+        lib = "libiio.dll"
+    found = find_library(lib)
+    if found:
+        import adi  # analog devices device specifics for using iio
+    else:
+        mm = f"Can't find library {lib}"
+        raise ValueError(mm)
+
+except (ImportError, ValueError) as msg:
+    adi = None
+    import_error_msg = f"{module_type} source has an issue: " + str(msg)
+    logger.error(import_error_msg)
 
 # return an error string if we are not available
 def is_available() -> Tuple[str, str]:
@@ -54,7 +67,7 @@ def is_available() -> Tuple[str, str]:
 class Input(DataSource.DataSource):
 
     def __init__(self,
-                 ip_address: str,
+                 parameters: str,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
@@ -67,7 +80,7 @@ class Input(DataSource.DataSource):
         If the software modification has been done to make it look like an ad9361 not the ad9363 on the board
         then you may find that random signals will appear below 300MHz.
 
-        :param ip_address: The address the device should be on
+        :param parameters: The address the device should be on
         :param data_type: Not used
         :param sample_rate: The sample rate the pluto device will be set to, AND it's BW
         :param centre_frequency: The Centre frequency we will tune to
@@ -75,7 +88,10 @@ class Input(DataSource.DataSource):
         """
         # Driver converts to floating point for us, underlying data from ad936x was 16bit i/q
         self._constant_data_type = "16tle"
-        super().__init__(ip_address, self._constant_data_type, sample_rate, centre_frequency, input_bw)
+        if not parameters or parameters == "":
+            parameters = "192.168.2.1"  # default
+        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
+        self._name = module_type
         self._sdr = None
         self._connected = False
         self._gain_modes = ["manual", "fast_attack", "slow_attack", "hybrid"]  # would ask, but can't
@@ -86,7 +102,6 @@ class Input(DataSource.DataSource):
         # for supporting read of blocks which we partition out
         self._complex_data = None  # the block store
         self._read_block_size = 16384  # MUST be a power of 2 - AND is the MAX fft size
-        self._rx_time = 0  # first sample time
 
         self._index = self._read_block_size  # force read on first access
 
@@ -98,20 +113,20 @@ class Input(DataSource.DataSource):
             logger.error(msgs)
             raise ValueError(msgs)
 
-        if self._source == "?":
+        if self._parameters == "?":
             self._error = f"Can't scan for {module_type} devices"
             return False
 
         # Create device from specific uri address
         try:
-            self._sdr = adi.Pluto(uri="ip:" + self._source)  # use adi.Pluto() for USB
+            self._sdr = adi.Pluto(uri="ip:" + self._parameters)  # use adi.Pluto() for USB
         except Exception:
-            msgs = f"failed to connect to {self._source}"
+            msgs = f"failed to connect to {self._parameters}"
             self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)
 
-        logger.debug(f"Connected to {module_type} on {self._source}")
+        logger.debug(f"Connected to {module_type} on {self._parameters}")
 
         self._hw_ppm_compensation = False
         self.get_ppm()  # will set _hw_ppm_compensation
@@ -167,18 +182,20 @@ class Input(DataSource.DataSource):
             self._sample_rate_sps = self._sdr.sample_rate
         return self._sample_rate_sps
 
+    def set_sample_rate_sps(self, sr: float) -> None:
+        self._rx_time = 0
+        if self._sdr:
+            if 521e3 <= sr <= 61e6:
+                self._rx_time = 0
+                self._sdr.sample_rate = sr
+                self._sample_rate_sps = self._sdr.sample_rate
+
     def get_centre_frequency_hz(self) -> float:
         if self._sdr:
             # if this object is compensating we can't ask the front end
             if self._hw_ppm_compensation:
                 self._centre_frequency_hz = float(self._sdr.rx_lo)
         return self._centre_frequency_hz
-
-    def set_sample_rate_sps(self, sr: float) -> None:
-        if self._sdr:
-            if 521e3 <= sr <= 61e6:
-                self._sdr.sample_rate = sr
-                self._sample_rate_sps = self._sdr.sample_rate
 
     def set_centre_frequency_hz(self, cf: float) -> None:
         if self._sdr:
@@ -285,7 +302,7 @@ class Input(DataSource.DataSource):
                 try:
                     # we don't append to the end
                     self._complex_data = self._sdr.rx()  # the samples here are complex128 i.e. full doubles
-                    self._rx_time = self.get_time_ns()
+                    rx_time = self.get_time_ns(number_samples)
                     self._index = 0
                 except Exception as err:
                     self._connected = False
@@ -296,10 +313,8 @@ class Input(DataSource.DataSource):
             last_sample = self._index + number_samples
             complex_data = np.array(self._complex_data[self._index:last_sample], dtype=np.complex64)
             complex_data /= 4096.0  # 12bit
-            rx_time = self._rx_time
 
             # ready for the next block
-            self._rx_time += (number_samples / self._sample_rate_sps)
             self._index += number_samples
 
         return complex_data, rx_time

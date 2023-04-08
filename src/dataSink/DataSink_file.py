@@ -86,6 +86,9 @@ class FileOutput:
     def get_size_mbytes(self) -> float:
         return (8 * self._max_total_samples) / (1024 * 1024)
 
+    def get_sps(self) -> float:
+        return self._sample_rate_sps
+
     def _start(self, time_rx_nsec: float) -> None:
         """
         initialise the start

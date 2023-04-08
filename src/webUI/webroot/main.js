@@ -24,6 +24,15 @@ function syncCurrent() {
     let oldSourceParams = sdrState.getInputSourceParams();
 
     // from api
+   fetch('./input/errors').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        if (obj && (obj['errors'] != "")) {
+            alert(obj['errors']);
+        }
+    }).catch(function (error) {
+    });
+
     fetch('./input/source').then(function (response) {
         return response.json();
     }).then(function (obj) {
@@ -154,6 +163,91 @@ function syncCurrent() {
     }).catch(function (error) {
     });
 
+}
+
+function syncCurrentFast() {
+    // things that we wish to update faster
+
+    fetch('./control/delay').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        sdrState.setUiDelay(obj.delay);
+        $('#currentDelay').empty().append(sdrState.getUiDelay().toFixed(2));
+    }).catch(function (error) {
+    });
+
+    fetch('./control/readRatio').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        sdrState.setReadRatio(obj.readRatio);
+        $('#currentReadRatio').empty().append(sdrState.getReadRatio().toFixed(2));
+    }).catch(function (error) {
+    });
+
+    fetch('./control/headroom').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        sdrState.setHeadroom(obj.headroom);
+        $('#currentHeadroom').empty().append(sdrState.getHeadroom().toFixed(1) +'%');
+    }).catch(function (error) {
+    });
+
+    fetch('./control/overflows').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        sdrState.setOverflows(obj.overflows);
+        $('#currentOverflows').empty().append(sdrState.getOverflows());
+    }).catch(function (error) {
+    });
+
+    fetch('./control/fps').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        sdrState.setFps(obj.fps);
+        let maxFps = sdrState.getSps() / sdrState.getFftSize();
+        $('#currentFPS').empty().append(sdrState.getMeasuredFps().toFixed(1), "/", sdrState.getFps().toFixed(0),", max:", maxFps.toFixed(1));
+    }).catch(function (error) {
+    });
+
+    fetch('./control/oneInN').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        $('#currentOneInN').empty().append(obj.oneInN.toFixed(1)+" traces");
+    }).catch(function (error) {
+    });
+
+    fetch('./digitiser/digitiserGain').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        sdrState.setGain(obj.digitiserGain);
+        $('#currentGain').empty().append(sdrState.getGain() + ' dB');
+    }).catch(function (error) {
+    });
+
+    fetch('./snapshot/snapSize').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        snapState.setCurrentSize(obj.snapSize.current);
+        snapState.setExpectedSize(obj.snapSize.limit);
+        $('#currentSnapSize').empty().append(snapState.getCurrentSize().toFixed(2) + ' MBytes');
+        $('#newSnapSize').empty().append(snapState.getExpectedSize().toFixed(2) + ' MBytes');
+    }).catch(function (error) {
+    });
+
+    fetch('./snapshot/snapTriggerState').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        snapState.setTriggerState(obj.snapTriggerState);
+        $('#currentSnapTriggerState').empty().append(snapState.getTriggerState());
+        if (snapState.getTriggerState() == "triggered") {
+            $('#currentSnapTriggerState').addClass('redTrigger');
+            $('#currentSnapTriggerState').removeClass('greenTrigger');
+        } else {
+            $('#currentSnapTriggerState').addClass('greenTrigger');
+            $('#currentSnapTriggerState').removeClass('redTrigger');
+        }
+    }).catch(function (error) {
+    });
 }
 
 function syncNew() {
@@ -836,7 +930,7 @@ function updateSnapFileList() {
 }
 
 function showNewSnap() {
-    // show all the values fro the snap
+    // show all the values for the snap
     // if we have focus on a form then don't update the table
     if (snapFormInFocus) {
         return;
@@ -906,7 +1000,6 @@ function showNewSnap() {
     new_html += '" id="snapPostTrigMilliSec" name="snapPostTrigMilliSec">';
     new_html += '&nbsp msec</form>';
     $('#newSnapPostTrigger').empty().append(new_html);
-
 }
 
 function snapTableFocusIn(){
@@ -914,91 +1007,6 @@ function snapTableFocusIn(){
 }
 function snapTableFocusOut(){
     snapFormInFocus = false;
-}
-
-function syncCurrentFast() {
-    // things that we wish to update faster
-    
-    fetch('./control/delay').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setUiDelay(obj.delay);
-        $('#currentDelay').empty().append(sdrState.getUiDelay().toFixed(2));
-    }).catch(function (error) {
-    });
-
-    fetch('./control/readRatio').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setReadRatio(obj.readRatio);
-        $('#currentReadRatio').empty().append(sdrState.getReadRatio().toFixed(2));
-    }).catch(function (error) {
-    });
-
-    fetch('./control/headroom').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setHeadroom(obj.headroom);
-        $('#currentHeadroom').empty().append(sdrState.getHeadroom().toFixed(1) +'%');
-    }).catch(function (error) {
-    });
-
-    fetch('./control/overflows').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setOverflows(obj.overflows);
-        $('#currentOverflows').empty().append(sdrState.getOverflows());
-    }).catch(function (error) {
-    });
-
-    fetch('./control/fps').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setFps(obj.fps);
-        let maxFps = sdrState.getSps() / sdrState.getFftSize();
-        $('#currentFPS').empty().append(sdrState.getMeasuredFps().toFixed(1), "/", sdrState.getFps().toFixed(0),", max:", maxFps.toFixed(1));
-    }).catch(function (error) {
-    });
-    
-    fetch('./control/oneInN').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        $('#currentOneInN').empty().append(obj.oneInN.toFixed(1)+" traces");
-    }).catch(function (error) {
-    });
-
-    fetch('./digitiser/digitiserGain').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setGain(obj.digitiserGain);
-        $('#currentGain').empty().append(sdrState.getGain() + ' dB');
-    }).catch(function (error) {
-    });
-    
-    fetch('./snapshot/snapSize').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        snapState.setCurrentSize(obj.snapSize.current);
-        snapState.setExpectedSize(obj.snapSize.limit);
-        $('#currentSnapSize').empty().append(snapState.getCurrentSize().toFixed(2) + ' MBytes');
-        $('#newSnapSize').empty().append(snapState.getExpectedSize().toFixed(2) + ' MBytes');
-    }).catch(function (error) {
-    });
-
-    fetch('./snapshot/snapTriggerState').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        snapState.setTriggerState(obj.snapTriggerState);
-        $('#currentSnapTriggerState').empty().append(snapState.getTriggerState());
-        if (snapState.getTriggerState() == "triggered") {
-            $('#currentSnapTriggerState').addClass('redTrigger');
-            $('#currentSnapTriggerState').removeClass('greenTrigger');
-        } else {
-            $('#currentSnapTriggerState').addClass('greenTrigger');
-            $('#currentSnapTriggerState').removeClass('redTrigger');
-        }
-    }).catch(function (error) {
-    });
 }
 
 function configFocusIn(){

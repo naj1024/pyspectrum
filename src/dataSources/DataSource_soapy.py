@@ -40,10 +40,10 @@ web_help_string = "Name - Name is soapy driver, e.g. sdrplay. Use '?' for list"
 try:
     import_error_msg = ""
     import SoapySDR
-except ImportError as msg:
+except (ImportError, ValueError) as msg:
     SoapySDR = None
-    import_error_msg = f"{module_type} source has an issue, {str(msg)}"
-    logger.info(import_error_msg)
+    import_error_msg = f"{module_type} source has an issue, " + str(msg)
+    logger.error(import_error_msg)
 
 
 # return an error string if we are not available
@@ -54,7 +54,7 @@ def is_available() -> Tuple[str, str]:
 class Input(DataSource.DataSource):
 
     def __init__(self,
-                 source: str,
+                 parameters: str,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
@@ -62,15 +62,17 @@ class Input(DataSource.DataSource):
         """
         The soapy input source
 
-        :param source: Name of the soapy driver to use
+        :param parameters: Name of the soapy driver to use
         :param data_type: Not required, we set complex 32f
         :param sample_rate: The sample rate we will set the source to
         :param centre_frequency: The centre frequency the source will be set to
         :param input_bw: The filtering of the input, may not be configurable
         """
         self._constant_data_type = "32fle"
-
-        super().__init__(source, self._constant_data_type, sample_rate, centre_frequency, input_bw)
+        if not parameters or parameters == "":
+            parameters = "0" # default
+        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
+        self._name = module_type
         self._connected = False
         self._sdr = None
         self._channel = 0  # we will use channel zero for now
@@ -95,13 +97,13 @@ class Input(DataSource.DataSource):
     def open(self) -> bool:
         global import_error_msg
         if import_error_msg != "":
-            msgs = f"{module_type} {self._source} no support available, {import_error_msg}"
+            msgs = f"{module_type} {self._parameters} no support available, {import_error_msg}"
             self._error = msgs
             logger.error(msgs)
             raise ValueError(msgs)
 
         try:
-            if self._source == "?":
+            if self._parameters == "?":
                 self._sdr = None
                 devices = SoapySDR.Device.enumerate()
                 print("Soapy devices:")
@@ -118,16 +120,16 @@ class Input(DataSource.DataSource):
             raise ValueError(msgs)
 
         try:
-            self._sdr = SoapySDR.Device(f'driver={self._source}')
+            self._sdr = SoapySDR.Device(f'driver={self._parameters}')
         except Exception as msg_err:
-            msgs = f"{module_type} {self._source} open error, {msg_err}"
+            msgs = f"{module_type} {self._parameters} open error, {msg_err}"
             self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)
 
         self._channel = 0  # we will use channel zero for now
 
-        logger.debug(f"Connected to {module_type} {self._source} using channel {self._channel}")
+        logger.debug(f"Connected to {module_type} {self._parameters} using channel {self._channel}")
         # for sr in self._sdr.listSampleRates(SoapySDR.SOAPY_SDR_RX, self._channel):
         #     pp.pprint(sr)
 
@@ -146,9 +148,9 @@ class Input(DataSource.DataSource):
                 gains = self._sdr.getGainRange(SoapySDR.SOAPY_SDR_RX, self._channel)
                 self._min_gain = gains.minimum()
                 self._max_gain = gains.maximum()
-                logger.info(f"{module_type} {self._source} gain range {self._min_gain} to {self._max_gain}")
+                logger.info(f"{module_type} {self._parameters} gain range {self._min_gain} to {self._max_gain}")
             else:
-                logger.info(f"{module_type} {self._source} has no gain mode")
+                logger.info(f"{module_type} {self._parameters} has no gain mode")
 
             # ranges may return different types of thing
             # could be a:
@@ -169,7 +171,7 @@ class Input(DataSource.DataSource):
                 allowed_srs.add(sr)
             self._allowed_sps = list(allowed_srs)
             self._allowed_sps.sort()
-            logger.info(f"{module_type} {self._source} samples rates {self._allowed_sps}")
+            logger.info(f"{module_type} {self._parameters} samples rates {self._allowed_sps}")
 
             # probably sdrplay specific
             # find min and max centre frequencies
@@ -179,7 +181,7 @@ class Input(DataSource.DataSource):
                     self._min_cf = cf.minimum()
                 if cf.maximum() > self._max_cf:
                     self._max_cf = cf.maximum()
-            logger.info(f"{module_type} {self._source} cf min {self._min_cf}, max {self._max_cf}")
+            logger.info(f"{module_type} {self._parameters} cf min {self._min_cf}, max {self._max_cf}")
 
             self.get_ppm()
 
@@ -190,14 +192,14 @@ class Input(DataSource.DataSource):
                 allowed_bws.add(bw)
             self._allowed_bws = list(allowed_bws)
             self._allowed_bws.sort()
-            logger.info(f"{module_type} {self._source} bandwidths {self._allowed_bws}")
+            logger.info(f"{module_type} {self._parameters} bandwidths {self._allowed_bws}")
 
             self.get_bandwidth_hz()
 
             # turn on the stream
             self._sdr.activateStream(self._rx_stream)  # start streaming
         except Exception as err_msg:
-            msgs = f"{module_type} {self._source} configuration problem, {err_msg}"
+            msgs = f"{module_type} {self._parameters} configuration problem, {err_msg}"
             logger.error(msgs)
             raise ValueError(msgs) from None
 
@@ -227,6 +229,7 @@ class Input(DataSource.DataSource):
                 if asr >= sr:
                     min_sr = asr
                     break
+            self._rx_time = 0
             self._sample_rate_sps = min_sr
             self._sdr.setSampleRate(SoapySDR.SOAPY_SDR_RX, self._channel, self._sample_rate_sps)
             self.get_sample_rate_sps()
@@ -384,12 +387,6 @@ class Input(DataSource.DataSource):
 
                 read = self._sdr.readStream(self._rx_stream, [self._tmp], num_to_get, timeoutUs=2000000)
 
-                # set time stamp as first set of samples provided
-                if index == 0:
-                    rx_time = self.get_time_ns()
-                    if read.timeNs != 0:
-                        rx_time = read.timeNs  # supported in some sdr drivers, but mostly not
-
                 # return code +ve is number of samples
                 # return code -ve is error
                 # return code zero is try again
@@ -435,5 +432,16 @@ class Input(DataSource.DataSource):
                 # SOAPY_SDR_ONE_PACKET 16
                 # SOAPY_SDR_MORE_FRAGMENTS 32
                 # SOAPY_SDR_WAIT_TRIGGER 64
+
+            # set time
+            # TODO:  untested read.timeNs
+            # Is the time for the samples just taken or now or the next samples
+            # should it be read first or last
+            try:
+                rx_time = read.timeNs
+                if not rx_time:
+                    rx_time = self.get_time_ns(number_samples)
+            except :
+                rx_time = self.get_time_ns(number_samples)
 
         return self._complex_data, rx_time

@@ -72,7 +72,7 @@ allowed_tuner_types = ["Unknown", "E4000", "FC0012", "FC0013", "FC2580", "R820T"
 class Input(DataSource.DataSource):
 
     def __init__(self,
-                 source: str,
+                 parameters: str,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
@@ -80,15 +80,18 @@ class Input(DataSource.DataSource):
         """
         The rtltcp input source
 
-        :param source: Ip and port as a string, e.g. 127.0.0.1:3456
+        :param parameters: Ip and port as a string, e.g. 127.0.0.1:1234
         :param data_type: ignored, we will be getting 8bit offset binary, '8o'
         :param sample_rate: The sample rate we will set the source to, note true sps is set from the device
         :param centre_frequency: The centre frequency the source will be set to
         :param input_bw: The filtering of the input, may not be configurable
         """
         self._constant_data_type = "8o"
-        super().__init__(source, self._constant_data_type, sample_rate, centre_frequency, input_bw)
+        if not parameters or parameters == "":
+            parameters = "127.0.0.1:1234"  # localhost and default port for rtltcp
+        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
 
+        self._name = module_type
         self._socket = None
         self._connected = False
         self._tuner_type_str = "Unknown_Tuner"
@@ -103,14 +106,14 @@ class Input(DataSource.DataSource):
         # specifics to this class
         # break apart the ip address and port, will be something like 192.168.0.1:1234
 
-        if self._source == "?":
+        if self._parameters == "?":
             self._error = f"Can't scan for {module_type} devices"
             return False
 
-        parts = self._source.split(':')
+        parts = self._parameters.split(':')
         if len(parts) < 2:
-            raise ValueError("input specification does not contain two colon separated items, "
-                             f"{self._source}")
+            raise ValueError("Parameters missing either ip or port. need ip:port but given "
+                             f"{self._parameters}")
         self._ip_address = parts[0]
         try:
             self._ip_port = int(parts[1])
@@ -212,20 +215,17 @@ class Input(DataSource.DataSource):
         logger.info(f"{tuner_type_str} tuner")
         return tuner_type_str
 
-    def get_bytes(self, bytes_to_get: int) -> Tuple[bytearray, float]:
+    def get_bytes(self, bytes_to_get: int) -> bytearray:
         """
         Read bytes_to_get bytes from the server
 
         :param bytes_to_get: Number of bytes to get from the server
         :return: A Tuple of bytearray of the bytes and time the bytes were received
         """
-        rx_time = 0
         try:
             raw_bytes = bytearray()
             while bytes_to_get > 0:
                 got: bytearray = self._socket.recv(bytes_to_get)  # will get a MAXIMUM of this number of bytes
-                if rx_time == 0:
-                    rx_time = self.get_time_ns()
                 if len(got) == 0:
                     self._socket.close()
                     self._connected = False
@@ -243,7 +243,7 @@ class Input(DataSource.DataSource):
             self._connected = False
             raise ValueError(msgs)
 
-        return raw_bytes, rx_time
+        return raw_bytes
 
     def set_sample_type(self, data_type: str) -> None:
         # we can't set a different sample type on this source
@@ -277,6 +277,7 @@ class Input(DataSource.DataSource):
             total_bytes = self._bytes_per_complex_sample * number_samples
             raw_bytes, rx_time = self.get_bytes(total_bytes)
             if len(raw_bytes) == total_bytes:
+                rx_time = self.get_time_ns(number_samples)
                 complex_data = self.unpack_data(raw_bytes)
             else:
                 complex_data = np.empty(0)
@@ -375,6 +376,7 @@ class Input(DataSource.DataSource):
             self._error = err
             logger.error(err)
             sample_rate = int(1e6)
+        self._rx_time = 0
         self._sample_rate_sps = sample_rate
         logger.info(f"Set sample rate {sample_rate}sps")
         self.send_command(0x02, int(sample_rate))

@@ -30,8 +30,8 @@ try:
     import sounddevice as sd
 except ImportError as msg:
     sd = None
-    import_error_msg = f"Info: {module_type} source has an issue, {str(msg)}"
-    logging.info(import_error_msg)
+    import_error_msg = f"{module_type} source has an issue: {str(msg)}"
+    logging.error(import_error_msg)
 
 
 # return an error string if we are not available
@@ -74,7 +74,7 @@ def audio_callback(incoming_samples: np.ndarray, frames: int, time_1, status) ->
 class Input(DataSource.DataSource):
 
     def __init__(self,
-                 source: str,
+                 parameters: str,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
@@ -83,15 +83,18 @@ class Input(DataSource.DataSource):
         """
         The audio input source
 
-        :param source: Number of the device to use, or 'L' for a list
+        :param parameters: Number of the device to use, or 'L' for a list
         :param data_type: Not used
         :param sample_rate: The sample rate we will set the source to
         :param centre_frequency: Not used
         :param input_bw: The filtering of the input, may not be configurable
         """
         self._constant_data_type = "16tle"
-        super().__init__(source, self._constant_data_type, sample_rate, centre_frequency, input_bw)
+        if not parameters or parameters == "0":
+            parameters = "0"  # default
+        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
 
+        self._name = module_type
         self._connected = False
         self._channels = 2  # we are really expecting stereo
         self._device_number = 0  # will be set in open
@@ -103,7 +106,6 @@ class Input(DataSource.DataSource):
         # so that we can divorce one from the other, need index to tell where we are
         self._complex_data = None
         self._read_block_size = 2048  #
-        self._rx_time = 0  # first sample time
 
     def open(self) -> bool:
         global import_error_msg
@@ -113,15 +115,15 @@ class Input(DataSource.DataSource):
             logger.error(msgs)
             raise ValueError(msgs)
 
-        if self._source == "?":
+        if self._parameters == "?":
             self._audio_stream = None
             self._error = str(sd.query_devices())
             return False
 
         try:
-            self._device_number = int(self._source)
+            self._device_number = int(self._parameters)
         except ValueError:
-            self._error += f"Illegal audio source number {self._source}"
+            self._error += f"Illegal audio source number {self._parameters}"
             logger.error(self._error)
             raise ValueError(self._error)
 
@@ -151,12 +153,12 @@ class Input(DataSource.DataSource):
             logger.error(msgs)
             raise ValueError(msgs)  # from None
         except ValueError as err_msg:
-            msgs = f"device number {self._source}, {err_msg}"
+            msgs = f"device number {self._parameters}, {err_msg}"
             self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)  # from None
         except Exception as err_msg:
-            msgs = f"device number {self._source}, {err_msg}"
+            msgs = f"device number {self._parameters}, {err_msg}"
             self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)  # from None
@@ -175,6 +177,7 @@ class Input(DataSource.DataSource):
         self._connected = False
 
     def set_sample_rate_sps(self, sr: float) -> None:
+        self._rx_time = 0
         self._sample_rate_sps = sr
         self.bound_sample_rate()
         # changing sample rate means resetting the audio device
@@ -212,9 +215,7 @@ class Input(DataSource.DataSource):
         while samples_got < num_samples:
             try:
                 complex_data = audio_q.get(block=False)
-                if samples_got == 0:
-                    if self._complex_data.size == 0:
-                        self._rx_time = self.get_time_ns()
+                # print(f"audio data {complex_data[0]}")
                 empty_count = max_wait_count
                 self._complex_data = np.append(self._complex_data, complex_data)
                 samples_got += complex_data.size
@@ -250,12 +251,10 @@ class Input(DataSource.DataSource):
             if self._complex_data.size >= number_samples:
                 # get the array we wish to pass back
                 complex_data = np.array(self._complex_data[:number_samples], dtype=np.complex64)
-                rx_time = self._rx_time
+                rx_time = self.get_time_ns(number_samples)
 
                 # drop the used samples
                 self._complex_data = np.array(self._complex_data[number_samples:], dtype=np.complex64)
-                # following time will be overwritten if the _complex_data is now empty
-                self._rx_time += number_samples / self._sample_rate_sps
 
             self._overflows += DataSource.read_and_reset_overflow()
 

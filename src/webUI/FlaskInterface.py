@@ -7,7 +7,7 @@ import signal
 import time
 
 from flask import Flask, request, jsonify
-from flask_restful import Resource, Api
+from flask_restful import Resource, Api as Rest_Api
 
 from misc import global_vars
 
@@ -26,8 +26,7 @@ class FlaskInterface(multiprocessing.Process):
     def __init__(self,
                  to_ui_queue: multiprocessing.Queue,
                  log_level: int,
-                 web_port: int,
-                 config: dict):
+                 shared_config: dict):
         """
         Initialise the server
 
@@ -37,11 +36,12 @@ class FlaskInterface(multiprocessing.Process):
         """
         multiprocessing.Process.__init__(self)
 
-        self._config = config
+        self._config = shared_config
 
         # queues are for the web socket, not used in the web server
         self._to_ui_queue = to_ui_queue
-        self._port = web_port
+        self._port = shared_config['web_server_port']
+        print(f"web server port {self._port}")
         self._httpd = None
         self._log_level = log_level
         self._shutdown = False
@@ -80,19 +80,19 @@ class FlaskInterface(multiprocessing.Process):
         logw.disabled = True
         flask_app.logger.disabled = True
 
-        api = Api(flask_app)
+        rest_api = Rest_Api(flask_app)
 
         # server the main static web page on empty URL
         @flask_app.route("/", methods=['GET'])
         def index():
             return flask_app.send_static_file('index.html')
 
-        api.add_resource(Input, '/input/<string:thing>', resource_class_kwargs={'config': self._config})
-        api.add_resource(Digitiser, '/digitiser/<string:thing>', resource_class_kwargs={'config': self._config})
-        api.add_resource(Spectrum, '/spectrum/<string:thing>', resource_class_kwargs={'config': self._config})
-        api.add_resource(Control, '/control/<string:thing>', resource_class_kwargs={'config': self._config})
-        api.add_resource(Snapshot, '/snapshot/<string:thing>', resource_class_kwargs={'config': self._config})
-        api.add_resource(Tuning, '/tuning/<string:thing>', resource_class_kwargs={'config': self._config})
+        rest_api.add_resource(Input, '/input/<string:thing>', resource_class_kwargs={'config': self._config})
+        rest_api.add_resource(Digitiser, '/digitiser/<string:thing>', resource_class_kwargs={'config': self._config})
+        rest_api.add_resource(Spectrum, '/spectrum/<string:thing>', resource_class_kwargs={'config': self._config})
+        rest_api.add_resource(Control, '/control/<string:thing>', resource_class_kwargs={'config': self._config})
+        rest_api.add_resource(Snapshot, '/snapshot/<string:thing>', resource_class_kwargs={'config': self._config})
+        rest_api.add_resource(Tuning, '/tuning/<string:thing>', resource_class_kwargs={'config': self._config})
 
         global web_root
         while not self._shutdown:
@@ -137,33 +137,33 @@ class Input(Resource):
     def __init__(self, **kwargs):
         # set the dictionary we use for updating things
         self._config = kwargs['config']
+        self._allowed_get_endpoints = ['sources', 'source', 'errors']
+        self._allowed_put_endpoints = ['source']
 
     def get(self, thing):
-        try:
-            # note that we can pick up entries that are not at our endpoint
-            # e.g. /digitiser/frequency will return the tuning/frequency
-            # there is no /digitiser/frequency
-            # this is because we are mapping direct into the dictionary
-            # so check for allowed endpoints at this point
-            allowed = ['sources', 'source']
-            if thing in allowed:
+        if thing in self._allowed_get_endpoints:
+            if thing == "errors":
+                tmp = ""
+                # error entry may not be present
+                if thing in self._config.keys():
+                    tmp = self._config[thing]
+                    self._config[thing] = ""
+                return jsonify({thing: tmp})
+            else:
                 return jsonify({thing: self._config[thing]})
-        except KeyError:
-            pass
-        return "Endpoint problem", 403
+        return f"Endpoint {thing} not supported", 403
 
     def put(self, thing):
-        try:
+        if thing in self._allowed_put_endpoints:
             if thing == 'source':
-                s = request.json['source']
-                p = request.json['params']
-                self._config[thing] = {'source': s, 'params': p, 'connected': False}
+                try:
+                    s = request.json['source']
+                    p = request.json['params']
+                    self._config[thing] = {'source': s, 'params': p, 'connected': False}
+                except Exception as err:
+                    return f"Failed to parse {thing} endpoint", 400
                 return "ok"
-            else:
-                pass
-        except (KeyError, ValueError):
-            pass
-        return "Endpoint problem", 403
+        return f"Endpoint {thing} not supported", 403
 
 
 class Digitiser(Resource):
@@ -171,50 +171,52 @@ class Digitiser(Resource):
     def __init__(self, **kwargs):
         # set the dictionary we use for updating things
         self._config = kwargs['config']
+        self._allowed_get_endpoints = ['digitiserFrequency', 'digitiserFormats', 'digitiserFormat',
+                                       'digitiserSampleRate',
+                                       'digitiserBandwidth', 'digitiserPartsPerMillion', 'digitiserGainTypes',
+                                       'digitiserGainType',
+                                       'digitiserGain']
+        self._allowed_put_endpoints = ['digitiserFormat', 'digitiserSampleRate', 'digitiserBandwidth',
+                                       'digitiserPartsPerMillion', 'digitiserGainType', 'digitiserGain']
 
     def get(self, thing):
-        try:
-            allowed = ['digitiserFrequency', 'digitiserFormats', 'digitiserFormat', 'digitiserSampleRate',
-                       'digitiserBandwidth', 'digitiserPartsPerMillion', 'digitiserGainTypes', 'digitiserGainType',
-                       'digitiserGain']
-            if thing in allowed:
-                return jsonify({thing: self._config[thing]})
-        except KeyError:
-            pass
-        return "Endpoint problem", 403
+        # Check for allowed endpoints at this point
+        if thing in self._allowed_get_endpoints:
+            return jsonify({thing: self._config[thing]})
+        return f"Endpoint {thing} not supported", 403
 
     def put(self, thing):
-        try:
-            if thing == 'digitiserFormat':
-                fmt = request.json[thing]
-                if fmt in self._config['digitiserFormats']:
-                    self._config[thing] = fmt
-                    return "ok"
-            elif thing == 'digitiserSampleRate':
-                # request.form for non json put
-                sps = abs(int(request.json[thing]))
-                self._config[thing] = sps
+        if thing in self._allowed_put_endpoints:
+            try:
+                if thing == 'digitiserFormat':
+                    fmt = request.json[thing]
+                    if fmt in self._config['digitiserFormats']:
+                        self._config[thing] = fmt
+                    else:
+                        raise ValueError()
+                elif thing == 'digitiserSampleRate':
+                    # request.form for non json put
+                    sps = abs(int(request.json[thing]))
+                    self._config[thing] = sps
+                elif thing == 'digitiserBandwidth':
+                    bw = abs(int(request.json[thing]))
+                    self._config[thing] = bw
+                elif thing == 'digitiserPartsPerMillion':
+                    ppm = float(request.json[thing])
+                    self._config[thing] = ppm
+                elif thing == 'digitiserGainType':
+                    gt = request.json[thing]
+                    if gt in self._config['digitiserGainTypes']:
+                        self._config[thing] = gt
+                    else:
+                        raise ValueError()
+                elif thing == 'digitiserGain':
+                    gn = abs(int(request.json[thing]))
+                    self._config[thing] = gn
                 return "ok"
-            elif thing == 'digitiserBandwidth':
-                bw = abs(int(request.json[thing]))
-                self._config[thing] = bw
-                return "ok"
-            elif thing == 'digitiserPartsPerMillion':
-                ppm = float(request.json[thing])
-                self._config[thing] = ppm
-                return "ok"
-            elif thing == 'digitiserGainType':
-                gt = request.json[thing]
-                if gt in self._config['digitiserGainTypes']:
-                    self._config[thing] = gt
-                    return "ok"
-            elif thing == 'digitiserGain':
-                gn = abs(int(request.json[thing]))
-                self._config[thing] = gn
-                return "ok"
-        except (KeyError, ValueError):
-            pass
-        return "Endpoint problem", 403
+            except Exception:
+                return "Failed to parse {thing} endpoint", 400
+        return f"Endpoint {thing} not supported", 403
 
 
 class Spectrum(Resource):
@@ -222,31 +224,33 @@ class Spectrum(Resource):
     def __init__(self, **kwargs):
         # set the dictionary we use for updating things
         self._config = kwargs['config']
+        self._allowed_get_endpoints = ['fftSizes', 'fftSize', 'fftWindows', 'fftWindow']
+        self._allowed_put_endpoints = ['fftSize', 'fftWindow']
 
     def get(self, thing):
-        try:
-            allowed = ['fftSizes', 'fftSize', 'fftWindows', 'fftWindow']
-            if thing in allowed:
-                return jsonify({thing: self._config[thing]})
-        except KeyError:
-            pass
-        return "Endpoint problem", 403
+        if thing in self._allowed_get_endpoints:
+            return jsonify({thing: self._config[thing]})
+        return f"Endpoint {thing} not supported", 403
 
     def put(self, thing):
-        try:
-            if thing == 'fftSize':
-                size = int(request.json[thing])
-                if size in self._config['fftSizes']:
-                    self._config[thing] = size
-                    return "ok"
-            elif thing == 'fftWindow':
-                wnd = request.json[thing]
-                if wnd in self._config['fftWindows']:
-                    self._config[thing] = wnd
-                    return "ok"
-        except (KeyError, ValueError):
-            pass
-        return "Endpoint problem", 403
+        if thing in self._allowed_put_endpoints:
+            try:
+                if thing == 'fftSize':
+                    size = int(request.json[thing])
+                    if size in self._config['fftSizes']:
+                        self._config[thing] = size
+                    else:
+                        raise ValueError()
+                elif thing == 'fftWindow':
+                    wnd = request.json[thing]
+                    if wnd in self._config['fftWindows']:
+                        self._config[thing] = wnd
+                    else:
+                        raise ValueError()
+                return "ok"
+            except Exception:
+                return "Failed to parse {thing} endpoint", 400
+        return f"Endpoint {thing} not supported", 403
 
 
 class Control(Resource):
@@ -255,32 +259,30 @@ class Control(Resource):
     def __init__(self, **kwargs):
         # set the dictionary we use for updating things
         self._config = kwargs['config']
+        self._allowed_get_endpoints = ['presetFps', 'fps', 'stop', 'fpsMeasured', 'delay', 'readRatio', 'headroom',
+                                       'overflows', 'oneInN']
+        self._allowed_put_endpoints = ['ackTime', 'fps', 'stop']
 
     def get(self, thing):
-        try:
-            allowed = ['presetFps', 'fps', 'stop', 'fpsMeasured', 'delay', 'readRatio', 'headroom', 'overflows',
-                       'oneInN']
-            if thing in allowed:
-                return jsonify({thing: self._config[thing]})
-        except KeyError:
-            pass
-        return "Endpoint problem", 403
+        if thing in self._allowed_get_endpoints:
+            return jsonify({thing: self._config[thing]})
+        return f"Endpoint {thing} not supported", 403
 
     def put(self, thing):
-        try:
-            if thing == 'stop':
-                self._config[thing] = request.json[thing]
-            if thing == 'fps':
-                set_fps = abs(int(request.json[thing]['set']))
-                measured = self._config['fps']['measured']
-                self._config[thing] = {'set': set_fps, 'measured': measured}
+        if thing in self._allowed_put_endpoints:
+            try:
+                if thing == 'ackTime':
+                    self._config[thing] = request.json[thing]
+                elif thing == 'fps':
+                    set_fps = abs(int(request.json[thing]['set']))
+                    measured = self._config['fps']['measured']
+                    self._config[thing] = {'set': set_fps, 'measured': measured}
+                elif thing == 'stop':
+                    self._config[thing] = request.json[thing]
                 return "ok"
-            elif thing == 'ackTime':
-                self._config[thing] = request.json[thing]
-                return "ok"
-        except (KeyError, ValueError):
-            pass
-        return "Endpoint problem", 403
+            except Exception:
+                return "Failed to parse {thing} command", 400
+        return f"Endpoint {thing} not supported", 403
 
 
 class Snapshot(Resource):
@@ -289,60 +291,58 @@ class Snapshot(Resource):
     def __init__(self, **kwargs):
         # set the dictionary we use for updating things
         self._config = kwargs['config']
+        self._allowed_get_endpoints = ['snapTriggerSources', 'snapTriggerSource', 'snapTriggerState',
+                                       'snapName', 'snapFormats', 'snapFormat', 'snapPreTrigger', 'snapPostTrigger',
+                                       'snapSize', 'snaps']
+        self._allowed_put_endpoints = ['snapTrigger', 'snapTriggerSource', 'snapName', 'snapFormat',
+                                       'snapPreTrigger', 'snapPostTrigger']
+        self._allowed_delete_endpoints = ['snapDelete']
 
     def get(self, thing):
-        try:
-            allowed = ['snapTriggerSources', 'snapTriggerSource', 'snapTriggerState',
-                       'snapName', 'snapFormats', 'snapFormat', 'snapPreTrigger', 'snapPostTrigger',
-                       'snapSize', 'snaps']
-            if thing in allowed:
-                return jsonify({thing: self._config[thing]})
-        except KeyError:
-            pass
-        return "Endpoint problem", 403
+        if thing in self._allowed_get_endpoints:
+            return jsonify({thing: self._config[thing]})
+        return f"Endpoint {thing} not supported", 403
 
     def put(self, thing):
-        try:
-            if thing == 'snapTrigger':
-                self._config[thing] = request.json[thing]
+        if thing in self._allowed_put_endpoints:
+            try:
+                if thing == 'snapTrigger':
+                    self._config[thing] = request.json[thing]
+                elif thing == 'snapTriggerSource':
+                    src = request.json[thing]
+                    if src in self._config['snapTriggerSources']:
+                        self._config[thing] = src
+                    else:
+                        raise ValueError()
+                elif thing == 'snapName':
+                    nme = request.json[thing]
+                    if len(nme) > 0:
+                        self._config[thing] = nme
+                    else:
+                        raise ValueError()
+                elif thing == 'snapFormat':
+                    frm = request.json[thing]
+                    if frm in self._config['snapFormats']:
+                        self._config[thing] = frm
+                    else:
+                        raise ValueError()
+                elif thing == 'snapPreTrigger':
+                    pre = abs(int(request.json[thing]))
+                    self._config[thing] = pre
+                elif thing == 'snapPostTrigger':
+                    pos = abs(int(request.json[thing]))
+                    self._config[thing] = pos
                 return "ok"
-            elif thing == 'snapTriggerSource':
-                src = request.json[thing]
-                if src in self._config['snapTriggerSources']:
-                    self._config[thing] = src
-                    return "ok"
-            elif thing == 'snapName':
-                nme = request.json[thing]
-                if len(nme) > 0:
-                    self._config[thing] = nme
-                    return "ok"
-            elif thing == 'snapFormat':
-                frm = request.json[thing]
-                if frm in self._config['snapFormats']:
-                    self._config[thing] = frm
-                    return "ok"
-            elif thing == 'snapPreTrigger':
-                pre = abs(int(request.json[thing]))
-                self._config[thing] = pre
-                return "ok"
-            elif thing == 'snapPostTrigger':
-                pos = abs(int(request.json[thing]))
-                self._config[thing] = pos
-                return "ok"
-        except (KeyError, ValueError):
-            pass
-        return "Endpoint problem", 403
+            except Exception:
+                return "Failed to parse {thing} command", 400
+        return f"Endpoint {thing} not supported", 403
 
     def delete(self, thing):
-        try:
+        if thing in self._allowed_delete_endpoints:
             if thing == 'snapDelete':
                 self._config[thing] = request.json[thing]
-                return "deleted"
-            else:
-                pass
-        except KeyError:
-            pass
-        return "Endpoint problem", 403
+            return f"deleting {request.json[thing]}"
+        return f"Endpoint {thing} not supported", 403
 
 
 class Tuning(Resource):
@@ -350,23 +350,22 @@ class Tuning(Resource):
     def __init__(self, **kwargs):
         # set the dictionary we use for updating things
         self._config = kwargs['config']
+        self._allowed_get_endpoints = ['frequency']
+        self._allowed_put_endpoints = ['frequency']
 
     def get(self, thing):
-        try:
-            allowed = ['frequency']
-            if thing in allowed:
-                return jsonify({thing: self._config[thing]})
-        except KeyError:
-            pass
-        return "Endpoint problem", 403
+        if thing in self._allowed_get_endpoints:
+            return jsonify({thing: self._config[thing]})
+        return f"Endpoint {thing} not supported", 403
 
     def put(self, thing):
-        try:
-            if thing == 'frequency':
-                f = abs(int(request.json['value']))
-                c = abs(int(request.json['conversion']))
-                self._config[thing] = {'value': f, 'conversion': c}
+        if thing in self._allowed_put_endpoints:
+            try:
+                if thing == 'frequency':
+                    f = abs(int(request.json['value']))
+                    c = abs(int(request.json['conversion']))
+                    self._config[thing] = {'value': f, 'conversion': c}
                 return "ok"
-        except (KeyError, ValueError):
-            pass
-        return "Endpoint problem", 403
+            except Exception as err:
+                return f"Failed to parse {thing} command", 400
+        return f"Endpoint {thing} not supported", 403

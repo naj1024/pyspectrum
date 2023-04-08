@@ -26,21 +26,23 @@ class Input(DataSource.DataSource):
      """
 
     def __init__(self,
-                 ip_address_port: str,
+                 parameters: str,
                  data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
                  input_bw: float):
         """Initialise the object
         Args:
-        :param ip_address_port: The address and port we connect to, address empty then we are the server
+        :param parameters: The address and port we connect to, address empty then we are the server
         :param data_type: The type of data we are going to be receiving on the socket
         :param sample_rate: The sample rate this source is supposed to be working at, in Hz
         :param centre_frequency: The centre frequency this input is supposed to be at, in Hz
         :param input_bw: The filtering of the input, may not be configurable
         """
-
-        super().__init__(ip_address_port, data_type, sample_rate, centre_frequency, input_bw)
+        if not parameters or parameters == "":
+            parameters = "127.0.0.1:1234" # default
+        super().__init__(parameters, data_type, sample_rate, centre_frequency, input_bw)
+        self._name = module_type
         self._connected = False
         self._ip_address = ""  # filled in when we open()
         self._ip_port = 0  # filled in when we open()
@@ -54,14 +56,14 @@ class Input(DataSource.DataSource):
         # specifics to this class
         # break apart the ip address and port, will be something like 192.168.0.1:1234
 
-        if self._source == "?":
+        if self._parameters == "?":
             self._error = f"Can't scan for {module_type} devices"
             return False
 
-        parts = self._source.split(':')
+        parts = self._parameters.split(':')
         if len(parts) < 2:
-            raise ValueError(f"input specification does not contain two colon separated items, "
-                             f"{self._source}")
+            raise ValueError("Parameters missing either ip or port. need ip:port but given "
+                             f"{self._parameters}")
         self._ip_address = parts[0]
         try:
             self._ip_port = int(parts[1])
@@ -160,8 +162,6 @@ class Input(DataSource.DataSource):
                             self.close()
                             logger.info('Socket connection closed')
                             raise ValueError('Socket connection closed')
-                        if rx_time == 0:
-                            rx_time = self.get_time_ns()
                         raw_bytes += got
                         total_bytes -= len(got)
 
@@ -186,6 +186,7 @@ class Input(DataSource.DataSource):
             # print(f"{1000000.0 * (t2 - t1) / 10000.0}usec")
 
             if len(raw_bytes) == self._bytes_per_complex_sample * number_samples:
+                rx_time = self.get_time_ns(number_samples)
                 complex_data = self.unpack_data(raw_bytes)
             else:
                 complex_data = np.empty(0)
