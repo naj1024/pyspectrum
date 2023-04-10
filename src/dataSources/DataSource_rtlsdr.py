@@ -44,7 +44,7 @@ try:
     from os import environ
 
     lib = "rtl"
-    found =  None
+    found = None
     # Windows is a mess for rtl libraries, can be librtlsdr.dll or rtlsdr.dll
     # rtlsdr for python expects rtlsdr.dll, for now - may change
     # where it is located is a mystery, put in on your path in environment variables
@@ -68,7 +68,7 @@ try:
         mm = f"Can't find library {lib}"
         raise ValueError(mm)
 
-except (ImportError, ValueError)  as msg:
+except (ImportError, ValueError) as msg:
     RtlSdr = None
     import_error_msg = f"{module_type} source has an issue: " + str(msg)
     logger.error(import_error_msg)
@@ -99,7 +99,7 @@ class Input(DataSource.DataSource):
         # Driver converts to floating point for us, underlying is 8o?
         self._constant_data_type = "16tle"
         if not parameters or parameters == "":
-            parameters = "0" # default
+            parameters = "0"  # default
         super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
         self._name = module_type
         self._connected = False
@@ -376,3 +376,4 @@ class Input(DataSource.DataSource):
                 raise ValueError(err)
 
         return complex_data, rx_time
+

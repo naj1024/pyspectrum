@@ -4,19 +4,19 @@
 #
 
 # processing
-matplotlib>=3.3.4
-numpy>=1.20.1
-scipy>=1.6.1
+matplotlib>=3.7.1
+numpy>=1.24.2
+scipy>=1.10.1
 
 # audio input source
-sounddevice>=0.4.1
+sounddevice>=0.4.6
 
 # analog device pluto device
-pyadi-iio>=0.0.7
+pyadi-iio>=0.0.14
 pylibiio>=0.21
 
 # rtl devices
-pyrtlsdr>=0.2.92
+pyrtlsdr>=0.2.93
 
 # soapy devices, SoapySDR
 # Not supported by pip install
@@ -30,17 +30,17 @@ pyrtlsdr>=0.2.92
 hid>=1.0.4
 
 # mqtt plugin
-paho-mqtt>=1.5.1
+paho-mqtt>=1.6.1
 
 # web interface
-websockets>=8.1
+websockets>=11.0.1
 
 # flask
-flask>=2.0.0
+Flask>=2.2.3
 flask_restful>=0.3.9
 
 # testing
-#pytest>=5.4.3
+#pytest>=7.3.0
 
 
 

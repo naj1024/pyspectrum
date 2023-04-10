@@ -5,10 +5,10 @@ import numpy as np
 
 from dataProcessing import ProcessSamples
 from dataSources import DataSource
-from misc import SdrVariables
+from misc import Sdr
 
 
-def time_spectral(configuration: SdrVariables):
+def time_spectral(configuration: Sdr):
     """
     Time how long it takes to compute various things and show results
 

@@ -1,19 +1,19 @@
 import logging
 
 from dataSources import DataSource
-from misc import SdrVariables
+from misc import Sdr
 
 logger = logging.getLogger('spectrum_logger')
 
 
-def change_source(data_source, source_factory, configuration: SdrVariables, source, params):
+def change_source(data_source, source_factory, configuration: Sdr, source, params):
     if source != "":
         configuration.input_source = source
         configuration.input_params = params
         logger.info(f"changing source to '{configuration.input_source}' "
                     f"'{configuration.input_params}'")
         data_source.close()
-        SdrVariables.add_to_error(configuration, data_source.get_and_reset_error())
+        Sdr.add_to_error(configuration, data_source.get_and_reset_error())
         data_source = update_source(configuration, source_factory)
     else:
         logger.error("Attempt to use empty source parameter")
@@ -21,7 +21,7 @@ def change_source(data_source, source_factory, configuration: SdrVariables, sour
     return data_source
 
 
-def create_source(configuration: SdrVariables, factory) -> DataSource:
+def create_source(configuration: Sdr, factory) -> DataSource:
     """
     Create the source of samples, cannot exception or fail. Does not open the source.
 
@@ -38,7 +38,7 @@ def create_source(configuration: SdrVariables, factory) -> DataSource:
     return data_source
 
 
-def open_source(config: SdrVariables, data_source: DataSource) -> None:
+def open_source(config: Sdr, data_source: DataSource) -> None:
     """
     Open the source, just creating a source will not open it as the creation cannot fail but the open can
 
@@ -69,10 +69,10 @@ def open_source(config: SdrVariables, data_source: DataSource) -> None:
             # state any errors or warning
         config.source_connected = data_source.connected()
 
-    SdrVariables.add_to_error(config, data_source.get_and_reset_error())
+    Sdr.add_to_error(config, data_source.get_and_reset_error())
 
 
-def update_source_state(configuration: SdrVariables, data_source: DataSource) -> None:
+def update_source_state(configuration: Sdr, data_source: DataSource) -> None:
     """
     Things that the source may change on it's own that we need to be aware of for the UI etc
 
@@ -86,7 +86,7 @@ def update_source_state(configuration: SdrVariables, data_source: DataSource) ->
         configuration.sdr_centre_frequency_hz = data_source.get_centre_frequency_hz()  # front end resolution
 
 
-def update_source(configuration: SdrVariables, source_factory) -> DataSource:
+def update_source(configuration: Sdr, source_factory) -> DataSource:
     """
     Changing the source
 
@@ -100,7 +100,7 @@ def update_source(configuration: SdrVariables, source_factory) -> DataSource:
         gain_mode = configuration.gain_mode
         gain = configuration.gain
         open_source(configuration, data_source)
-        SdrVariables.add_to_error(configuration, data_source.get_and_reset_error())
+        Sdr.add_to_error(configuration, data_source.get_and_reset_error())
         data_source.set_gain_mode(gain_mode)
         data_source.set_gain(gain)
         logger.info(f"Opened source {configuration.input_source}")
@@ -109,7 +109,7 @@ def update_source(configuration: SdrVariables, source_factory) -> DataSource:
                      f"{configuration.centre_frequency_hz} "
                      f"{configuration.sample_rate} "
                      f"{configuration.fft_size}")
-        SdrVariables.add_to_error(configuration, str(msg))
+        Sdr.add_to_error(configuration, str(msg))
         configuration.input_source = "null"
         data_source = create_source(configuration, source_factory)
         open_source(configuration, data_source)

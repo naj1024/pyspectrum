@@ -9,12 +9,8 @@ Passed to the UI as a jason string every few seconds
 import json
 
 
-class SdrVariables:
+class Sdr:
     def __init__(self):
-        self.type = "control"  # for use by javascript to distinguish control types
-
-        self.uuid = 0  # for UI to tag state so it can tell if it gets back state correctly
-
         # input data related
         self.fft_size = 2048  # default, but any integer allowed
         self.window = ""
@@ -66,16 +62,13 @@ class SdrVariables:
 
         self.error = ""  # any errors we want to have available in the UI
 
-    def make_json(self):
-        return json.dumps(self, default=lambda o: o.__dict__)
 
-
-def add_to_error(config: SdrVariables, err: str) -> None:
+def add_to_error(config: Sdr, err: str) -> None:
     if len(err) != 0:
         config.error += f"{err}\n"
 
 
-def get_and_reset_error(config: SdrVariables) -> str:
+def get_and_reset_error(config: Sdr) -> str:
     tmp = config.error
     config.error = ""
     return tmp

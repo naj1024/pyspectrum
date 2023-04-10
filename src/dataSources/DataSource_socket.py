@@ -40,7 +40,7 @@ class Input(DataSource.DataSource):
         :param input_bw: The filtering of the input, may not be configurable
         """
         if not parameters or parameters == "":
-            parameters = "127.0.0.1:1234" # default
+            parameters = "127.0.0.1:1234"  # default
         super().__init__(parameters, data_type, sample_rate, centre_frequency, input_bw)
         self._name = module_type
         self._connected = False

@@ -4,7 +4,7 @@ from typing import List
 import numpy as np
 
 from dataProcessing import Spectrum
-from misc import SdrVariables
+from misc import Sdr
 
 # import line_profiler
 
@@ -28,7 +28,7 @@ def get_windows() -> []:
 
 class ProcessSamples:
 
-    def __init__(self, configuration: SdrVariables):
+    def __init__(self, configuration: Sdr):
         """
         The main processor for digitised samples
         :param configuration: The configuration we want

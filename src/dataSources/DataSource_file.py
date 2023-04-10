@@ -12,7 +12,7 @@ import numpy as np
 
 from dataSources import DataSource
 from misc import FileMetaData
-from misc import SnapVariables
+from misc import global_vars
 
 logger = logging.getLogger('spectrum_logger')
 
@@ -47,7 +47,7 @@ class Input(DataSource.DataSource):
         self._is_wav_file = False  # until we work it out
 
         if not parameters or parameters == "":
-            parameters = "not-given" # default
+            parameters = "not-given"  # default
         super().__init__(parameters, data_type, sample_rate, centre_frequency, input_bw)
 
         self._name = module_type
@@ -88,7 +88,7 @@ class Input(DataSource.DataSource):
         try:
             # patch up correct filename
             fn = os.path.basename(self._parameters)
-            full_path = pathlib.PurePath(SnapVariables.SNAPSHOT_DIRECTORY, fn)
+            full_path = pathlib.PurePath(global_vars.SNAPSHOT_DIRECTORY, fn)
             full_path = str(full_path)
 
             # now open the actual file

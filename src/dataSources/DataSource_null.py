@@ -2,7 +2,6 @@
 A null input
 """
 
-import pprint as pp
 from typing import Tuple
 import logging
 import time
@@ -18,6 +17,7 @@ help_string = f"{module_type}:xxx \t- xxx ignored parameter"
 web_help_string = "xxx - ignored parameter"
 
 import_error_msg = ""
+
 
 # return an error string if we are not available
 def is_available() -> Tuple[str, str]:
@@ -39,11 +39,10 @@ class Input(DataSource.DataSource):
         :param data_type: Not used
         :param sample_rate: The sample rate we will set the source to
         :param centre_frequency: Not used
-        :param sleep_time: Time in seconds between reads, not used on most sources
         :param input_bw: The filtering of the input, may not be configurable
         """
         if not parameters or parameters == "":
-            parameters = "0" # default
+            parameters = "0"  # default
         super().__init__(parameters, data_type, sample_rate, centre_frequency, input_bw)
 
         self._name = module_type

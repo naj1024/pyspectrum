@@ -70,7 +70,7 @@ class Input(DataSource.DataSource):
         """
         self._constant_data_type = "32fle"
         if not parameters or parameters == "":
-            parameters = "0" # default
+            parameters = "0"  # default
         super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
         self._name = module_type
         self._connected = False
@@ -441,7 +441,7 @@ class Input(DataSource.DataSource):
                 rx_time = read.timeNs
                 if not rx_time:
                     rx_time = self.get_time_ns(number_samples)
-            except :
+            except Exception:
                 rx_time = self.get_time_ns(number_samples)
 
         return self._complex_data, rx_time

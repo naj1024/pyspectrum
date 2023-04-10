@@ -24,6 +24,7 @@ NOTE:
 
 import logging
 from typing import Tuple
+import time
 
 import numpy as np
 
@@ -57,6 +58,7 @@ except (ImportError, ValueError) as msg:
     adi = None
     import_error_msg = f"{module_type} source has an issue: " + str(msg)
     logger.error(import_error_msg)
+
 
 # return an error string if we are not available
 def is_available() -> Tuple[str, str]:
@@ -104,6 +106,7 @@ class Input(DataSource.DataSource):
         self._read_block_size = 16384  # MUST be a power of 2 - AND is the MAX fft size
 
         self._index = self._read_block_size  # force read on first access
+        self._block_time = 0
 
     def open(self) -> bool:
         global import_error_msg
@@ -302,7 +305,10 @@ class Input(DataSource.DataSource):
                 try:
                     # we don't append to the end
                     self._complex_data = self._sdr.rx()  # the samples here are complex128 i.e. full doubles
-                    rx_time = self.get_time_ns(number_samples)
+                    try:
+                        self._block_time = time.time_ns()
+                    except AttributeError:
+                        self._block_time = time.time() * 1e9
                     self._index = 0
                 except Exception as err:
                     self._connected = False
@@ -314,7 +320,11 @@ class Input(DataSource.DataSource):
             complex_data = np.array(self._complex_data[self._index:last_sample], dtype=np.complex64)
             complex_data /= 4096.0  # 12bit
 
+            # work out the time of these samples from the beginning of the block
+            rx_time = self._block_time + ((1e9 * self._index) / self._sample_rate_sps)
+
             # ready for the next block
             self._index += number_samples
 
         return complex_data, rx_time
+

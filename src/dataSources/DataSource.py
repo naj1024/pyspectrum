@@ -85,7 +85,7 @@ class DataSource:
         self._has_meta_data = False
         self._error = ""
 
-        self._rx_time =0
+        self._rx_time = 0
 
         self._overflows = 0
         _ = read_and_reset_overflow()
@@ -244,16 +244,17 @@ class DataSource:
         return self._gain
 
     def get_time_ns(self, number_samples: int) -> float:
-        tt = self._rx_time  # time of last sample of previous number_samples
-        if tt == 0:
-            # python 3.7 and above has time.time_ns()
-            try:
-                self._rx_time = time.time_ns()
-            except AttributeError:
-                self._rx_time = time.time() * 1e9
-        # next time in nsec, not sure about the resolution of this
-        self._rx_time += (1e9 * number_samples) / self._sample_rate_sps
-        return tt
+        # TODO: work out why counting samples for time does not work
+        # if we add the time fo the previous samples to the previous time
+        # we should agree on time. But if we do this then the times are not
+        # correct, e.g. a signal every 6seconds may show as every 4.5seconds
+
+        try:
+            self._rx_time = time.time_ns()
+        except AttributeError:
+            self._rx_time = time.time() * 1e9
+
+        return self._rx_time
 
     def get_bytes_per_complex_sample(self) -> float:
         return self._bytes_per_complex_sample

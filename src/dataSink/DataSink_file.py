@@ -13,7 +13,7 @@ import pathlib
 
 import numpy as np
 
-from misc import SnapVariables
+from misc import Snapper
 from misc import wave_b as wave
 
 logger = logging.getLogger('spectrum_logger')
@@ -24,7 +24,7 @@ class FileOutput:
     Simple wrapper class for writing binary data to file
     """
 
-    def __init__(self, config: SnapVariables, snap_dir: pathlib.PurePath):
+    def __init__(self, config: Snapper, snap_dir: pathlib.PurePath):
         """
         Configure the snapshot
 
@@ -72,6 +72,18 @@ class FileOutput:
     def __del__(self):
         if self._triggered:
             self._end()
+
+    def get_base_filename(self) -> str:
+        return self._base_filename
+
+    def get_base_directory(self) -> pathlib.PurePath:
+        return self._base_directory
+
+    def get_centre_frequency(self) -> int:
+        return self._centre_freq_hz
+
+    def get_smaple_rate(self) -> int:
+        return self._sample_rate_sps
 
     def get_pre_trigger_milli_seconds(self) -> float:
         return self._pre_milliseconds

@@ -3,7 +3,7 @@ import logging
 import os
 import pathlib
 
-from misc import SnapVariables
+from misc import global_vars
 
 logger = logging.getLogger('spectrum_logger')
 
@@ -17,8 +17,8 @@ def delete_file(filename: str, thumb_dir: pathlib.PurePath) -> None:
     :return: None
     """
     filename = os.path.basename(filename)
-    file = pathlib.PurePath(SnapVariables.SNAPSHOT_DIRECTORY, filename)
-    file_png = pathlib.PurePath(SnapVariables.SNAPSHOT_DIRECTORY, filename + ".png")
+    file = pathlib.PurePath(global_vars.SNAPSHOT_DIRECTORY, filename)
+    file_png = pathlib.PurePath(global_vars.SNAPSHOT_DIRECTORY, filename + ".png")
     thumb_png = pathlib.PurePath(thumb_dir, filename + ".png")
     try:
         try:

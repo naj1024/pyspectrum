@@ -3,7 +3,7 @@ import pathlib
 
 from SpectrumAnalyser import setup_logging
 from SpectrumAnalyser import setup_snap_config
-from SpectrumAnalyser import setup_thumbs_dir
+from SpectrumAnalyser import set_thumbs_dir
 from misc import global_vars
 
 
@@ -23,6 +23,6 @@ def test_snapshot_dir():
 
 
 def test_thumbnail_dir():
-    _ = setup_thumbs_dir()
+    _ = set_thumbs_dir()
     thumb_dir = pathlib.PurePath(os.path.dirname(__file__), "..", "src", "webUI", "webroot", "thumbnails")
     assert os.path.isdir(thumb_dir)

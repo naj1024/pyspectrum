@@ -14,6 +14,8 @@ Provide a basic spectrum analyser for digitised complex samples
     * TODO: Favourites tab for source, freq, rate etc
     * TODO: Support controlling the FUNcube, frequency done on linux but not windows
     * TODO: sample rate, centre frequency, bandwidths need to handle ranges and discrete lists
+    * TODO: Timestamps on samples are indeterminate wrt real time, currently well after samples are really generated
+    # TODO: When we tune outside the sdr range we dont display the frequency correctly in the UI
 """
 
 import logging
@@ -36,8 +38,8 @@ from dataSources import DataSourceFactory
 from misc import Ewma
 from misc import PicGenerator
 from misc import PluginManager
-from misc import SdrVariables
-from misc import SnapVariables
+from misc import Sdr
+from misc import Snapper
 from misc import commandLine
 from misc import global_vars
 from misc import sdrStuff
@@ -78,16 +80,17 @@ def main() -> None:
 
     # configuration shared across all processes
     manager = multiprocessing.Manager()
-    shared_config = manager.dict()
+    shared_status = manager.dict()
+    shared_update = manager.dict()  # contains updates from the UI, reset each entry when we have actioned the entry
 
-    # all our things
+    # initialise our things
     data_source, display, websocket, to_ui_queue, processor, plugin_manager, source_factory, pic_generator, \
-        shared_config = initialise(sdr_config, snap_config, thumbs_dir, shared_config)
+        shared_status = initialise(sdr_config, snap_config, thumbs_dir, shared_status, shared_update)
 
     # the snapshot config
     snap_config.cf = sdr_config.centre_frequency_hz
     snap_config.sps = sdr_config.sample_rate
-    data_sink = DataSink_file.FileOutput(snap_config, SnapVariables.SNAPSHOT_DIRECTORY)
+    data_sink = DataSink_file.FileOutput(snap_config, global_vars.SNAPSHOT_DIRECTORY)
 
     # Some info on the amount of time to get samples
     expected_samples_receive_time = sdr_config.fft_size / sdr_config.sample_rate
@@ -124,11 +127,12 @@ def main() -> None:
         if not multiprocessing.active_children():
             processing = False  # we will exit mow as we lost our processes
 
-        # sync the config from multiprocessing
-        data_source, data_sink, sdr_config, snap_config, config_changed = \
-            sync_config(sdr_config, snap_config,
-                        data_source, source_factory, data_sink,
-                        thumbs_dir, processor, shared_config, config_changed)
+        # sync the status and update from UI
+        if shared_update:
+            data_source, data_sink, sdr_config, snap_config, config_changed = \
+                sync_state(sdr_config, snap_config,
+                           data_source, source_factory, data_sink,
+                           thumbs_dir, processor, shared_status, shared_update, config_changed)
 
         ###########################################
         # Get and process the complex samples we will work on
@@ -141,10 +145,6 @@ def main() -> None:
                 sdr_config.input_overflows = data_source.get_overflows()
             else:
                 samples = None
-
-            # stop doing cpu heavy things if we are told to stop
-            #if configuration.stop:
-            #    samples = None
 
             if samples is None:
                 time.sleep(0.001)  # rate limit on trying to get samples
@@ -202,7 +202,7 @@ def main() -> None:
                 if data_sink.write(snap_config.triggered, samples, time_rx_nsec):
                     snap_config.triggered = False
                     snap_config.triggerState = "wait"
-                    snap_config.directory_list = snapStuff.list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
+                    snap_config.directory_list = snapStuff.list_snap_files(global_vars.SNAPSHOT_DIRECTORY)
                     config_changed = True
 
                 snap_config.currentSizeMbytes = data_sink.get_current_size_mbytes()
@@ -220,18 +220,18 @@ def main() -> None:
                 #     snap_configuration.sps = configuration.sample_rate
                 #     snap_configuration.triggered = False
                 #     snap_configuration.triggerState = "wait"
-                #     data_sink = DataSink_file.FileOutput(snap_configuration, SnapVariables.SNAPSHOT_DIRECTORY)
+                #     data_sink = DataSink_file.FileOutput(snap_configuration, global_vars.SNAPSHOT_DIRECTORY)
                 #     snap_configuration.currentSizeMbytes = 0
                 #     snap_configuration.expectedSizeMbytes = data_sink.get_size_mbytes()
                 #     config_changed = True
 
                 if config_changed:
-                    fill_shared_config(shared_config, sdr_config, snap_config)
+                    fill_shared_status(shared_status, sdr_config, snap_config)
                     config_changed = False
 
-                ##########################
-                # Update the UI
-                #################
+                ################################
+                # Update the UI spectral data
+                ###################
                 peak_powers_since_last_display, current_peak_count, max_peak_count = \
                     send_to_ui(sdr_config,
                                to_ui_queue,
@@ -253,7 +253,7 @@ def main() -> None:
                 err_msg = f"Problem with source: {sdr_config.input_source}"
                 sdr_config.input_source = "null"
                 data_source = sdrStuff.update_source(sdr_config, source_factory)
-                SdrVariables.add_to_error(sdr_config, err_msg)
+                Sdr.add_to_error(sdr_config, err_msg)
                 logger.error(sdr_config.error)
 
         now = time.time()
@@ -263,7 +263,7 @@ def main() -> None:
             fps_update_time = now + 1
             sdr_config.time_measure_fps = now
             sdr_config.sent_count = 0
-            fill_config_fast(shared_config, sdr_config, snap_config)
+            fill_status_fast(shared_status, sdr_config, snap_config)
 
         # Debug print on how long things are taking
         if now > debug_time:
@@ -285,7 +285,7 @@ def main() -> None:
             sdrStuff.update_source_state(sdr_config, data_source)
             config_time = now + 1
             total_time = process_time.get_ewma() + analysis_time.get_ewma() + reporting_time.get_ewma() + \
-                            snap_time.get_ewma() + ui_time.get_ewma()
+                         snap_time.get_ewma() + ui_time.get_ewma()
             data_time = (sdr_config.fft_size / sdr_config.sample_rate)
             sdr_config.headroom = 100.0 * (data_time - total_time) / data_time
 
@@ -319,7 +319,7 @@ def main() -> None:
     logger.error("SpectrumAnalyser exit")
 
 
-def setup() -> Tuple[SdrVariables.SdrVariables, SnapVariables.SnapVariables, pathlib.PurePath]:
+def setup() -> Tuple[Sdr.Sdr, Snapper.Snapper, pathlib.PurePath]:
     """
     Basic things everything else use
 
@@ -328,7 +328,7 @@ def setup() -> Tuple[SdrVariables.SdrVariables, SnapVariables.SnapVariables, pat
     setup_logging("SpectrumAnalyser.log")
 
     # sdr configuration
-    configuration = SdrVariables.SdrVariables()
+    configuration = Sdr.Sdr()
     commandLine.parse_command_line(configuration, logger)
 
     # check we have a valid input sample type
@@ -344,7 +344,7 @@ def setup() -> Tuple[SdrVariables.SdrVariables, SnapVariables.SnapVariables, pat
     configuration.window = configuration.window_types[0]
 
     snap_configuration = setup_snap_config()
-    thumbs_dir = setup_thumbs_dir()
+    thumbs_dir = set_thumbs_dir()
 
     return configuration, snap_configuration, thumbs_dir
 
@@ -373,21 +373,21 @@ def setup_logging(log_filename: str) -> None:
     logger.setLevel(logging.WARN)
 
 
-def setup_snap_config() -> SnapVariables.SnapVariables:
+def setup_snap_config() -> Snapper.Snapper:
     # make sure we have the snapshot directory
-    snap_configuration = SnapVariables.SnapVariables()
-    if not os.path.isdir(SnapVariables.SNAPSHOT_DIRECTORY):
+    snap_configuration = Snapper.Snapper()
+    if not os.path.isdir(global_vars.SNAPSHOT_DIRECTORY):
         try:
-            os.makedirs(SnapVariables.SNAPSHOT_DIRECTORY)
+            os.makedirs(global_vars.SNAPSHOT_DIRECTORY)
         except FileExistsError:
             pass
         except Exception as msg:
             raise ValueError(f"Failed to create snapshot directory, {msg}")
-    snap_configuration.directory_list = snapStuff.list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
+    snap_configuration.directory_list = snapStuff.list_snap_files(global_vars.SNAPSHOT_DIRECTORY)
     return snap_configuration
 
 
-def setup_thumbs_dir() -> pathlib.PurePath:
+def set_thumbs_dir() -> pathlib.PurePath:
     # web thumbnail directory
     where = f"{os.path.dirname(__file__)}"
     thumbs_dir = pathlib.PurePath(f"{where}/webUI/webroot/thumbnails")
@@ -402,23 +402,24 @@ def setup_thumbs_dir() -> pathlib.PurePath:
     return thumbs_dir
 
 
-def initialise(sdr_config: SdrVariables, snap_config: SnapVariables, thumbs_dir: pathlib.PurePath, shared_config: dict) \
+def initialise(sdr_config: Sdr, snap_config: Snapper,
+               thumbs_dir: pathlib.PurePath, shared_status: dict, shared_update: dict) \
         -> Tuple[Type[DataSource.DataSource],
-                 FlaskInterface.FlaskInterface,
-                 WebSocketServer.WebSocketServer,
-                 multiprocessing.Queue,
-                 ProcessSamples.ProcessSamples,
-                 PluginManager.PluginManager,
-                 DataSourceFactory.DataSourceFactory,
-                 PicGenerator.PicGenerator,
-                 dict]:
+        FlaskInterface.FlaskInterface,
+        WebSocketServer.WebSocketServer,
+        multiprocessing.Queue,
+        ProcessSamples.ProcessSamples,
+        PluginManager.PluginManager,
+        DataSourceFactory.DataSourceFactory,
+        PicGenerator.PicGenerator,
+        dict]:
     """
      Initialise everything we need
 
     :param sdr_config: main config options
     :param snap_config: snapshot config options
     :param thumbs_dir: Where the picture generator will store thumbnails
-    :param shared_config: dictionary shared for multi-processing use
+    :param shared_status: dictionary status shared for multi-processing use
     :return: Lots
     """
     try:
@@ -432,14 +433,14 @@ def initialise(sdr_config: SdrVariables, snap_config: SnapVariables, thumbs_dir:
         # Queues for UI, control and data are separate when going to ui
         to_ui_queue = multiprocessing.Queue(MAX_TO_UI_QUEUE_DEPTH)
 
-        fill_shared_config(shared_config, sdr_config, snap_config)
+        fill_shared_status(shared_status, sdr_config, snap_config)
 
-        display = FlaskInterface.FlaskInterface(to_ui_queue, logger.level, shared_config)
+        display = FlaskInterface.FlaskInterface(to_ui_queue, logger.level, shared_status, shared_update)
 
         display.start()
         logger.debug(f"Started WebServer, {display}")
 
-        web_socket = WebSocketServer.WebSocketServer(to_ui_queue, logger.level, shared_config['web_socket_port'])
+        web_socket = WebSocketServer.WebSocketServer(to_ui_queue, logger.level, shared_status['web_socket_port'])
         web_socket.start()
         logger.debug(f"Started WebSocket, {web_socket}")
 
@@ -454,294 +455,341 @@ def initialise(sdr_config: SdrVariables, snap_config: SnapVariables, thumbs_dir:
             sdr_config.sample_types = data_source.get_sample_types()
         except ValueError as msg:
             logger.error(f"Connection problem {msg}")
-            SdrVariables.add_to_error(sdr_config, str(msg))
+            Sdr.add_to_error(sdr_config, str(msg))
 
         # The main processor for producing ffts etc
         processor = ProcessSamples.ProcessSamples(sdr_config)
 
         # thumbnail and pic generator process
-        pic_generator = PicGenerator.PicGenerator(SnapVariables.SNAPSHOT_DIRECTORY, thumbs_dir, logger.level)
+        pic_generator = PicGenerator.PicGenerator(global_vars.SNAPSHOT_DIRECTORY, thumbs_dir, logger.level)
         pic_generator.start()
         logger.debug(f"Started PicGenerator")
 
         sdr_config.time_measure_fps = time.time()
 
-        return data_source, display, web_socket, to_ui_queue, processor, plugin_manager, factory, pic_generator, shared_config
+        return data_source, display, web_socket, to_ui_queue, processor, plugin_manager, factory, pic_generator, shared_status
 
     except Exception as msg:
         # exceptions here are fatal
         raise msg
 
 
-def fill_config_fast(shared_config: dict, sdr_config: SdrVariables, snap_config: SnapVariables):
+def fill_status_fast(shared_status: dict, sdr_config: Sdr, snap_config: Snapper):
     # things we want to update faster
-    shared_config['digitiserGain'] = sdr_config.gain
+    shared_status['digitiserGain'] = sdr_config.gain
 
     # control stuff
-    shared_config['fps'] = ({'set': sdr_config.fps,
-                      'measured': sdr_config.measured_fps})
-    shared_config['stop'] = sdr_config.stop
-    shared_config['delay'] = sdr_config.ui_delay
-    shared_config['readRatio'] = sdr_config.read_ratio
-    shared_config['headroom'] = sdr_config.headroom
-    shared_config['overflows'] = sdr_config.input_overflows
-    shared_config['oneInN'] = sdr_config.one_in_n
+    shared_status['fps'] = ({'set': sdr_config.fps,
+                             'measured': sdr_config.measured_fps})
+    shared_status['stop'] = sdr_config.stop
+    shared_status['delay'] = sdr_config.ui_delay
+    shared_status['readRatio'] = sdr_config.read_ratio
+    shared_status['headroom'] = sdr_config.headroom
+    shared_status['overflows'] = sdr_config.input_overflows
+    shared_status['oneInN'] = sdr_config.one_in_n
 
     # snapshot stuff
-    shared_config['snapTriggerState'] = snap_config.triggerState
+    shared_status['snapTriggerState'] = snap_config.triggerState
 
 
-def fill_shared_config(shared_config: dict, sdr_config: SdrVariables, snap_config: SnapVariables):
+def fill_shared_status(shared_status: dict, sdr_config: Sdr, snap_config: Snapper):
     # Half way house converting over from class containing configuration
     # to a dictionary,so we can use the multiproccessing dictionary between processes
 
     # source stuff
     # should really be paired up as source, help
-    shared_config['sources'] = sdr_config.input_sources_with_helps
-    shared_config['source'] = ({'source': sdr_config.input_source,
-                         'params': sdr_config.input_params,
-                         'connected': sdr_config.source_connected})
-    shared_config['errors'] = ""
+    shared_status['sources'] = sdr_config.input_sources_with_helps
+    shared_status['source'] = ({'source': sdr_config.input_source,
+                                'params': sdr_config.input_params,
+                                'connected': sdr_config.source_connected})
+    shared_status['errors'] = ""
 
     # tuning stuff
-    shared_config['frequency'] = ({'value': sdr_config.centre_frequency_hz,
-                            'conversion': sdr_config.conversion_frequency_hz})
+    shared_status['frequency'] = ({'value': sdr_config.centre_frequency_hz,
+                                   'conversion': sdr_config.conversion_frequency_hz})
 
     # digitiser stuff
-    shared_config['digitiserFrequency'] = sdr_config.sdr_centre_frequency_hz
-    shared_config['digitiserFormats'] = sdr_config.sample_types
-    shared_config['digitiserFormat'] = sdr_config.sample_type
-    shared_config['digitiserSampleRate'] = sdr_config.sample_rate
-    shared_config['digitiserBandwidth'] = sdr_config.input_bw_hz
-    shared_config['digitiserPartsPerMillion'] = sdr_config.ppm_error
-    shared_config['digitiserGainTypes'] = sdr_config.gain_modes
-    shared_config['digitiserGainType'] = sdr_config.gain_mode
-    shared_config['digitiserGain'] = sdr_config.gain
+    shared_status['digitiserFrequency'] = sdr_config.sdr_centre_frequency_hz
+    shared_status['digitiserFormats'] = sdr_config.sample_types
+    shared_status['digitiserFormat'] = sdr_config.sample_type
+    shared_status['digitiserSampleRate'] = sdr_config.sample_rate
+    shared_status['digitiserBandwidth'] = sdr_config.input_bw_hz
+    shared_status['digitiserPartsPerMillion'] = sdr_config.ppm_error
+    shared_status['digitiserGainTypes'] = sdr_config.gain_modes
+    shared_status['digitiserGainType'] = sdr_config.gain_mode
+    shared_status['digitiserGain'] = sdr_config.gain
 
     # spectrum stuff
-    shared_config['fftSize'] = sdr_config.fft_size
-    shared_config['fftSizes'] = [256, 512, 1024, 2048, 4096, 8192, 16384, 32768]
-    shared_config['fftWindows'] = sdr_config.window_types
-    shared_config['fftWindow'] = sdr_config.window
+    shared_status['fftSize'] = sdr_config.fft_size
+    shared_status['fftSizes'] = [256, 512, 1024, 2048, 4096, 8192, 16384, 32768]
+    shared_status['fftWindows'] = sdr_config.window_types
+    shared_status['fftWindow'] = sdr_config.window
 
     # control stuff
-    shared_config['fps'] = ({'set': sdr_config.fps,
-                      'measured': sdr_config.measured_fps})
-    shared_config['presetFps'] = [1, 5, 10, 20, 40, 80, 160, 320, 640, 10000, 100000]
-    shared_config['stop'] = sdr_config.stop
-    shared_config['delay'] = sdr_config.ui_delay
-    shared_config['readRatio'] = sdr_config.read_ratio
-    shared_config['headroom'] = sdr_config.headroom
-    shared_config['overflows'] = sdr_config.input_overflows
-    shared_config['ackTime'] = sdr_config.ackTime
-    shared_config['oneInN'] = sdr_config.one_in_n
+    shared_status['fps'] = ({'set': sdr_config.fps,
+                             'measured': sdr_config.measured_fps})
+    shared_status['presetFps'] = [1, 5, 10, 20, 40, 80, 160, 320, 640, 10000, 100000]
+    shared_status['stop'] = sdr_config.stop
+    shared_status['delay'] = sdr_config.ui_delay
+    shared_status['readRatio'] = sdr_config.read_ratio
+    shared_status['headroom'] = sdr_config.headroom
+    shared_status['overflows'] = sdr_config.input_overflows
+    shared_status['ackTime'] = sdr_config.ackTime
+    shared_status['oneInN'] = sdr_config.one_in_n
 
     # snapshot stuff
-    shared_config['snapTrigger'] = snap_config.triggered
-    shared_config['snapTriggerState'] = snap_config.triggerState
-    shared_config['snapTriggerSources'] = ['manual', 'off']
-    shared_config['snapTriggerSource'] = snap_config.triggerType
-    shared_config['snapName'] = snap_config.baseFilename
-    shared_config['snapFormats'] = snap_config.file_formats
-    shared_config['snapFormat'] = snap_config.file_format
-    shared_config['snapPreTrigger'] = snap_config.preTriggerMilliSec
-    shared_config['snapPostTrigger'] = snap_config.postTriggerMilliSec
-    shared_config['snaps'] = snap_config.directory_list
-    shared_config['snapSize'] = ({'current': snap_config.currentSizeMbytes,
-                           'limit': snap_config.expectedSizeMbytes})
-    shared_config['snapDelete'] = ""
+    shared_status['snapTrigger'] = snap_config.triggered
+    shared_status['snapTriggerState'] = snap_config.triggerState
+    shared_status['snapTriggerSources'] = ['manual', 'off']
+    shared_status['snapTriggerSource'] = snap_config.triggerType
+    shared_status['snapName'] = snap_config.baseFilename
+    shared_status['snapFormats'] = snap_config.file_formats
+    shared_status['snapFormat'] = snap_config.file_format
+    shared_status['snapPreTrigger'] = snap_config.preTriggerMilliSec
+    shared_status['snapPostTrigger'] = snap_config.postTriggerMilliSec
+    shared_status['snaps'] = snap_config.directory_list
+    shared_status['snapSize'] = ({'current': snap_config.currentSizeMbytes,
+                                  'limit': snap_config.expectedSizeMbytes})
+    shared_status['snapDelete'] = ""
 
     # web interface
-    shared_config['web_server_port'] = sdr_config.web_port
-    shared_config['web_socket_port'] = sdr_config.web_port + 1
+    shared_status['web_server_port'] = sdr_config.web_port
+    shared_status['web_socket_port'] = sdr_config.web_port + 1
 
 
-def sync_config(sdr_config: SdrVariables,
-                snap_config: SnapVariables,
-                data_source,
-                source_factory,
-                snap_sink,
-                thumb_dir: pathlib.PurePath,
-                processor: ProcessSamples,
-                shared_config: dict,
-                config_changed: bool):
+def sync_state(sdr_config: Sdr,
+               snap_config: Snapper,
+               data_source,
+               source_factory,
+               snap_sink,
+               thumb_dir: pathlib.PurePath,
+               processor: ProcessSamples,
+               shared_status: dict,
+               shared_update: dict,
+               config_changed: bool):
     """
+    All changes instigated by the UI rest interfaces end up in the shared_update dictionary.
+    Once the changes are made we delete the entries in the shared_update dictionary
 
-    :param sdr_config: config
-    :param snap_config: config
+    :param sdr_config: Sdr configuration
+    :param snap_config: Snapper configuration
     :param data_source: the current data source
     :param source_factory: for generating a new source
     :param snap_sink: the sink used for snapshots
     :param thumb_dir: Thumbnail directory
     :param processor: the current processor (fft's)
-    :param shared_config: dictionary for sharing to multi-processing
+    :param shared_status: dictionary of the current state for sharing to multi-processing
+    :param shared_update: dictionary os updated items from UI
     :param config_changed: something has changed
     :return:
     """
     # -> Tuple[Type[DataSource.DataSource], DataSink_file.FileOutput,
-    #                             SdrVariables, SnapVariables]:
+    #                             Sdr, Snapper]:
     # conf  multiprocessing dictionary
 
     snap_changed = False
+    config_changed = False
+    # if not 'ackTime' in shared_update:
+    #     print(f"update: {shared_update}")
 
-    src = shared_config['source']
-    if src['source'] != sdr_config.input_source or (src['params'] != sdr_config.input_params):
-        # TODO: This is getting messy with shared config sdr params etc, sort it out
-        data_source = sdrStuff.change_source(data_source, source_factory, sdr_config, src['source'], src['params'])
-        if src['source'] == 'file':
-            # need to configure things from the file
-            if data_source.has_meta_data():
-                shared_config['digitiserSampleRate'] = sdr_config.sample_rate
-                shared_config['frequency'] = ({'value': sdr_config.centre_frequency_hz, 'conversion': 0})
-                shared_config['digitiserFrequency'] = sdr_config.centre_frequency_hz
-                shared_config['digitiserFormat'] = sdr_config.sample_type
-        SdrVariables.add_to_error(sdr_config, data_source.get_and_reset_error())
-        shared_config['errors'] = SdrVariables.get_and_reset_error(sdr_config)
-        src['source'] = data_source.get_name()
-        src['params'] = data_source.get_parameters()
-        shared_config['source'] = src  # if we change src to null make sure we don't try again immediately
-        sdr_config.input_params = data_source.get_parameters()
-        config_changed = True
-        snap_changed = True
+    if 'source' in shared_update:
+        src = shared_update['source']
+        if src['source'] != sdr_config.input_source or (src['params'] != sdr_config.input_params):
+            data_source = sdrStuff.change_source(data_source, source_factory, sdr_config, src['source'], src['params'])
+            if src['source'] == 'file':
+                # May need to configure things from the filename
+                if data_source.has_meta_data():
+                    shared_status['digitiserSampleRate'] = sdr_config.sample_rate
+                    shared_status['frequency'] = ({'value': sdr_config.centre_frequency_hz, 'conversion': 0})
+                    shared_status['digitiserFrequency'] = sdr_config.centre_frequency_hz
+                    shared_status['digitiserFormat'] = sdr_config.sample_type
+            Sdr.add_to_error(sdr_config, data_source.get_and_reset_error())
+            shared_status['errors'] = Sdr.get_and_reset_error(sdr_config)
+            src['source'] = data_source.get_name()
+            src['params'] = data_source.get_parameters()
+            shared_status['source'] = src  # if we change src to null make sure we don't try again immediately
+            sdr_config.input_params = data_source.get_parameters()
+            config_changed = True
+            snap_changed = True
+        shared_update.pop('source')
 
     # if we have to override the fps as the UI is not keeping up then don't update the fps value
     if not sdr_config.fps_override:
-        if shared_config['fps']['set'] != sdr_config.fps:
-            sdr_config.fps = shared_config['fps']['set']
+        if 'fps' in shared_update:
+            if shared_update['fps']['set'] != sdr_config.fps:
+                sdr_config.fps = shared_update['fps']['set']
+            shared_update.pop('fps')
     else:
-        shared_config['fps']['set'] = sdr_config.fps
+        shared_status['fps']['set'] = sdr_config.fps
         if sdr_config.measured_fps <= sdr_config.fps:
             # but if we are now keeping up then go back to normal
             sdr_config.fps_override = False
 
-    if shared_config['ackTime'] != sdr_config.ackTime:
-        sdr_config.ackTime = shared_config['ackTime']
+    if 'ackTime' in shared_update:
+        if shared_status['ackTime'] != sdr_config.ackTime:
+            sdr_config.ackTime = shared_update['ackTime']
+        shared_update.pop('ackTime')
 
-    freq = shared_config['frequency']
-    if freq['value'] != sdr_config.centre_frequency_hz \
-            or freq['conversion'] != sdr_config.conversion_frequency_hz:
-        new_sdr_cf = freq['value']
-        new_dc = freq['conversion']
-        if 0 < new_dc < new_sdr_cf:
-            new_sdr_cf = new_sdr_cf - new_dc
-        data_source.set_centre_frequency_hz(new_sdr_cf)
-        SdrVariables.add_to_error(sdr_config, data_source.get_and_reset_error())
+    if 'frequency' in shared_update:
+        freq = shared_update['frequency']
+        if freq['value'] != sdr_config.centre_frequency_hz \
+                or freq['conversion'] != sdr_config.conversion_frequency_hz:
+            new_cf = freq['value']
+            new_dc = freq['conversion']
+            new_sdr_cf = new_cf - new_dc  # works for +ve and -ve conversions
+            data_source.set_centre_frequency_hz(new_sdr_cf)
+            Sdr.add_to_error(sdr_config, data_source.get_and_reset_error())
 
-        # update our sdr frequency from what the sdr did
-        sdr_config.sdr_centre_frequency_hz = data_source.get_centre_frequency_hz()
-        sdr_config.centre_frequency_hz = freq['value']
-        sdr_config.conversion_frequency_hz = new_dc
-        config_changed = True
-
-    if shared_config['digitiserBandwidth'] != sdr_config.input_bw_hz:
-        data_source.set_bandwidth_hz(shared_config['digitiserBandwidth'])
-        SdrVariables.add_to_error(sdr_config, data_source.get_and_reset_error())
-        sdr_config.input_bw_hz = data_source.get_bandwidth_hz()
-        config_changed = True
-
-    if shared_config['digitiserPartsPerMillion'] != sdr_config.ppm_error:
-        data_source.set_ppm(float(shared_config['digitiserPartsPerMillion']))
-        SdrVariables.add_to_error(sdr_config, data_source.get_and_reset_error())
-        sdr_config.ppm_error = data_source.get_ppm()
-        config_changed = True
-
-    if shared_config['digitiserSampleRate'] != sdr_config.sample_rate:
-        data_source.set_sample_rate_sps(shared_config['digitiserSampleRate'])
-        SdrVariables.add_to_error(sdr_config, data_source.get_and_reset_error())
-        sdr_config.sample_rate = data_source.get_sample_rate_sps()
-        config_changed = True
-
-    if shared_config['digitiserFormat'] != sdr_config.sample_type:
-        data_source.set_sample_type(shared_config['digitiserFormat'])
-        SdrVariables.add_to_error(sdr_config, data_source.get_and_reset_error())
-        sdr_config.sample_type = data_source.get_sample_type()
-        shared_config['digitiserFormat'] = sdr_config.sample_type
-        config_changed = True
-
-    if shared_config['stop'] != sdr_config.stop:
-        sdr_config.stop = shared_config['stop']
-        config_changed = True
-
-    if shared_config['fftWindow'] != sdr_config.window:
-        processor.set_window(shared_config['fftWindow'])
-        sdr_config.window = processor.get_window()
-        config_changed = True
-
-    if shared_config['fftSize'] != sdr_config.fft_size:
-        sdr_config.fft_size = shared_config['fftSize']
-        config_changed = True
-
-    if shared_config['digitiserGain'] != sdr_config.gain:
-        sdr_config.gain = shared_config['digitiserGain']
-        data_source.set_gain(sdr_config.gain)
-        SdrVariables.add_to_error(sdr_config, data_source.get_and_reset_error())
-        sdr_config.gain = data_source.get_gain()
-        config_changed = True
-
-    if shared_config['digitiserGainType'] != sdr_config.gain_mode:
-        sdr_config.gain_mode = shared_config['digitiserGainType']
-        data_source.set_gain_mode(sdr_config.gain_mode)
-        SdrVariables.add_to_error(sdr_config, data_source.get_and_reset_error())
-        sdr_config.gain_mode = data_source.get_gain_mode()
-        config_changed = True
-
-    if shared_config['digitiserFormat'] != sdr_config.sample_type:
-        sdr_config.sample_type = shared_config['digitiserFormat']
-        config_changed = True
-
-    if shared_config['snapDelete'] != "":
-        snapStuff.delete_file(shared_config['snapDelete'], thumb_dir)
-        shared_config['snapDelete'] = ""
-        snap_config.directory_list = snapStuff.list_snap_files(SnapVariables.SNAPSHOT_DIRECTORY)
-        config_changed = True
-
-    if shared_config['snapTrigger'] and snap_config.triggerState != "triggered":
-        if snap_config.triggerType == "manual":
-            snap_config.triggered = True
-            snap_config.triggerState = "triggered"
+            # update our sdr frequency from what the sdr did
+            sdr_config.sdr_centre_frequency_hz = data_source.get_centre_frequency_hz()
+            sdr_config.centre_frequency_hz = sdr_config.sdr_centre_frequency_hz + new_dc
+            sdr_config.conversion_frequency_hz = new_dc
             config_changed = True
+        shared_update.pop('frequency')
 
-    if shared_config['snapTriggerSource'] != snap_config.triggerType:
-        snap_config.triggerType = shared_config['snapTriggerSource']
-        config_changed = True
+    if 'digitiserBandwidth' in shared_update:
+        if shared_update['digitiserBandwidth'] != sdr_config.input_bw_hz:
+            data_source.set_bandwidth_hz(shared_update['digitiserBandwidth'])
+            Sdr.add_to_error(sdr_config, data_source.get_and_reset_error())
+            sdr_config.input_bw_hz = data_source.get_bandwidth_hz()
+            config_changed = True
+        shared_update.pop('digitiserBandwidth')
 
-    if shared_config['snapName'] != snap_config.baseFilename:
-        snap_config.baseFilename = shared_config['snapName']
-        config_changed = True
-        snap_changed = True
+    if 'digitiserPartsPerMillion' in shared_update:
+        if shared_update['digitiserPartsPerMillion'] != sdr_config.ppm_error:
+            data_source.set_ppm(float(shared_update['digitiserPartsPerMillion']))
+            Sdr.add_to_error(sdr_config, data_source.get_and_reset_error())
+            sdr_config.ppm_error = data_source.get_ppm()
+            config_changed = True
+        shared_update.pop('digitiserPartsPerMillion')
 
-    if shared_config['snapFormat'] != snap_config.file_format:
-        snap_config.file_format = shared_config['snapFormat']
-        config_changed = True
-        snap_changed = True
+    if 'digitiserSampleRate' in shared_update:
+        if shared_update['digitiserSampleRate'] != sdr_config.sample_rate:
+            data_source.set_sample_rate_sps(shared_update['digitiserSampleRate'])
+            Sdr.add_to_error(sdr_config, data_source.get_and_reset_error())
+            sdr_config.sample_rate = data_source.get_sample_rate_sps()
+            config_changed = True
+        shared_update.pop('digitiserSampleRate')
 
-    if shared_config['snapPreTrigger'] != snap_config.preTriggerMilliSec:
-        snap_config.preTriggerMilliSec = shared_config['snapPreTrigger']
-        config_changed = True
-        snap_changed = True
+    if 'digitiserFormat' in shared_update:
+        if shared_update['digitiserFormat'] != sdr_config.sample_type:
+            data_source.set_sample_type(shared_update['digitiserFormat'])
+            Sdr.add_to_error(sdr_config, data_source.get_and_reset_error())
+            sdr_config.sample_type = data_source.get_sample_type()
+            shared_status['digitiserFormat'] = sdr_config.sample_type
+            config_changed = True
+        shared_update.pop('digitiserFormat')
 
-    if shared_config['snapPostTrigger'] != snap_config.postTriggerMilliSec:
-        snap_config.postTriggerMilliSec = shared_config['snapPostTrigger']
-        config_changed = True
-        snap_changed = True
+    if 'stop' in shared_update:
+        if shared_update['stop'] != sdr_config.stop:
+            sdr_config.stop = shared_update['stop']
+            config_changed = True
+        shared_update.pop('stop')
+
+    if 'fftWindow' in shared_update:
+        if shared_update['fftWindow'] != sdr_config.window:
+            processor.set_window(shared_update['fftWindow'])
+            sdr_config.window = processor.get_window()
+            config_changed = True
+        shared_update.pop('fftWindow')
+
+    if 'fftSize' in shared_update:
+        if shared_update['fftSize'] != sdr_config.fft_size:
+            sdr_config.fft_size = shared_update['fftSize']
+            config_changed = True
+        shared_update.pop('fftSize')
+
+    if 'digitiserGain' in shared_update:
+        if shared_update['digitiserGain'] != sdr_config.gain:
+            sdr_config.gain = shared_update['digitiserGain']
+            data_source.set_gain(sdr_config.gain)
+            Sdr.add_to_error(sdr_config, data_source.get_and_reset_error())
+            sdr_config.gain = data_source.get_gain()
+            config_changed = True
+        shared_update.pop('digitiserGain')
+
+    if 'digitiserGainType' in shared_update:
+        if shared_update['digitiserGainType'] != sdr_config.gain_mode:
+            sdr_config.gain_mode = shared_update['digitiserGainType']
+            data_source.set_gain_mode(sdr_config.gain_mode)
+            Sdr.add_to_error(sdr_config, data_source.get_and_reset_error())
+            sdr_config.gain_mode = data_source.get_gain_mode()
+            config_changed = True
+        shared_update.pop('digitiserGainType')
+
+    if 'digitiserFormat' in shared_update:
+        if shared_update['digitiserFormat'] != sdr_config.sample_type:
+            sdr_config.sample_type = shared_update['digitiserFormat']
+            config_changed = True
+        shared_update.pop('digitiserFormat')
+
+    if 'snapDelete' in shared_update:
+        if shared_update['snapDelete'] != "":
+            snapStuff.delete_file(shared_update['snapDelete'], thumb_dir)
+            shared_status['snapDelete'] = ""
+            snap_config.directory_list = snapStuff.list_snap_files(global_vars.SNAPSHOT_DIRECTORY)
+            config_changed = True
+        shared_update.pop('snapDelete')
+
+    if 'snapTrigger' in shared_update:
+        if shared_update['snapTrigger'] and snap_config.triggerState != "triggered":
+            if snap_config.triggerType == "manual":
+                snap_config.triggered = True
+                snap_config.triggerState = "triggered"
+                config_changed = True
+        shared_update.pop('snapTrigger')
+
+    if 'snapTriggerSource' in shared_update:
+        if shared_update['snapTriggerSource'] != snap_config.triggerType:
+            snap_config.triggerType = shared_update['snapTriggerSource']
+            config_changed = True
+        shared_update.pop('snapTriggerSource')
+
+    if 'snapName' in shared_update:
+        if shared_update['snapName'] != snap_config.baseFilename:
+            snap_config.baseFilename = shared_update['snapName']
+            config_changed = True
+            snap_changed = True
+        shared_update.pop('snapName')
+
+    if 'snapFormat' in shared_update:
+        if shared_update['snapFormat'] != snap_config.file_format:
+            snap_config.file_format = shared_update['snapFormat']
+            config_changed = True
+            snap_changed = True
+        shared_update.pop('snapFormat')
+
+    if 'snapPreTrigger' in shared_update:
+        if shared_update['snapPreTrigger'] != snap_config.preTriggerMilliSec:
+            snap_config.preTriggerMilliSec = shared_update['snapPreTrigger']
+            config_changed = True
+            snap_changed = True
+        shared_update.pop('snapPreTrigger')
+
+    if 'snapPostTrigger' in shared_update:
+        if shared_update['snapPostTrigger'] != snap_config.postTriggerMilliSec:
+            snap_config.postTriggerMilliSec = shared_update['snapPostTrigger']
+            config_changed = True
+            snap_changed = True
+        shared_update.pop('snapPostTrigger')
 
     if snap_changed:
         snap_config.sps = data_source.get_sample_rate_sps()
-        data_sink = DataSink_file.FileOutput(snap_config, SnapVariables.SNAPSHOT_DIRECTORY)
+        data_sink = DataSink_file.FileOutput(snap_config, global_vars.SNAPSHOT_DIRECTORY)
 
         # following may of been changed by the sink on creation
         if data_sink.get_post_trigger_milli_seconds() != snap_config.postTriggerMilliSec or \
                 data_sink.get_pre_trigger_milli_seconds() != snap_config.preTriggerMilliSec:
             snap_config.postTriggerMilliSec = data_sink.get_post_trigger_milli_seconds()
             snap_config.preTriggerMilliSec = data_sink.get_pre_trigger_milli_seconds()
-            SdrVariables.add_to_error(sdr_config, f"Snap modified to maximum file size of "
-                                                     f"{snap_config.max_file_size / 1e6}MBytes")
+            Sdr.add_to_error(sdr_config, f"Snap modified to maximum file size of "
+                                                  f"{snap_config.max_file_size / 1e6}MBytes")
         snap_sink = data_sink
 
     return data_source, snap_sink, sdr_config, snap_config, config_changed
 
 
-def send_to_ui(sdr_config: SdrVariables,
+def send_to_ui(sdr_config: Sdr,
                to_ui_queue: multiprocessing.Queue,
                powers: np.ndarray,
                peak_powers_since_last_display: np.ndarray,

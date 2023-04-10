@@ -203,7 +203,7 @@ class Input(DataSource.DataSource):
         """
         self._constant_data_type = "16tle"
         if not parameters or parameters == "":
-            parameters = "0" # default
+            parameters = "0"  # default
         super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
 
         self._name = module_type
@@ -393,7 +393,7 @@ class Input(DataSource.DataSource):
                 complex_data = audio_q.get(block=False)
                 if samples_got == 0:
                     if self._complex_data.size == 0:
-                        self._rx_time = self.get_time_ns()
+                        self._rx_time = self.get_time_ns(0)
                 empty_count = 0
                 self._complex_data = np.append(self._complex_data, complex_data)
                 samples_got += complex_data.size

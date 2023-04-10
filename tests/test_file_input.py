@@ -6,12 +6,12 @@ from misc import FileMetaData
 
 def test_file_not_present():
     with pytest.raises(Exception):
-        _ = DataSource_file.Input("no_file", 1024, "16tr", 1.0, 1.0, 1.0)
+        _ = DataSource_file.Input("no_file", "16tr", 1.0, 1.0, 1.0)
 
 
 def test_illegal_type():
     with pytest.raises(Exception):
-        _ = DataSource_file.Input("./test_file_input.py", 1024, "128g", 1.0, 1.0, 1.0)
+        _ = DataSource_file.Input("./test_file_input.py", "128g", 1.0, 1.0, 1.0)
 
 
 def test_parse_filename():
