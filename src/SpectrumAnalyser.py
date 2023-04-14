@@ -676,8 +676,8 @@ def sync_state(sdr_config: Sdr,
             data_source.set_sample_type(shared_update['digitiserFormat'])
             Sdr.add_to_error(sdr_config, data_source.get_and_reset_error())
             sdr_config.sample_type = data_source.get_sample_type()
-            shared_status['digitiserFormat'] = sdr_config.sample_type
             config_changed = True
+            shared_status['digitiserFormat'] = sdr_config.sample_type
         shared_update.pop('digitiserFormat')
 
     if 'stop' in shared_update:

@@ -69,17 +69,23 @@ class PicGenerator(multiprocessing.Process):
             gen = SpectrumPicture.SpectrumPicture(str(self._thumb_dir))
             while not self._shutdown:
                 try:
-                    # get all the non hidden and non png files in snapshot dir
+                    # get all the non-hidden and non png and meta files in snapshot dir
                     for path in pathlib.Path(self._snap_dir).iterdir():
                         filename = os.path.basename(path)
-                        if not filename.startswith(".") and not filename.endswith("png"):
-                            # if png does not exist then create one
-                            png_filename = pathlib.PurePath(path.parent, path.name + ".png")
-                            if not os.path.isfile(png_filename):
-                                try:
-                                    _ = gen.create_picture(path)  # returns True if managed to create picture
-                                except ValueError as msg:
-                                    logger.error(f"PicGenerator {msg}")
+                        if not filename.startswith(".") :
+                            ignore_extensions = ['png', 'sigmf-meta']
+                            excluded = False
+                            for ext in ignore_extensions:
+                                if filename.endswith(ext):
+                                    excluded = True
+                            if not excluded:
+                                # if png does not exist then create one
+                                png_filename = pathlib.PurePath(path.parent, path.name + ".png")
+                                if not os.path.isfile(png_filename):
+                                    try:
+                                        _ = gen.create_picture(path)  # returns True if managed to create picture
+                                    except ValueError as msg:
+                                        logger.error(f"PicGenerator {msg}")
 
                     time.sleep(1)  # check every second
 

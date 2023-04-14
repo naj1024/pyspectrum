@@ -138,8 +138,8 @@ class Input(DataSource.DataSource):
         # pluto is not consistent in its errors so check ranges here
         if self._centre_frequency_hz < 70e6 or self._centre_frequency_hz > 6e9:
             msgs = "centre frequency must be between 70MHz and 6GHz, "
-            msgs += f"attempted {self._centre_frequency_hz / 1e6:0.6}MHz, "
-            self._centre_frequency_hz = 100.0e6
+            msgs += f"attempting {self._centre_frequency_hz / 1e6:0.6}MHz, "
+            self._centre_frequency_hz = 433.0e6
             msgs += f"set {self._centre_frequency_hz / 1e6:0.6}MHz. \n"
             self._error = msgs
             logger.error(msgs)
@@ -202,14 +202,19 @@ class Input(DataSource.DataSource):
 
     def set_centre_frequency_hz(self, cf: float) -> None:
         if self._sdr:
-            if 70.0e6 <= cf <= 6.0e9:
+            # native pluto ad9363 325 - 3800 MHz 	BW:20 MHz 	channels:2 Rx, 2 Tx
+            # ad9364 is 70 - 6000 MHz 	BW:56 MHz 	channels: 1 Rx, 1 Tx
+            # ad9361 is 70 - 6000 MHz 	BW:56 MHz 	channels: 2 Rx, 2 Tx
+            try:
                 if self._hw_ppm_compensation:
                     self._sdr.rx_lo = int(cf)
                     self._centre_frequency_hz = float(self._sdr.rx_lo)
                 else:
-                    self._centre_frequency_hz = cf
                     self._sdr.rx_lo = int(self.get_ppm_corrected(cf))
-                # logger.error(f"cf set to {self._centre_frequency_hz} from {cf} {int(cf)}")
+                    self._centre_frequency_hz = cf
+            except OSError:
+                mm = f"error in setting frequency {cf}"
+                logger.error(mm)
 
     def get_ppm(self) -> float:
         if self._sdr:

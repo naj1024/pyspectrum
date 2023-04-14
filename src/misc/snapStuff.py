@@ -34,19 +34,26 @@ def delete_file(filename: str, thumb_dir: pathlib.PurePath) -> None:
 
 def list_snap_files(directory: pathlib.PurePath) -> []:
     """
-    List the files in the provided directory, exclude png and hidden files
+    List the data sample files in the provided directory
+    Exclude png, hidden and metadata files
 
     :param directory:
     :return: List of files
     """
     directory_list = []
     for path in pathlib.Path(directory).iterdir():
-        if not path.name.startswith(".") and not path.name.endswith("png"):
-            # We will not match the time in the filename as it is recording the trigger time
-            # getctime() may also return the last modification time not creation time (dependent on OS)
-            timestamp = int(os.path.getctime(path))
-            date_time = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d_%H-%M-%S')
-            directory_list.append((path.name, str(round(os.path.getsize(path) / (1024 * 1024), 3)), date_time))
+        if not path.name.startswith("."):
+            ignore_extensions = ['png', 'sigmf-meta']
+            excluded = False
+            for ext in ignore_extensions:
+                if path.name.endswith(ext):
+                    excluded = True
+            if not excluded:
+                # We will not match the time in the filename as it is recording the trigger time
+                # getctime() may also return the last modification time not creation time (dependent on OS)
+                timestamp = int(os.path.getctime(path))
+                date_time = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d_%H-%M-%S')
+                directory_list.append((path.name, str(round(os.path.getsize(path) / (1024 * 1024), 3)), date_time))
     # sort so that most recent is first
     directory_list.sort(reverse=True, key=lambda a: a[2])
     return directory_list

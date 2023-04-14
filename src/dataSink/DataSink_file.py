@@ -18,6 +18,18 @@ from misc import wave_b as wave
 
 logger = logging.getLogger('spectrum_logger')
 
+try:
+    import_error_msg = ""
+    import sigmf
+    from sigmf import SigMFFile
+    from sigmf.utils import get_data_type_str
+except ImportError as msg:
+    sigmf = None
+    SigMFFile = None
+    get_data_type_str = None
+    import_error_msg = f"{__name__} has an no sigmf support: {str(msg)}"
+    logging.error(import_error_msg)
+
 
 class FileOutput:
     """
@@ -41,9 +53,13 @@ class FileOutput:
         self._post_milliseconds = config.postTriggerMilliSec
         self._pre_milliseconds = config.preTriggerMilliSec
         max_file_size = config.max_file_size
+
         self._wav_flag = False
+        self._sigmf_flag = False
         if config.file_format == "wav":
             self._wav_flag = True
+        elif config.file_format == "sigmf":
+            self._sigmf_flag = True
 
         self._max_total_samples = self._sample_rate_sps * ((self._pre_milliseconds + self._post_milliseconds) / 1000)
 
@@ -71,7 +87,7 @@ class FileOutput:
 
     def __del__(self):
         if self._triggered:
-            self._end()
+            self._write_to_file()
 
     def get_base_filename(self) -> str:
         return self._base_filename
@@ -119,46 +135,102 @@ class FileOutput:
             logger.error(e)
             self._file = None
 
-    def _end(self) -> None:
+    def _filename(self, sigmf_type: str = 'data') -> str:
+        then = int(self._start_time_nsec / 1e9)
+        fractional_sec = (self._start_time_nsec / 1e9) - then
+        date_time = datetime.datetime.utcfromtimestamp(then).strftime('%Y-%m-%d_%H-%M-%S')
+        fractional_sec = str(round(fractional_sec, 3)).lstrip('0')
+        filename = self._base_filename + f".{date_time}{fractional_sec}" \
+                                         f".cf{self._centre_freq_hz / 1e6:.6f}" \
+                                         f".cplx.{self._sample_rate_sps:.0f}"
+        if self._wav_flag:
+            filename += ".wav"
+        elif self._sigmf_flag:
+            filename += f".sigmf-{sigmf_type}"  # surely this should be type-sigmf to allow easier parsing
+        else:
+            filename += ".32fle"
+
+        return filename
+
+    def _write_wav(self, path: pathlib.PurePath):
+        try:
+            file = wave.open(str(path), "wb")
+            file.setframerate(self._sample_rate_sps)
+            file.setnchannels(2)  # iq
+            file.setsampwidth(4)  # 32bit floats
+            file.setwformat(wave.WAVE_FORMAT_IEEE_FLOAT)
+            # the wav module has no support for changing the format to float32
+            # we will write complex float32 and the wave file will be set to int32
+            for buff in self._complex_pre_data:
+                file.writeframes(buff)
+            for buff in self._complex_post_data:
+                file.writeframes(buff)
+            file.close()
+        except OSError as e:
+            err = f"failed to write wav snapshot to file, {e}"
+            raise ValueError(err)
+        except wave.Error as e:
+            err = f"failed to write snapshot to wav file, {e}"
+            raise ValueError(err)
+
+    def _write_sgmf_meta(self):
+        # meta data is in separate file
+        meta_filename = self._filename('meta')
+        path_and_meta_filename = pathlib.PurePath(self._base_directory, meta_filename)
+
+        # create the metadata
+        meta = SigMFFile(
+            # don't use data_file, as we have a compliant data filename and OS can't find it without the path
+            # data_file = ,
+            # no paths allowed, so no leak of your environment
+            global_info={
+                SigMFFile.DATATYPE_KEY: get_data_type_str(self._complex_pre_data[0]),  # in this case, 'cf32_le' ??
+                SigMFFile.SAMPLE_RATE_KEY: self._sample_rate_sps,
+                SigMFFile.DESCRIPTION_KEY: 'SDR samples.',
+                SigMFFile.VERSION_KEY: sigmf.__version__,
+                SigMFFile.RECORDER_KEY: 'pyspectrum'
+            }
+        )
+
+        seconds, microseconds = divmod(self._start_time_nsec, 1000000000)
+        dt = datetime.datetime.fromtimestamp(seconds, datetime.timezone.utc) + datetime.timedelta(
+            microseconds=microseconds)
+
+        # create a capture key at time index 0
+        meta.add_capture(0, metadata={
+            SigMFFile.FREQUENCY_KEY: self._centre_freq_hz,
+            SigMFFile.DATETIME_KEY: dt.isoformat(sep='T', timespec='microseconds') + 'Z',
+        })
+
+        # check for mistakes & write to disk
+        meta.tofile(str(path_and_meta_filename))
+
+    def _write_to_file(self) -> None:
         """
         Write out the data to file
 
         """
         if len(self._complex_post_data):
-            then = int(self._start_time_nsec / 1e9)
-            fractional_sec = (self._start_time_nsec / 1e9) - then
-            date_time = datetime.datetime.utcfromtimestamp(then).strftime('%Y-%m-%d_%H-%M-%S')
-            fractional_sec = str(round(fractional_sec, 3)).lstrip('0')
-            filename = self._base_filename + f".{date_time}{fractional_sec}" \
-                                             f".cf{self._centre_freq_hz / 1e6:.6f}" \
-                                             f".cplx.{self._sample_rate_sps:.0f}.32fle"
+            filename = self._filename()
 
-            if self._wav_flag:
-                filename += ".wav"
-
-            path_and_filename = pathlib.PurePath(self._base_directory, filename)
             try:
+                path_and_filename = pathlib.PurePath(self._base_directory, filename)
+
                 if self._wav_flag:
-                    file = wave.open(str(path_and_filename), "wb")
-                    file.setframerate(self._sample_rate_sps)
-                    file.setnchannels(2)  # iq
-                    file.setsampwidth(4)  # 32bit floats
-                    file.setwformat(wave.WAVE_FORMAT_IEEE_FLOAT)
-                    # the wav module has no support for changing the format to float32
-                    # we will write complex float32 and the wave file will be set to int32
-                    for buff in self._complex_pre_data:
-                        file.writeframes(buff)
-                    for buff in self._complex_post_data:
-                        file.writeframes(buff)
+                    self._write_wav(path_and_filename)
                 else:
+                    # straight binary data of complex 32f
                     file = open(path_and_filename, "wb")
-
                     for buff in self._complex_pre_data:
                         file.write(buff)
                     for buff in self._complex_post_data:
                         file.write(buff)
+                    file.close()
 
-                file.close()
+                    # may have to write the metadata to a separate file
+                    # do this before we delete the buffers
+                    if self._sigmf_flag:
+                        self._write_sgmf_meta()
 
                 written = self._post_data_samples + self._pre_data_samples
                 seconds = written / self._sample_rate_sps
@@ -177,6 +249,8 @@ class FileOutput:
                 logger.error(f"failed to write snapshot to file, {e}")
             except wave.Error as e:
                 logger.error(f"failed to write snapshot to wav file, {e}")
+            except ValueError as e:
+                logger.error(e)
 
             self._complex_post_data = []
 
@@ -219,7 +293,7 @@ class FileOutput:
 
             # are we finished, may not have sufficient pre-samples but can't do much about that
             if (self._required_post_data_samples - self._post_data_samples) <= 0:
-                self._end()
+                self._write_to_file()
                 end = True
 
         return end

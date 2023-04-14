@@ -24,7 +24,7 @@ class Snapper:
         self.sps = 0
 
         self.max_file_size = 500000000  # This is held in memory until the end when it is written out
-        self.file_formats = ['bin', 'wav']
-        self.file_format = "bin"
+        self.file_formats = ['bin', 'sigmf',  'wav']
+        self.file_format = self.file_formats[0]
         self.directory_list = []  # each entry will be: name, date, sizeMbytes
 

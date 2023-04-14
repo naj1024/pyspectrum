@@ -101,10 +101,10 @@ def get_powers(mag_squared: np.ndarray) -> np.ndarray:
 
 def get_windows() -> []:
     if fftpack:
-        return ['Hanning', 'flattop', 'Blackman', 'Bartlett', 'Kaiser_16', 'rectangular', 'Hamming']
+        return ['Hanning', 'Hamming', 'Blackman', 'Bartlett', 'Kaiser_16', 'rectangular', 'flattop']
     else:
         # no flat top
-        return ['Hanning', 'Blackman', 'Bartlett', 'Kaiser_16', 'rectangular', 'Hamming']
+        return ['Hanning', 'Hamming', 'Blackman', 'Bartlett', 'Kaiser_16', 'rectangular']
 
 
 class Spectrum:

@@ -222,7 +222,7 @@ class DataSource:
         elif data_type == '8o':
             self._bytes_per_complex_sample = 2
         else:
-            msgs = f'Unsupported data type "{data_type}"'
+            msgs = f'Attempt to set unsupported data type "{data_type}"'
             logger.error(msgs)
             raise ValueError(msgs)
         self._data_type = data_type
@@ -327,7 +327,7 @@ class DataSource:
             complex_data.imag = data_floats[1::2]
 
         else:
-            err_msg = f'Unsupported data type "{self._data_type}"'
+            err_msg = f'Attempt to unpack unsupported data type "{self._data_type}"'
             logger.error(err_msg)
             raise ValueError(err_msg)
 

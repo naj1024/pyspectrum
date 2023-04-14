@@ -20,10 +20,73 @@ from misc import wave_b as wave
 
 logger = logging.getLogger('spectrum_logger')
 
+try:
+    import_error_msg = ""
+    from sigmf import sigmffile, SigMFFile
+except ImportError as msg:
+    sigmffile = None
+    SigMFFile = None
 
-def parse_filename(filename: str) -> Tuple[bool, str, bool, float, float]:
+
+def convert_sigmf_data_type(sigmf_data_type: str) -> Tuple[str, str]:
+    # (real / complex) ((type endianness) / byte)
+    # r|c [f32|f64|i32|i16|u32|u16 _le|_be]|[i8|u8]
+    data_type = "not supported"
+    cplx = True
+    if sigmf_data_type.startswith('c'):
+        cplx = "cplx"
+    elif sigmf_data_type.startswith('r'):
+        cplx = "real"
+
+    if 'i8' in sigmf_data_type:
+        data_type = '8t'
+    elif 'f32_le' in sigmf_data_type:
+        data_type = '32fle'
+    elif 'f32_be' in sigmf_data_type:
+        data_type = '32fbe'
+    elif 'i16_le' in sigmf_data_type:
+        data_type = '16tle'
+    elif 'i16_be' in sigmf_data_type:
+        data_type = '16tbe'
+
+    return cplx, data_type
+
+
+def get_sigmf_metadata(filename: str) -> Tuple[bool, str, float, str, float]:
+    """
+    If we have a sigmf-data file then we should also have a sigmf-meta file
+
+    :param filename:
+    :return: A tuple of ok, data_type, sample_rate, cplx, cf
+    """
+    ok = False
+    data_type = ""
+    sample_rate = 0.0
+    cplx = ""
+    cf = 0.0
+
+    if sigmffile:
+        try:
+            # api will accept the data filename
+            signal = sigmffile.fromfile(filename)
+            sigmf_data_type = signal.get_global_field(SigMFFile.DATATYPE_KEY)
+            cplx, data_type = convert_sigmf_data_type(sigmf_data_type)
+            sample_rate = signal.get_global_field(SigMFFile.SAMPLE_RATE_KEY)
+            captures = signal.get_captures()
+            for capture in captures:
+                cf = capture.get(SigMFFile.FREQUENCY_KEY, 0)
+            ok = True
+        except FileNotFoundError as e:
+            msgs = f"Failed to open sigmf meta data file {filename}, {e}"
+            logger.error(msgs)
+
+    return ok, data_type, sample_rate, cplx, cf
+
+
+def extract_metadata(filename: str) -> Tuple[bool, str, bool, float, float]:
     """
     Parse a filename to extract its information
+    If this is a sigmf file we may have a metadata file with the information in it
 
     Filename should end in .cplx.sample_rate.sample_type
     sometimes there is a centre frequency part as well, cf in MHz
@@ -49,6 +112,7 @@ def parse_filename(filename: str) -> Tuple[bool, str, bool, float, float]:
             # test.cf1234.0.cplx.1000.16tle -> ['test', 'cf1234', '0', 'cplx', '1000', '16tle']
             # test.cf1234.cplx.1000.16tle -> ['test', 'cf1234', 'cplx', '1000', '16tle']
             # test.cplx.1000.16tle -> ['test', 'cplx', '1000', '16tle']
+            # test.cf433.920000.cplx.48000.sigmf-data' -> ['test', 'cf433', '920000', 'cplx', '48000', 'sigmf-data']
             data_type = parts[-1]
             sample_rate = parts[-2]
             cplx = parts[-3]
@@ -77,9 +141,18 @@ def parse_filename(filename: str) -> Tuple[bool, str, bool, float, float]:
                     except ValueError:
                         pass
 
+            # check for sigmf-data which is probably complex 32fle
+            if data_type == 'sigmf-data':
+                passed, data_type2, sample_rate2, cplx2, cf2 = get_sigmf_metadata(filename)
+                if passed:
+                    data_type = data_type if data_type2 == "" else data_type2
+                    sample_rate = sample_rate if sample_rate2 == 0 else sample_rate2
+                    cplx = cplx2
+                    cf = cf if cf2 == 0 else cf2
+
             # check the fields make as much sense as we can here
             if cplx in ["cplx", "real"]:
-                if cplx != "cplx":
+                if cplx == "real":
                     complex_flag = False
                 else:
                     # now convert the sample rate
@@ -97,12 +170,12 @@ class FileMetaData:
 
     def __init__(self, file_name: str):
         """
-        Open and get meta data from a file, in filename or inbuilt, say from .wav format
+        Open and get metadata from a file, in filename or inbuilt, say from .wav format
 
         :param file_name: File name including path if required
         """
         self._filename = file_name
-        self._has_meta_data = True  # default that we managed to recover meta data for this file
+        self._has_meta_data = True  # default that we managed to recover metadata for this file
 
     def has_meta_data(self) -> bool:
         return self._has_meta_data
@@ -141,7 +214,7 @@ class FileMetaData:
                 raise ValueError(msgs)
 
             # extract the cf from the filename if present
-            ok, _, _, _, cf = parse_filename(self._filename)
+            ok, _, _, _, cf = extract_metadata(self._filename)
             sps = file.getframerate()
             ok = True
             wav_file = True
@@ -151,8 +224,8 @@ class FileMetaData:
             try:
                 file = open(self._filename, "rb")
 
-                # see if we can set the meta data from the filename
-                ok, data_type, complex_flag, sps, cf = parse_filename(self._filename)
+                # see if we can set the metadata from the filename
+                ok, data_type, complex_flag, sps, cf = extract_metadata(self._filename)
                 if ok:
                     if not complex_flag:
                         msgs = f"Unsupported input of type real from {self._filename}"
@@ -166,7 +239,7 @@ class FileMetaData:
                     data_type = "16tle"  # default
                     self._has_meta_data = False  # say we don't know what this file is
                     # don't log these as the picture generator will keep trying
-                    # msgs = f"No meta data recovered for raw binary file {self._filename}"
+                    # msgs = f"No metadata recovered for raw binary file {self._filename}"
                     # logger.warning(msgs)
 
             except OSError as e:
