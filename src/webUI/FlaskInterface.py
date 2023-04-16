@@ -90,12 +90,18 @@ class FlaskInterface(multiprocessing.Process):
         def index():
             return flask_app.send_static_file('index.html')
 
-        rest_api.add_resource(Input, '/input/<string:thing>', resource_class_kwargs={'status': self._status, 'update':self._update})
-        rest_api.add_resource(Digitiser, '/digitiser/<string:thing>', resource_class_kwargs={'status': self._status, 'update':self._update})
-        rest_api.add_resource(Spectrum, '/spectrum/<string:thing>', resource_class_kwargs={'status': self._status, 'update':self._update})
-        rest_api.add_resource(Control, '/control/<string:thing>', resource_class_kwargs={'status': self._status, 'update':self._update})
-        rest_api.add_resource(Snapshot, '/snapshot/<string:thing>', resource_class_kwargs={'status': self._status, 'update':self._update})
-        rest_api.add_resource(Tuning, '/tuning/<string:thing>', resource_class_kwargs={'status': self._status, 'update':self._update})
+        rest_api.add_resource(Input, '/input/<string:thing>',
+                              resource_class_kwargs={'status': self._status, 'update': self._update})
+        rest_api.add_resource(Digitiser, '/digitiser/<string:thing>',
+                              resource_class_kwargs={'status': self._status, 'update': self._update})
+        rest_api.add_resource(Spectrum, '/spectrum/<string:thing>',
+                              resource_class_kwargs={'status': self._status, 'update': self._update})
+        rest_api.add_resource(Control, '/control/<string:thing>',
+                              resource_class_kwargs={'status': self._status, 'update': self._update})
+        rest_api.add_resource(Snapshot, '/snapshot/<string:thing>',
+                              resource_class_kwargs={'status': self._status, 'update': self._update})
+        rest_api.add_resource(Tuning, '/tuning/<string:thing>',
+                              resource_class_kwargs={'status': self._status, 'update': self._update})
 
         global web_root
         while not self._shutdown:

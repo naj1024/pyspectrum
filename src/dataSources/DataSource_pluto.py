@@ -213,8 +213,8 @@ class Input(DataSource.DataSource):
                     self._sdr.rx_lo = int(self.get_ppm_corrected(cf))
                     self._centre_frequency_hz = cf
             except OSError:
-                mm = f"error in setting frequency {cf}"
-                logger.error(mm)
+                hhh = f"error in setting frequency {cf}"
+                logger.error(hhh)
 
     def get_ppm(self) -> float:
         if self._sdr:
@@ -332,4 +332,3 @@ class Input(DataSource.DataSource):
             self._index += number_samples
 
         return complex_data, rx_time
-

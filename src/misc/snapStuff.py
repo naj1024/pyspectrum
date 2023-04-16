@@ -20,16 +20,20 @@ def delete_file(filename: str, thumb_dir: pathlib.PurePath) -> None:
     file = pathlib.PurePath(global_vars.SNAPSHOT_DIRECTORY, filename)
     file_png = pathlib.PurePath(global_vars.SNAPSHOT_DIRECTORY, filename + ".png")
     thumb_png = pathlib.PurePath(thumb_dir, filename + ".png")
-    try:
+    # sigmf files have an additional metadata file
+    sigmf_meta = None
+    if 'sigmf-data' in filename:
+        sigmf_meta = str(filename)
+        sigmf_meta = sigmf_meta.replace('sigmf-data', 'sigmf-meta')
+        sigmf_meta = pathlib.PurePath(global_vars.SNAPSHOT_DIRECTORY, sigmf_meta)
+
+    for delete in (file, file_png, thumb_png, sigmf_meta):
         try:
-            os.remove(file)
-            os.remove(file_png)
-            os.remove(thumb_png)
-        except OSError:
-            pass  # Don't care if we fail to delete the png files
-    except OSError as msg:
-        err = f"Problem with delete of {filename}, {msg}"
-        logger.error(err)
+            if delete:
+                os.remove(delete)
+        except OSError as msg:
+            err = f"Problem with delete of {filename}, {msg}"
+            logger.error(err)
 
 
 def list_snap_files(directory: pathlib.PurePath) -> []:

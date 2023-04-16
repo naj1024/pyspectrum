@@ -116,6 +116,10 @@ def main() -> None:
     config_time = 0  # when we will send our config to the UI
     fps_update_time = 0
 
+    time_start = time.perf_counter()
+    time_end = time.perf_counter()
+    time_rx_nsec = 0
+
     # keep processing until told to stop or an error occurs
     peak_average = Ewma.Ewma(0.1)
     current_peak_count = 0
@@ -132,7 +136,7 @@ def main() -> None:
             data_source, data_sink, sdr_config, snap_config, config_changed = \
                 sync_state(sdr_config, snap_config,
                            data_source, source_factory, data_sink,
-                           thumbs_dir, processor, shared_status, shared_update, config_changed)
+                           thumbs_dir, processor, shared_status, shared_update)
 
         ###########################################
         # Get and process the complex samples we will work on
@@ -284,7 +288,9 @@ def main() -> None:
             # check on the source, maybe the gain changed etc
             sdrStuff.update_source_state(sdr_config, data_source)
             config_time = now + 1
-            total_time = process_time.get_ewma() + analysis_time.get_ewma() + reporting_time.get_ewma() + \
+            total_time = process_time.get_ewma() + \
+                         analysis_time.get_ewma() + \
+                         reporting_time.get_ewma() + \
                          snap_time.get_ewma() + ui_time.get_ewma()
             data_time = (sdr_config.fft_size / sdr_config.sample_rate)
             sdr_config.headroom = 100.0 * (data_time - total_time) / data_time
@@ -467,7 +473,8 @@ def initialise(sdr_config: Sdr, snap_config: Snapper,
 
         sdr_config.time_measure_fps = time.time()
 
-        return data_source, display, web_socket, to_ui_queue, processor, plugin_manager, factory, pic_generator, shared_status
+        return data_source, display, web_socket, to_ui_queue, processor, \
+            plugin_manager, factory, pic_generator, shared_status
 
     except Exception as msg:
         # exceptions here are fatal
@@ -565,8 +572,7 @@ def sync_state(sdr_config: Sdr,
                thumb_dir: pathlib.PurePath,
                processor: ProcessSamples,
                shared_status: dict,
-               shared_update: dict,
-               config_changed: bool):
+               shared_update: dict):
     """
     All changes instigated by the UI rest interfaces end up in the shared_update dictionary.
     Once the changes are made we delete the entries in the shared_update dictionary
@@ -580,7 +586,6 @@ def sync_state(sdr_config: Sdr,
     :param processor: the current processor (fft's)
     :param shared_status: dictionary of the current state for sharing to multi-processing
     :param shared_update: dictionary os updated items from UI
-    :param config_changed: something has changed
     :return:
     """
     # -> Tuple[Type[DataSource.DataSource], DataSink_file.FileOutput,
@@ -783,7 +788,7 @@ def sync_state(sdr_config: Sdr,
             snap_config.postTriggerMilliSec = data_sink.get_post_trigger_milli_seconds()
             snap_config.preTriggerMilliSec = data_sink.get_pre_trigger_milli_seconds()
             Sdr.add_to_error(sdr_config, f"Snap modified to maximum file size of "
-                                                  f"{snap_config.max_file_size / 1e6}MBytes")
+                                         f"{snap_config.max_file_size / 1e6}MBytes")
         snap_sink = data_sink
 
     return data_source, snap_sink, sdr_config, snap_config, config_changed
@@ -915,8 +920,11 @@ def debug_print(sps: float,
     :return: None
     """
     data_time = (fft_size / sps)
-    total_time = process_time.get_ewma() + analysis_time.get_ewma() + reporting_time.get_ewma() + \
-                 snap_time.get_ewma() + ui_time.get_ewma()
+    total_time = process_time.get_ewma() + \
+                 analysis_time.get_ewma() + \
+                 reporting_time.get_ewma() + \
+                 snap_time.get_ewma() + \
+                 ui_time.get_ewma()
     headroom = 100.0 * (data_time - total_time) / data_time
     logger.debug(f'SPS:{sps:.0f}, '
                  f'FFT:{fft_size} '

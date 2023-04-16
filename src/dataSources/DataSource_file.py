@@ -94,7 +94,7 @@ class Input(DataSource.DataSource):
             # now open the actual file
             file = FileMetaData.FileMetaData(full_path)
             ok, self._file, self._is_wav_file, data_type, sps, cf = file.open()
-            super().set_has_meta_data(file.has_meta_data())  
+            super().set_has_meta_data(file.has_meta_data())
 
             # only update the following if we managed to recover them on the open()
             if ok:

@@ -104,6 +104,7 @@ def extract_metadata(filename: str) -> Tuple[bool, str, bool, float, float]:
     sample_rate_hz = 1.0
     centre_frequency = 0.0
     ok: bool = False
+    cf = 0.0
 
     if filename:
         parts = [x.strip() for x in filename.split('.')]
@@ -149,6 +150,7 @@ def extract_metadata(filename: str) -> Tuple[bool, str, bool, float, float]:
                     sample_rate = sample_rate if sample_rate2 == 0 else sample_rate2
                     cplx = cplx2
                     cf = cf if cf2 == 0 else cf2
+                    centre_frequency = float(cf) * 1e6
 
             # check the fields make as much sense as we can here
             if cplx in ["cplx", "real"]:

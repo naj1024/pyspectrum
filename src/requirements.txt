@@ -12,7 +12,7 @@ scipy>=1.10.1
 sounddevice>=0.4.6
 
 # analog device pluto device
-pyadi-iio>=0.0.14
+pyadi-iio>=0.0.15
 pylibiio>=0.21
 
 # rtl devices
@@ -39,7 +39,7 @@ websockets>=11.0.1
 Flask>=2.2.3
 flask_restful>=0.3.9
 
-# sigmf support
+# sigmf support if required
 sigmf
 
 # testing

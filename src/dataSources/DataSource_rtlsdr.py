@@ -376,4 +376,3 @@ class Input(DataSource.DataSource):
                 raise ValueError(err)
 
         return complex_data, rx_time
-

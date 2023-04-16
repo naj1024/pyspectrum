@@ -234,8 +234,8 @@ class FileOutput:
 
                 written = self._post_data_samples + self._pre_data_samples
                 seconds = written / self._sample_rate_sps
-                msg = f"Record: {path_and_filename} {round(seconds, 6)}s, {written} samples"
-                logger.info(msg)
+                mmm = f"Record: {path_and_filename} {round(seconds, 6)}s, {written} samples"
+                logger.info(mmm)
 
                 # reset
                 # Start again otherwise you will end up with samples being duplicated between quick triggers
