@@ -142,7 +142,7 @@ class FlaskInterface(multiprocessing.Process):
 
 
 class Input(Resource):
-    # Handle all web requests on the /sources endpoint
+    # Handle all web requests on the /input endpoint
     def __init__(self, **kwargs):
         # set the dictionary we use for updating things
         self._status = kwargs['status']

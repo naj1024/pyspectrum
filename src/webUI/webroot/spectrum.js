@@ -203,11 +203,10 @@ Spectrum.prototype.updateAxes = function() {
 
     // y-axis labels and grid lines
     this.ctx_axes.textAlign = "left";
-    var step = 10;
-    for (var i = this.min_db + 10; i <= this.max_db - 10; i += step) {
+    var step = 5;
+    for (var i = this.min_db + step; i <= this.max_db - step; i += step) {
         var y = height - this.squeeze(i, 0, height);
         this.ctx_axes.fillText(i, 5, y);
-
         // horizontal grid
         this.ctx_axes.beginPath();
         this.ctx_axes.moveTo(10, y);
@@ -296,6 +295,7 @@ Spectrum.prototype.addData = function(magnitudes, start_sec, start_nsec, end_sec
             this.imagedata = this.ctx_wf.createImageData(magnitudes.length, 1);
         }
         this.drawSpectrum(magnitudes);
+        this.displayConfigOnSpectrum();
         this.addWaterfallRow(magnitudes);
 
         if (this.live_peak_search) {
@@ -321,6 +321,7 @@ Spectrum.prototype.updateWhenPaused = function() {
     if(this.currentMagnitudes)
         {
         this.drawSpectrum(this.currentMagnitudes);
+        this.displayConfigOnSpectrum();
         this.drawWaterfall();
         this.drawMarkers();
         this.resize();
@@ -406,8 +407,9 @@ Spectrum.prototype.refDown = function() {
 }
 
 Spectrum.prototype.rangeIncrease = function() {
-    // keep max same, i.e. reference level
-    this.setRange(this.min_db - 5, this.max_db);
+    if( (this.max_db - this.min_db) <= 100)
+        // keep max same, i.e. reference level
+        this.setRange(this.min_db - 5, this.max_db);
 }
 
 Spectrum.prototype.rangeDecrease = function() {
@@ -436,7 +438,7 @@ Spectrum.prototype.autoRange = function() {
         // find the index to the correct spectrum
         let index = start - num;
         if (index < 0) {
-            index = this.spectrums.length-1;
+            break;
         }
         // only get peak over centre 70%
         let len = this.spectrums[index].magnitudes[0].length;
@@ -482,6 +484,10 @@ Spectrum.prototype.getFftSize = function() {
 
 Spectrum.prototype.setFftSize = function(fftSize) {
     this.fftSize = fftSize;
+}
+
+Spectrum.prototype.getRbw = function() {
+    return( this.sps / this.fftSize);
 }
 
 Spectrum.prototype.setSpanHz = function(hz) {
@@ -852,6 +858,17 @@ Spectrum.prototype.findPeak = function() {
     }
 }
 
+Spectrum.prototype.displayConfigOnSpectrum = function() {
+    var context = this.canvas.getContext('2d');
+    context.font = this.spectrumLiveMarkerFont;
+    context.fillStyle = this.liveMarkerColour;
+    context.textAlign = "left";
+    let config_text = "CF: " + this.convertFrequencyForDisplay(this.getZoomCfHz(), 6);
+    config_text += ", BW: " + this.convertFrequencyForDisplay(this.getZoomSpanHz(), 0);
+    config_text += ", RBW: " + this.convertFrequencyForDisplay(this.getRbw(), 0);
+    context.fillText(config_text, 40, 20);
+}
+
 Spectrum.prototype.getMarkerValuesForAveraging = function() {
     // return a marker set from the average values
     let values = null;
@@ -1108,7 +1125,7 @@ Spectrum.prototype.drawLiveMarker = function() {
         } else {
             context.textAlign = "left";
         }
-        context.fillText(marker_text, canvasX, 20);
+        context.fillText(marker_text, canvasX, 40);
 
         // Difference from the last indexed marker to the live marker
         if (this.markersSet.size > 0) {

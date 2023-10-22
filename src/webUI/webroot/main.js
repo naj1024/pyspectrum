@@ -316,7 +316,7 @@ function showNew(jsonConfig) {
             new_html += '<input data-toggle="tooltip" title="'+help+'" type="text" size="10"';
             new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
             new_html += ' value="'+ sourceParams + '" id="inputSourceParams" name="inputSourceParams">';
-            new_html += '<input type="submit" value="Change">';
+            new_html += '<input type="submit" value="Attach">';
             new_html += '</form>';
             $('#newSource').empty().append(new_html);
         }

@@ -165,7 +165,7 @@ class Input(DataSource.DataSource):
 
         self._sample_rate_sps = self._audio_stream.samplerate  # actual sample rate
         logger.debug(f"Connected to {module_type} {self._device_number}")
-        logger.info(f"Audio stream started ")
+        logger.debug(f"Audio stream started at " + str(self._sample_rate_sps) + " sps")
         self._connected = True
 
         return self._connected
@@ -177,6 +177,7 @@ class Input(DataSource.DataSource):
         self._connected = False
 
     def set_sample_rate_sps(self, sr: float) -> None:
+        logger.debug(f"Setting audio sample rate of " + str(sr) + " sps")
         self._rx_time = 0
         self._sample_rate_sps = sr
         self.bound_sample_rate()

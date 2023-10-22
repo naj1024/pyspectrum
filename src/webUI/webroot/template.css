@@ -50,7 +50,7 @@ hr {
 /* highlight table mouse hover row */
 .table-hover tbody tr:hover td, .table-hover tobody th {
     background-color: #d0d0d0;
-    // font-size: 15px;  /* make text bigger on hover */
+    /*font-size: 15px;*/  /* make text bigger on hover */
 }
 
 /* snapshot file table, max height and scroll */
@@ -86,7 +86,7 @@ input[type=number] {
 /* for the average beside the H4 on the Trace 0 buttons */
 .side-layout {
     display: flex;
-    justify-content: space-start;
+    justify-content: flex-start;
     font-size: 15pt; /* about h4 size, which we don't specify - a mistake */
 }
 
@@ -105,12 +105,14 @@ input[type=number] {
 
 /* crop long lines of text */
 .CropLongTexts100 {
+  display: inline-block;
   max-width: 100px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .CropLongTexts180 {
+  display: inline-block;
   max-width: 180px;
   white-space: nowrap;
   overflow: hidden;
