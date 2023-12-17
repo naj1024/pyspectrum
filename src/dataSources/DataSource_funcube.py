@@ -136,6 +136,10 @@ except ImportError as msg:
     sd = None
     import_error_msg = f"{module_type} source has an issue: {str(msg)}"
     logging.error(import_error_msg)
+except OSError as msg:
+    sd = None
+    import_error_msg = f"{module_type} source has low level support issue: str{msg}"
+    logging.error(import_error_msg)
 
 try:
     # NOTE that pypi has pyhidapi and hid

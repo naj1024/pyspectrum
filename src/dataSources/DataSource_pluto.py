@@ -58,6 +58,10 @@ except (ImportError, ValueError) as msg:
     adi = None
     import_error_msg = f"{module_type} source has an issue: " + str(msg)
     logger.error(import_error_msg)
+except Exception as msg:
+    adi = None
+    import_error_msg = f"{module_type} source has low level support issue: " + str(msg)
+    logger.error(import_error_msg)
 
 
 # return an error string if we are not available
