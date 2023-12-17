@@ -43,7 +43,7 @@ try:
     from ctypes.util import find_library
     from os import environ
 
-    lib = "rtl"
+    lib = "rtlsdr"
     found = None
     # Windows is a mess for rtl libraries, can be librtlsdr.dll or rtlsdr.dll
     # rtlsdr for python expects rtlsdr.dll, for now - may change
