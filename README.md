@@ -24,7 +24,7 @@ streams of data at over 3Msps.
 
 ## Input modules:
 
-* audio - Useful for testing
+* audio - Useful for testing, in linux requires 'sudo apt-get install libportaudio2'
 * file - wav and raw binary supported, all files must be in the snapshot directory
 * pluto (IP)  - Analog devices pluto SDR, 70MHz to 6GHz with wide open front end
 * rtlsdr - USB source
