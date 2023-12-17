@@ -34,7 +34,7 @@ except ImportError as msg:
     logging.error(import_error_msg)
 except OSError as msg:
     sd = None
-    import_error_msg = f"{module_type} source has low level support issue: str{msg}"
+    import_error_msg = f"{module_type} source has low level support issue: {str(msg)}"
     logging.error(import_error_msg)
 
 # return an error string if we are not available
