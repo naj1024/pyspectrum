@@ -48,7 +48,7 @@ def test_fftw_fft_speed(complex_data: np.array, iterations: int = 500, fftw_thre
     if pyfftw:
         pyfftw.interfaces.cache.enable()
         pyfftw.interfaces.cache.set_keepalive_time(10)
-        pyfftw.config.NUM_THREADS = 1
+        pyfftw.config.NUM_THREADS = 1    # things get worse with more threads - for me
         t = Timer(lambda: pyfftw.interfaces.numpy_fft.fft(complex_data))
         exec_time = t.timeit(number=iterations)
         return 1e6 * exec_time / iterations
@@ -109,7 +109,6 @@ class Spectrum:
         """
         self._fft_size = fft_size
         self._win = None
-        self._fftw_threads = (os.cpu_count()/2) or 1
         self._use_scipy_fft = False
         self._use_fftw_fft = False
         self._window_type = None
@@ -188,11 +187,11 @@ class Spectrum:
         # even though there is a difference it does not always carry through to exec times
         complex_data = create_test_data(self._fft_size)
         scipy_fft = test_scipy_fft_speed(complex_data, 500)
+        logger.debug(f"FFT {self._fft_size} scipy:{scipy_fft:0.1f}usec")
         numpy_fft = test_numpy_fft_speed(complex_data, 500)
-        fftw_fft = test_fftw_fft_speed(complex_data, 500, self._fftw_threads)
-        logger.debug(f"FFT {self._fft_size} scipy:{scipy_fft:0.1f}usec, "
-                     f"numpy:{numpy_fft:0.1f}usec, "
-                     f"fftw:{fftw_fft:0.1f}usec")
+        logger.debug(f"FFT {self._fft_size} numpy:{numpy_fft:0.1f}usec")
+        fftw_fft = test_fftw_fft_speed(complex_data, 500)
+        logger.debug(f"FFT {self._fft_size} fftw:{fftw_fft:0.1f}usec")
         self._use_scipy_fft = False
         self._use_fftw_fft = False
         if scipy_fft < numpy_fft and scipy_fft < fftw_fft:
@@ -226,8 +225,7 @@ class Spectrum:
         if self._use_scipy_fft:
             signals_fft = fftpack.fft(complex_samples)
         elif self._use_fftw_fft:
-            kwargs = {'threads': self._fftw_threads}
-            signals_fft = pyfftw.interfaces.numpy_fft.fft(complex_samples, **kwargs)
+            signals_fft = pyfftw.interfaces.numpy_fft.fft(complex_samples)
         else:
             signals_fft = np.fft.fft(complex_samples)
 
