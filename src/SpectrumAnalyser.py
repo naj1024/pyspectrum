@@ -600,6 +600,9 @@ def sync_state(sdr_config: Sdr,
     if 'source' in shared_update:
         src = shared_update['source']
         if src['source'] != sdr_config.input_source or (src['params'] != sdr_config.input_params):
+            logger.debug(f"changing source from "
+                         f"'{sdr_config.input_source}' '{sdr_config.input_params}' to "
+                         f"'{src['source']}' '{src['params']}'")
             data_source = sdrStuff.change_source(data_source, source_factory, sdr_config, src['source'], src['params'])
             if src['source'] == 'file':
                 # May need to configure things from the filename
