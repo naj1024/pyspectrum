@@ -1,6 +1,7 @@
 import logging
 import os
-import time
+#import time
+from timeit import Timer
 from typing import List
 from typing import Any
 
@@ -37,39 +38,29 @@ def create_test_data(size: int) -> np.array:
     return complex_data
 
 
-def test_numpy_fft_speed(complex_data: np.array, iterations: int = 500, with_powers: bool = False) -> float:
-    time_process_start = time.perf_counter()
-    for test in range(iterations):
-        tmp = np.fft.fft(complex_data)
-        if with_powers:
-            _ = get_powers(tmp)
-    time_process_end = time.perf_counter()
-    return (1e6 * (time_process_end - time_process_start)) / iterations
+def test_numpy_fft_speed(complex_data: np.array, iterations: int = 500) -> float:
+    t = Timer(lambda: np.fft.fft(complex_data))
+    exec_time = t.timeit(number=iterations)
+    return 1e6 * exec_time / iterations
 
 
-def test_fftw_fft_speed(complex_data: np.array, iterations: int = 500, fftw_threads: int = 1, with_powers: bool = False) -> float:
+def test_fftw_fft_speed(complex_data: np.array, iterations: int = 500, fftw_threads: int = 1) -> float:
     if pyfftw:
-        time_process_start = time.perf_counter()
-        kwargs = {'threads': fftw_threads}
-        for test in range(iterations):
-            tmp = pyfftw.interfaces.numpy_fft.fft(complex_data, **kwargs)
-            if with_powers:
-                _ = get_powers(tmp)
-        time_process_end = time.perf_counter()
-        return (1e6 * (time_process_end - time_process_start)) / iterations
-    return 1e6  # something very big in useconds
+        pyfftw.interfaces.cache.enable()
+        pyfftw.interfaces.cache.set_keepalive_time(10)
+        pyfftw.config.NUM_THREADS = 1
+        t = Timer(lambda: pyfftw.interfaces.numpy_fft.fft(complex_data))
+        exec_time = t.timeit(number=iterations)
+        return 1e6 * exec_time / iterations
+    return 10e6  # something very big in useconds
 
 
-def test_scipy_fft_speed(complex_data: np.array, iterations: int = 500, with_powers: bool = False) -> float:
+def test_scipy_fft_speed(complex_data: np.array, iterations: int = 500) -> float:
     if fftpack:
-        time_process_start = time.perf_counter()
-        for test in range(iterations):
-            tmp = fftpack.fft(complex_data)
-            if with_powers:
-                _ = get_powers(tmp)
-        time_process_end = time.perf_counter()
-        return (1e6 * (time_process_end - time_process_start)) / iterations
-    return 1e6  # something very big in useconds
+        t = Timer(lambda: fftpack.fft(complex_data))
+        exec_time = t.timeit(number=iterations)
+        return 1e6 * exec_time / iterations
+    return 10e6  # something very big in useconds
 
 
 def convert_to_frequencies(bins: List[int], sample_rate: float, fft_size: int) -> List[float]:
@@ -196,9 +187,9 @@ class Spectrum:
         # which fft to use
         # even though there is a difference it does not always carry through to exec times
         complex_data = create_test_data(self._fft_size)
-        scipy_fft = test_scipy_fft_speed(complex_data, 500, False)
-        numpy_fft = test_numpy_fft_speed(complex_data, 500, False)
-        fftw_fft = test_fftw_fft_speed(complex_data, 500, self._fftw_threads, False)
+        scipy_fft = test_scipy_fft_speed(complex_data, 500)
+        numpy_fft = test_numpy_fft_speed(complex_data, 500)
+        fftw_fft = test_fftw_fft_speed(complex_data, 500, self._fftw_threads)
         logger.debug(f"FFT {self._fft_size} scipy:{scipy_fft:0.1f}usec, "
                      f"numpy:{numpy_fft:0.1f}usec, "
                      f"fftw:{fftw_fft:0.1f}usec")

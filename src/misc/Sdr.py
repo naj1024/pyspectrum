@@ -12,7 +12,7 @@ import json
 class Sdr:
     def __init__(self):
         # input data related
-        self.fft_size = 2048  # default, but any integer allowed
+        self.fft_size = 16384  # default, but any integer allowed
         self.window = ""
         self.window_types = []
 
