@@ -1,7 +1,9 @@
 import logging
 import os
-import time
+#import time
+from timeit import Timer
 from typing import List
+from typing import Any
 
 import numpy as np
 
@@ -36,36 +38,29 @@ def create_test_data(size: int) -> np.array:
     return complex_data
 
 
-def test_numpy_fft_speed(fft_size: int, iterations: int = 500) -> float:
-    complex_data = create_test_data(fft_size)
-    time_process_start = time.perf_counter()
-    for test in range(iterations):
-        _ = np.fft.fft(complex_data)
-    time_process_end = time.perf_counter()
-    return (1e6 * (time_process_end - time_process_start)) / iterations
+def test_numpy_fft_speed(complex_data: np.array, iterations: int = 500) -> float:
+    t = Timer(lambda: np.fft.fft(complex_data))
+    exec_time = t.timeit(number=iterations)
+    return 1e6 * exec_time / iterations
 
 
-def test_fftw_fft_speed(fft_size: int, iterations: int = 500, fftw_threads: int = 1) -> float:
+def test_fftw_fft_speed(complex_data: np.array, iterations: int = 500, fftw_threads: int = 1) -> float:
     if pyfftw:
-        complex_data = create_test_data(fft_size)
-        time_process_start = time.perf_counter()
-        kwargs = {'threads': fftw_threads}
-        for test in range(iterations):
-            _ = pyfftw.interfaces.numpy_fft.fft(complex_data, **kwargs)
-        time_process_end = time.perf_counter()
-        return (1e6 * (time_process_end - time_process_start)) / iterations
-    return 1e6  # something very big in useconds
+        pyfftw.interfaces.cache.enable()
+        pyfftw.interfaces.cache.set_keepalive_time(10)
+        pyfftw.config.NUM_THREADS = 1    # things get worse with more threads - for me
+        t = Timer(lambda: pyfftw.interfaces.numpy_fft.fft(complex_data))
+        exec_time = t.timeit(number=iterations)
+        return 1e6 * exec_time / iterations
+    return 10e6  # something very big in useconds
 
 
-def test_scipy_fft_speed(fft_size: int, iterations: int = 500) -> float:
+def test_scipy_fft_speed(complex_data: np.array, iterations: int = 500) -> float:
     if fftpack:
-        complex_data = create_test_data(fft_size)
-        time_process_start = time.perf_counter()
-        for test in range(iterations):
-            _ = fftpack.fft(complex_data)
-        time_process_end = time.perf_counter()
-        return (1e6 * (time_process_end - time_process_start)) / iterations
-    return 1e6  # something very big in useconds
+        t = Timer(lambda: fftpack.fft(complex_data))
+        exec_time = t.timeit(number=iterations)
+        return 1e6 * exec_time / iterations
+    return 10e6  # something very big in useconds
 
 
 def convert_to_frequencies(bins: List[int], sample_rate: float, fft_size: int) -> List[float]:
@@ -114,7 +109,6 @@ class Spectrum:
         """
         self._fft_size = fft_size
         self._win = None
-        self._fftw_threads = os.cpu_count() or 1
         self._use_scipy_fft = False
         self._use_fftw_fft = False
         self._window_type = None
@@ -129,8 +123,7 @@ class Spectrum:
             if window in get_windows():
                 self._window_type = window
                 if self._window_type == 'rectangular':
-                    window_gain_compensation = 1.0 / 1.0
-                    self._win = np.kaiser(self._fft_size, 0.0)
+                    self._win = None
                 elif self._window_type == 'flattop':
                     if signal:
                         window_gain_compensation = 1.0 / 0.4
@@ -164,10 +157,14 @@ class Spectrum:
 
         # a window compensation value based on the sum of the windows terms does not work
         # self._window_gain_compensation = 1 /(sum(self._win)/self._fft_size)
-        self._win *= window_gain_compensation
+        if self._win is not None:
+            self._win *= window_gain_compensation
 
     def get_window(self) -> str:
         return self._window_type
+
+    def get_fft_size(self) -> int:
+        return self._fft_size
 
     def get_fft_used(self) -> str:
         if self._use_scipy_fft:
@@ -187,13 +184,14 @@ class Spectrum:
         self.set_window(self._window_type)
 
         # which fft to use
-        # # although even though there is a difference it does not always carry through to exec times
-        scipy_fft = test_scipy_fft_speed(self._fft_size, 500)
-        numpy_fft = test_numpy_fft_speed(self._fft_size, 500)
-        fftw_fft = test_fftw_fft_speed(self._fft_size, 500, self._fftw_threads)
-        logger.debug(f"FFT {self._fft_size} scipy:{scipy_fft:0.1f}usec, "
-                     f"numpy:{numpy_fft:0.1f}usec, "
-                     f"fftw:{fftw_fft:0.1f}usec")
+        # even though there is a difference it does not always carry through to exec times
+        complex_data = create_test_data(self._fft_size)
+        scipy_fft = test_scipy_fft_speed(complex_data, 500)
+        logger.debug(f"FFT {self._fft_size} scipy:{scipy_fft:0.1f}usec")
+        numpy_fft = test_numpy_fft_speed(complex_data, 500)
+        logger.debug(f"FFT {self._fft_size} numpy:{numpy_fft:0.1f}usec")
+        fftw_fft = test_fftw_fft_speed(complex_data, 500)
+        logger.debug(f"FFT {self._fft_size} fftw:{fftw_fft:0.1f}usec")
         self._use_scipy_fft = False
         self._use_fftw_fft = False
         if scipy_fft < numpy_fft and scipy_fft < fftw_fft:
@@ -221,13 +219,15 @@ class Spectrum:
             self.set_fft()
 
         # normalisation by dividing by fft size not done here, do it when we convert ot dB in get_powers()
+        if self._win is not None:
+            complex_samples * self._win
+
         if self._use_scipy_fft:
-            signals_fft = fftpack.fft(complex_samples * self._win)
+            signals_fft = fftpack.fft(complex_samples)
         elif self._use_fftw_fft:
-            kwargs = {'threads': self._fftw_threads}
-            signals_fft = pyfftw.interfaces.numpy_fft.fft(complex_samples * self._win, **kwargs)
+            signals_fft = pyfftw.interfaces.numpy_fft.fft(complex_samples)
         else:
-            signals_fft = np.fft.fft(complex_samples * self._win)
+            signals_fft = np.fft.fft(complex_samples)
 
         if reorder:
             # this is quite expensive, longer than the fft() numpy and scipy are the same
