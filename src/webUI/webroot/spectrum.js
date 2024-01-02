@@ -1138,7 +1138,7 @@ Spectrum.prototype.drawLiveMarker = function() {
             let diff_text = " " + this.convertFrequencyForDisplay(freq_diff, 3);
             diff_text += " " + db_diff.toFixed(1) + "dB ";
             diff_text += " " + time_diff.toFixed(3) + "s ";
-            context.fillText(diff_text, canvasX, 42);
+            context.fillText(diff_text, canvasX, 52);
         }
     }
 }
