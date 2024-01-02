@@ -22,6 +22,7 @@ class Sdr:
         self.sdr_centre_frequency_hz = self.centre_frequency_hz - self.conversion_frequency_hz
         self.sample_types = ['8o', '8t', '16tbe', '16tle', '32fle', '32fbe']
         self.sample_type = '16tbe'  # default Format of sample data
+        self.drop = 0; # drops input buffers, e.g. 2 is 1 in2 3 is 1 in 3
         self.gain = 0
         self.gain_modes = ['none']
         self.gain_mode = "none"

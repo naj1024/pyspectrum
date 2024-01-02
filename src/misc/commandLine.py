@@ -67,6 +67,10 @@ def parse_command_line(configuration: Sdr, logger: logging.Logger) -> None:
                            default=configuration.sample_type,
                            choices=DataSource.supported_data_types,
                            required=False)
+    data_opts.add_argument('-D', '--Drop',
+                           help='Drop input sample buffers by 1 in n (default: 0)',
+                           default=0,
+                           required=False)
 
     ######################
     # Misc options
@@ -110,6 +114,10 @@ def parse_command_line(configuration: Sdr, logger: logging.Logger) -> None:
         configuration.sample_rate = float(args['sampleRate'])
     if args['type'] is not None:
         configuration.sample_type = args['type']
+    if args['Drop'] is not None:
+        configuration.drop = int(args['Drop'])
+        if configuration.drop == 1:
+            configuration.drop = 0
 
     # allow for conversion frequency
     configuration.sdr_centre_frequency_hz = configuration.centre_frequency_hz - configuration.conversion_frequency_hz

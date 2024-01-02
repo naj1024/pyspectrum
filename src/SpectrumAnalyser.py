@@ -120,6 +120,8 @@ def main() -> None:
     time_end = time.perf_counter()
     time_rx_nsec = 0
 
+    loop_count = 0
+
     # keep processing until told to stop or an error occurs
     peak_average = Ewma.Ewma(0.1)
     current_peak_count = 0
@@ -143,10 +145,20 @@ def main() -> None:
         ######################
         try:
             if not sdr_config.stop:
-                time_start = time.perf_counter()
-                samples, time_rx_nsec = data_source.read_cplx_samples(sdr_config.fft_size)
-                time_end = time.perf_counter()
-                sdr_config.input_overflows = data_source.get_overflows()
+                # debug of dropping input buffers for resource constrained hardware
+                loop_count += 1
+                dont_drop = True;
+                if sdr_config.drop != 0:
+                    if (loop_count % sdr_config.drop) == 0:
+                        dont_drop = False
+                        loop_count = 0
+                if dont_drop:
+                    time_start = time.perf_counter()
+                    samples, time_rx_nsec = data_source.read_cplx_samples(sdr_config.fft_size)
+                    time_end = time.perf_counter()
+                    sdr_config.input_overflows = data_source.get_overflows()
+                else:
+                    samples = None
             else:
                 samples = None
 
