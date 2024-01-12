@@ -198,6 +198,10 @@ class Input(DataSource.DataSource):
 
             # turn on the stream
             self._sdr.activateStream(self._rx_stream)  # start streaming
+
+            # how big is the buffer Soapy is using
+            logger.debug(f"Soapy buffer size {self._sdr.getStreamMTU(self._rx_stream)}")
+
         except Exception as err_msg:
             msgs = f"{module_type} {self._parameters} configuration problem, {err_msg}"
             logger.error(msgs)
@@ -385,7 +389,7 @@ class Input(DataSource.DataSource):
                 # readStream() doesn't seem to be a blocking call
                 num_to_get = number_samples - index
 
-                read = self._sdr.readStream(self._rx_stream, [self._tmp], num_to_get, timeoutUs=2000000)
+                read = self._sdr.readStream(self._rx_stream, [self._tmp], len(self._temp), timeoutUs=2000000)
 
                 # return code +ve is number of samples
                 # return code -ve is error
