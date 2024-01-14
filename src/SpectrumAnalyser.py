@@ -106,7 +106,7 @@ def main() -> None:
     # Default things before the main loop
     peak_powers_since_last_display = np.full(sdr_config.fft_size, -200)
     # timing things, averages
-    capture_time = Ewma.Ewma(0.01)
+    capture_time = Ewma.Ewma(0.001)  # soapy is very blocky so different averaging, doens't seem to impact anything else
     process_time = Ewma.Ewma(0.01)
     analysis_time = Ewma.Ewma(0.01)
     reporting_time = Ewma.Ewma(0.01)
@@ -147,7 +147,7 @@ def main() -> None:
             if not sdr_config.stop:
                 # debug of dropping input buffers for resource constrained hardware
                 loop_count += 1
-                drop = False;
+                drop = False
                 if sdr_config.drop != 0:
                     if (loop_count % sdr_config.drop) == 0:
                         drop = True
@@ -630,6 +630,7 @@ def sync_state(sdr_config: Sdr,
             src['params'] = data_source.get_parameters()
             shared_status['source'] = src  # if we change src to null make sure we don't try again immediately
             sdr_config.input_params = data_source.get_parameters()
+            sdr_config.input_overflows = 0
             config_changed = True
             snap_changed = True
         shared_update.pop('source')
@@ -689,6 +690,7 @@ def sync_state(sdr_config: Sdr,
             data_source.set_sample_rate_sps(shared_update['digitiserSampleRate'])
             Sdr.add_to_error(sdr_config, data_source.get_and_reset_error())
             sdr_config.sample_rate = data_source.get_sample_rate_sps()
+            sdr_config.input_overflows = 0
             config_changed = True
         shared_update.pop('digitiserSampleRate')
 

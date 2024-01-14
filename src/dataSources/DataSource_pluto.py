@@ -107,7 +107,7 @@ class Input(DataSource.DataSource):
 
         # for supporting read of blocks which we partition out
         self._complex_data = None  # the block store
-        self._read_block_size = 16384  # MUST be a power of 2 - AND is the MAX fft size
+        self._read_block_size = 32768  # MUST be a power of 2 - AND is the MAX fft size
 
         self._index = self._read_block_size  # force read on first access
         self._block_time = 0

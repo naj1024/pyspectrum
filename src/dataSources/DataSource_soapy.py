@@ -25,6 +25,7 @@ On Linux, debian bullseye ():
 """
 
 import logging
+import time
 from typing import Tuple
 
 import numpy as np
@@ -70,15 +71,19 @@ class Input(DataSource.DataSource):
         """
         self._constant_data_type = "32fle"
         if not parameters or parameters == "":
-            parameters = "0"  # default
+            parameters = "rtlsdr"  # default
         super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
         self._name = module_type
         self._connected = False
         self._sdr = None
         self._channel = 0  # we will use channel zero for now
-        self._tmp = None
-        self._tmp_size = 0
+        # soapy has quite large read blocks, so read a complete block at a time
         self._complex_data = None
+        self._block_read_size = 0
+        self._rx_time = 0
+        self._buffer_rx_time = 0
+        self._soapyMTU = 0
+        self._index = -1
         self._rx_stream = None
         self._gain_modes = []
         self._gain_mode = "auto"
@@ -135,10 +140,6 @@ class Input(DataSource.DataSource):
 
         # NOTE soapy may not range check any values, may just go quiet and give no samples
         try:
-            self._sdr.setSampleRate(SoapySDR.SOAPY_SDR_RX, self._channel, self._sample_rate_sps)
-            self._sdr.setFrequency(SoapySDR.SOAPY_SDR_RX, self._channel, self._centre_frequency_hz)
-            self._rx_stream = self._sdr.setupStream(SoapySDR.SOAPY_SDR_RX, SoapySDR.SOAPY_SDR_CF32)
-
             # Set Automatic Gain Control
             if self._sdr.hasGainMode(SoapySDR.SOAPY_SDR_RX, self._channel):
                 self._gain_modes = ["manual", "auto"]  # what we will call them
@@ -196,18 +197,27 @@ class Input(DataSource.DataSource):
 
             self.get_bandwidth_hz()
 
+            logger.info(f"setting sps {self._sample_rate_sps}")
+            self.set_sample_rate_sps(self._sample_rate_sps)
+            logger.info(f"set sps {self._sample_rate_sps}")
+            self.set_centre_frequency_hz(self._centre_frequency_hz)
+            self._rx_stream = self._sdr.setupStream(SoapySDR.SOAPY_SDR_RX, SoapySDR.SOAPY_SDR_CF32)
+
             # turn on the stream
             self._sdr.activateStream(self._rx_stream)  # start streaming
 
-            # how big is the buffer Soapy is using
-            logger.debug(f"Soapy buffer size {self._sdr.getStreamMTU(self._rx_stream)}")
+            # create buffer for soapy buffers to be written into
+            self._soapyMTU = self._sdr.getStreamMTU(self._rx_stream)
+            logger.debug(f"Soapy buffer MTU {self._soapyMTU}")
+
+            self._complex_data = np.array([0] * self._soapyMTU, np.complex64)
+            self._index = self._soapyMTU  # force read on first pass
 
         except Exception as err_msg:
             msgs = f"{module_type} {self._parameters} configuration problem, {err_msg}"
             logger.error(msgs)
             raise ValueError(msgs) from None
 
-        # print(self._sdr.getSampleRate(SoapySDR.SOAPY_SDR_RX, self._channel))
         logger.debug(f"{module_type}: {self._centre_frequency_hz / 1e6:.6}MHz @ {self._sample_rate_sps:.3f}sps")
 
         self._connected = True
@@ -226,6 +236,7 @@ class Input(DataSource.DataSource):
         return self._sample_rate_sps
 
     def set_sample_rate_sps(self, sr: float) -> None:
+        logger.info("set_sample_rate_sps()")
         if self._sdr:
             # find an allowed sr from the set
             min_sr = max(self._allowed_sps)
@@ -237,6 +248,7 @@ class Input(DataSource.DataSource):
             self._sample_rate_sps = min_sr
             self._sdr.setSampleRate(SoapySDR.SOAPY_SDR_RX, self._channel, self._sample_rate_sps)
             self.get_sample_rate_sps()
+            logger.info(f"Set sample rate {sr}sps as {self._sample_rate_sps}sps")
 
     def get_centre_frequency_hz(self) -> float:
         if self._sdr:
@@ -368,84 +380,83 @@ class Input(DataSource.DataSource):
 
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
-        rx_time = 0
-        # Soapy uses self._complex_data why ?
+        complex_data = None
 
-        if not self._connected:
-            return None, 0
-        else:
-            # Receive all samples
-            index = 0
-            wait = 10
-            # first time through we will set these two up
-            if (self._tmp is None) or (self._tmp.size != number_samples):
-                # Create numpy array for received samples, for reading into as we can get partial reads
-                self._tmp = np.array([0] * number_samples, np.complex64)
-            if (self._complex_data is None) or (self._complex_data.size != number_samples):
-                # Create numpy array for received samples, for output
-                self._complex_data = np.array([0] * number_samples, np.complex64)
-
-            while index < self._complex_data.size:
-                # readStream() doesn't seem to be a blocking call
-                num_to_get = number_samples - index
-
-                read = self._sdr.readStream(self._rx_stream, [self._tmp], len(self._temp), timeoutUs=2000000)
-
-                # return code +ve is number of samples
-                # return code -ve is error
-                # return code zero is try again
-                if read.ret == 0:
-                    # if we are timing out then return if this happens too often - allows a programme to terminate
-                    wait -= 1
-                    if not wait:
-                        self._error = f"{module_type} {read.ret} empty, {SoapySDR.SoapySDR_errToStr(read.ret)}"
-                        logger.error(self._error)
-                        return None, 0
-                if read.ret > 0:
-                    wait = 10
+        if self._connected:
+            amount_read = 0
+            complex_data = np.array([0] * number_samples, np.complex64)
+            while amount_read < number_samples:
+                # do we need to read in the next block from soapy
+                if self._index >= self._block_read_size:
                     try:
-                        # copy into output buffer
-                        self._complex_data[index:index + read.ret] = self._tmp[
-                                                                     :min(read.ret, self._complex_data.size - index)]
-                        index += read.ret
-                    except Exception as gg:
-                        self._error = f"{module_type} problem {gg}"
+                        read_status = self._sdr.readStream(self._rx_stream, [self._complex_data],
+                                                           len(self._complex_data), timeoutUs=2000000)
+                        # did anything go wrong
+                        if read_status.ret < 0:
+                            if read_status.ret == -4:
+                                self._overflows += 1
+                                self._error = f"{module_type} {read_status.ret} read overflow error"
+                            else:
+                                self._error = f"{module_type} {read_status.ret} read other error"
+                            logger.error(self._error)
+                            return None, 0
+                        elif read_status.ret == 0:
+                            self._error = f"{module_type} {read_status.ret} empty read"
+                            logger.error(self._error)
+                            return None, 0
+                        else:
+                            # arghhhh sometimes we get less than we want
+                            self._block_read_size = read_status.ret
+                            # if self._block_read_size != self._soapyMTU:
+                            #     self._error = f"{module_type} {read_status.ret} short read, not self._soapyMTU"
+                            #     logger.error(self._error)
+
+                            # soapy has timestamps (read_status.timeNs), but they don't change when using eg rtlsdr
+                            # so just going to ignore them and get a local time
+                            self._buffer_rx_time = time.time_ns()
+
+                            self._index = 0
+
+                    except Exception as err:
+                        self._connected = False
+                        self._error = str(err)
                         logger.error(self._error)
-                        return None, 0
-                elif read.ret < 0:
-                    if read.ret == -4:
-                        self._overflows += 1
-                    else:
-                        self._error = f"{module_type} {read.ret} other error, {SoapySDR.SoapySDR_errToStr(read.ret)}"
-                        logger.error(self._error)
-                        return None, 0
+                        raise ValueError(err)
 
-                # read.ret error codes
-                # SOAPY_SDR_TIMEOUT -1
-                # SOAPY_SDR_STREAM_ERROR -2
-                # SOAPY_SDR_CORRUPTION -3
-                # SOAPY_SDR_OVERFLOW -4   <- i.e. buffers are over flowing because can't read fast enough
-                # SOAPY_SDR_NOT_SUPPORTED -5
-                # SOAPY_SDR_TIME_ERROR -6
-                # SOAPY_SDR_UNDERFLOW -7
+                # how many can we read from our buffer
+                num_available = self._block_read_size - self._index
+                num_to_use = num_available
+                if num_available >= (number_samples - amount_read):
+                    num_to_use = number_samples - amount_read
 
-                # read.flags bits
-                # SOAPY_SDR_END_BURST 2
-                # SOAPY_SDR_HAS_TIME 4
-                # SOAPY_SDR_END_ABRUPT 8
-                # SOAPY_SDR_ONE_PACKET 16
-                # SOAPY_SDR_MORE_FRAGMENTS 32
-                # SOAPY_SDR_WAIT_TRIGGER 64
+                # copy into output buffer
+                complex_data[amount_read:(amount_read + num_to_use)] = self._complex_data[
+                                                                       self._index:(self._index + num_to_use)]
+                # print(f"need {number_samples} data[{amount_read}:{amount_read+num_to_use}] = "
+                #       f"cd[{self._index}:{self._index+num_to_use}] from {self._block_read_size}")
 
-            # set time
-            # TODO:  untested read.timeNs
-            # Is the time for the samples just taken or now or the next samples
-            # should it be read first or last
-            try:
-                rx_time = read.timeNs
-                if not rx_time:
-                    rx_time = self.get_time_ns(number_samples)
-            except Exception:
-                rx_time = self.get_time_ns(number_samples)
+                # work out the time of our samples from the beginning of the block
+                if amount_read == 0:
+                    self._rx_time = self._buffer_rx_time + ((1e9 * self._index) / self._sample_rate_sps)
 
-        return self._complex_data, rx_time
+                amount_read += num_to_use
+                self._index += num_to_use  # index gets reset on every block read
+
+            # soapy read_status.ret error codes
+            # SOAPY_SDR_TIMEOUT -1
+            # SOAPY_SDR_STREAM_ERROR -2
+            # SOAPY_SDR_CORRUPTION -3
+            # SOAPY_SDR_OVERFLOW -4   <- i.e. buffers are overflowing because can't read fast enough
+            # SOAPY_SDR_NOT_SUPPORTED -5
+            # SOAPY_SDR_TIME_ERROR -6
+            # SOAPY_SDR_UNDERFLOW -7
+
+            # read.flags bits
+            # SOAPY_SDR_END_BURST 2
+            # SOAPY_SDR_HAS_TIME 4
+            # SOAPY_SDR_END_ABRUPT 8
+            # SOAPY_SDR_ONE_PACKET 16
+            # SOAPY_SDR_MORE_FRAGMENTS 32
+            # SOAPY_SDR_WAIT_TRIGGER 64
+
+        return complex_data, self._rx_time

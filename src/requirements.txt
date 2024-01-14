@@ -3,46 +3,51 @@
 # edit required input sources etc
 #
 
-# processing
-matplotlib>=3.7.1
-numpy>=1.24.2
-scipy>=1.10.1
-
-# audio input source
-sounddevice>=0.4.6
-
-# analog device pluto device
-pyadi-iio>=0.0.15
-pylibiio>=0.21
-
-# rtl devices
-pyrtlsdr>=0.2.93
-
-# soapy devices, SoapySDR
-# Not supported by pip install
-# Install using your package manager and copy files to the virtual env lib directory
-# apt install python3-soapysdr
-# dpkg -L dpkg -L python3-soapysdr
-# cp /usr/lib/python3/dist-packages/SoapySDR.py ~/.local/share/virtualenvs/sid-xxxx/lib/python3.9/site-packages/
-# cp /usr/lib/python3/dist-packages/_SoapySDR.cpython-39-x86_64-linux-gnu.so ~/.local/share/virtualenvs/sid-xxxx/lib/python3.9/site-packages/
-
-# funcube dongle, control under linux
-hid>=1.0.4
-
-# mqtt plugin
-paho-mqtt>=1.6.1
-
-# web interface
+# websockets, required
 websockets>=11.0.1
 
-# flask
+# flask, required
 Flask>=2.2.3
 flask_restful>=0.3.9
 
-# sigmf support if required
-sigmf
+# processing, required
+matplotlib>=3.7.1
+numpy>=1.24.2
+scipy>=1.10.1
+# more fft libraries, optional
+pyfftw>=0.13.1
 
-# testing
+# analog devices pluto, optional
+pyadi-iio>=0.0.15
+pylibiio>=0.21
+
+# rtl devices, optional
+pyrtlsdr>=0.2.93
+
+# soapy devices, optional
+# Not supported by pip install
+# Install using your package manager, e.g.
+#     sudo apt install soapysdr-module-all
+#     sudo apt install python3-soapysdr
+# Add system to virtual environment path
+#     vi ~/.local/share/virtualenvs/pi-xxxxxx/pyvenv.cfg
+#     # allow search on system packages as Soapy has installed them there
+#     include-system-site-packages = true
+
+# audio input source, optional
+sounddevice>=0.4.6
+
+# funcube dongle control under linux, optional
+# funcube requires audio support as well
+hid>=1.0.4
+
+# mqtt plugin, optional
+paho-mqtt>=1.6.1
+
+# sigmf file support, optional
+sigmf>=1.1.5
+
+# testing, optional
 #pytest>=7.3.0
 
 

@@ -231,7 +231,7 @@ class Input(DataSource.DataSource):
                 self._error = str(err)
                 logger.debug(f"bad sr {sample_rate} now {self._sample_rate_sps}")
 
-        logger.info(f"Set sample rate {sample_rate}sps")
+        logger.info(f"Set sample rate {sample_rate}sps as {self._sample_rate_sps}sps")
 
     def set_centre_frequency_hz(self, frequency: float) -> None:
         # limits depend on tuner type: from https://wiki.radioreference.com/index.php/RTL-SDR
