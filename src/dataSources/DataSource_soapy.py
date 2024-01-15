@@ -8,12 +8,7 @@ On Linux, debian bullseye ():
     apt install python3-soapysdr
     dpkg -L python3-soapysdr
 
-    If using virtual environments then copy the files in dist-packages (.py and .so) to your
-    virtual environments site-packages
-        cp /usr/lib/python3/dist-packages/SoapySDR.py
-            /home/username/.local/share/virtualenvs/username-w79atRX8/lib/python3.9/site-packages/
-        cp /usr/lib/python3/dist-packages/_SoapySDR.cpython-39-x86_64-linux-gnu.so
-            /home/username/.local/share/virtualenvs/username-w79atRX8/lib/python3.9/site-packages/
+    Make sure that the system python libraries are in the python virtual environment path
 
     For rtlsdr you may need to blacklist the use of dvb which will claim the rtlsdr
     create no-dvb.conf in /etc/modprobe.d with contents:
@@ -297,12 +292,14 @@ class Input(DataSource.DataSource):
     def set_gain(self, gain: float) -> None:
         self._gain = float(gain)
         if self._sdr:
-            if self._sdr.hasGainMode(SoapySDR.SOAPY_SDR_RX, self._channel):
-                if self._gain > self._max_gain:
-                    self._gain = self._max_gain
-                if self._gain < self._min_gain:
-                    self._gain = self._min_gain
-                self._sdr.setGain(SoapySDR.SOAPY_SDR_RX, self._channel, self._gain)
+            # library prints a error if in auto when we try to set gain
+            if self._gain_mode != "auto":
+                if self._sdr.hasGainMode(SoapySDR.SOAPY_SDR_RX, self._channel):
+                    if self._gain > self._max_gain:
+                        self._gain = self._max_gain
+                    if self._gain < self._min_gain:
+                        self._gain = self._min_gain
+                    self._sdr.setGain(SoapySDR.SOAPY_SDR_RX, self._channel, self._gain)
 
     def get_gain_mode(self) -> str:
         if self._sdr:
