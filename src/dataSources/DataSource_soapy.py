@@ -378,7 +378,7 @@ class Input(DataSource.DataSource):
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
         complex_data = None
-        time_read_cplx_start = time.perf_counter()
+        #time_read_cplx_start = time.perf_counter()
 
         if self._connected:
             amount_read = 0
@@ -470,7 +470,7 @@ class Input(DataSource.DataSource):
             # SOAPY_SDR_MORE_FRAGMENTS 32
             # SOAPY_SDR_WAIT_TRIGGER 64
 
-        time_read_cplx_end = time.perf_counter()
-        print(f"read {time_read_cplx_end - time_read_cplx_start}")
+        #time_read_cplx_end = time.perf_counter()
+        #print(f"read {time_read_cplx_end - time_read_cplx_start}")
 
         return complex_data, self._rx_time
