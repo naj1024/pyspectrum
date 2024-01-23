@@ -164,7 +164,7 @@ def main() -> None:
                 samples = None
 
             if samples is None:
-                time.sleep(0.001)  # rate limit on trying to get samples
+                time.sleep(0.0001)  # rate limit on trying to get samples
             else:
                 _ = capture_time.average(time_end - time_start)
                 # read ratio will be > 1.0 if we take longer to get samples than we expect

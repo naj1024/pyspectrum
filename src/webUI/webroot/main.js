@@ -497,7 +497,7 @@ function showNew(jsonConfig) {
         new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
         new_html += ' action="javascript:handleGainChange(gainInput.value)">';
         // as we remove the number inc/dec arrows in css the size parameter does work
-        new_html += '<input type="number" size="2" min="0" max="100" ';
+        new_html += '<input type="number" size="2" min="-100" max="100" ';
         new_html += ' step="';
         new_html += gain_step;
         new_html += '" value="';

@@ -82,8 +82,8 @@ class Input(DataSource.DataSource):
         self._rx_stream = None
         self._gain_modes = []
         self._gain_mode = "auto"
-        self._max_gain: float = 100
-        self._min_gain: float = 0.0
+        self._max_gain: float = 100.0
+        self._min_gain: float = -100.0
         # not correctly setting min,max on sps and freq yet
         self._min_sps: float = 0.0
         self._max_sps: float = 8e6
@@ -378,16 +378,22 @@ class Input(DataSource.DataSource):
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
         complex_data = None
+        time_read_cplx_start = time.perf_counter()
 
         if self._connected:
             amount_read = 0
             complex_data = np.array([0] * number_samples, np.complex64)
             while amount_read < number_samples:
                 # do we need to read in the next block from soapy
+                #time_read_start = 0
+                #time_read_end = 0
                 if self._index >= self._block_read_size:
                     try:
+                       # time_read_start = time.perf_counter()
                         read_status = self._sdr.readStream(self._rx_stream, [self._complex_data],
                                                            len(self._complex_data), timeoutUs=2000000)
+                        #time_read_end = time.perf_counter()
+
                         # did anything go wrong
                         if read_status.ret < 0:
                             if read_status.ret == -4:
@@ -414,6 +420,8 @@ class Input(DataSource.DataSource):
 
                             self._index = 0
 
+                        #if read_status.flags != 0:
+                        #    print(f"flags {read_status.flags}")
                     except Exception as err:
                         self._connected = False
                         self._error = str(err)
@@ -427,8 +435,14 @@ class Input(DataSource.DataSource):
                     num_to_use = number_samples - amount_read
 
                 # copy into output buffer
+                #time_copy_start = time.perf_counter()
                 complex_data[amount_read:(amount_read + num_to_use)] = self._complex_data[
                                                                        self._index:(self._index + num_to_use)]
+                #time_copy_end = time.perf_counter()
+
+                #print(f"read {time_read_end-time_read_start}, copy {time_copy_end-time_copy_start}, "
+                #      f"index {self._index}, buf {self._block_read_size}")
+
                 # print(f"need {number_samples} data[{amount_read}:{amount_read+num_to_use}] = "
                 #       f"cd[{self._index}:{self._index+num_to_use}] from {self._block_read_size}")
 
@@ -455,5 +469,8 @@ class Input(DataSource.DataSource):
             # SOAPY_SDR_ONE_PACKET 16
             # SOAPY_SDR_MORE_FRAGMENTS 32
             # SOAPY_SDR_WAIT_TRIGGER 64
+
+        time_read_cplx_end = time.perf_counter()
+        print(f"read {time_read_cplx_end - time_read_cplx_start}")
 
         return complex_data, self._rx_time

@@ -222,7 +222,7 @@ class Digitiser(Resource):
                     else:
                         raise ValueError()
                 elif thing == 'digitiserGain':
-                    gn = abs(int(request.json[thing]))
+                    gn = int(request.json[thing])
                     self._update[thing] = gn
                 return "ok"
             except Exception:
