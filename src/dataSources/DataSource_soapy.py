@@ -299,6 +299,7 @@ class Input(DataSource.DataSource):
                         self._gain = self._max_gain
                     if self._gain < self._min_gain:
                         self._gain = self._min_gain
+                    print(f"gain {self._gain}, min {self._max_gain}, max{self._min_gain}")
                     self._sdr.setGain(SoapySDR.SOAPY_SDR_RX, self._channel, self._gain)
 
     def get_gain_mode(self) -> str:
