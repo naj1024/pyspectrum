@@ -1,6 +1,6 @@
 import logging
 import os
-#import time
+import time
 from timeit import Timer
 from typing import List
 from typing import Any
@@ -39,9 +39,13 @@ def create_test_data(size: int) -> np.array:
 
 
 def test_numpy_fft_speed(complex_data: np.array, iterations: int = 500) -> float:
-    t = Timer(lambda: np.fft.fft(complex_data))
-    exec_time = t.timeit(number=iterations)
-    return 1e6 * exec_time / iterations
+    t1 = time.perf_counter()
+    for i in range(iterations):
+        signals_fft = np.fft.fft(complex_data)
+        signals_fft = np.fft.fftshift(signals_fft)
+        _ = (signals_fft * signals_fft.conj()).real
+    t2 = time.perf_counter()
+    return (1e6 * (t2 - t1)) / iterations
 
 
 def test_fftw_fft_speed(complex_data: np.array, iterations: int = 500, fftw_threads: int = 1) -> float:
@@ -49,17 +53,25 @@ def test_fftw_fft_speed(complex_data: np.array, iterations: int = 500, fftw_thre
         pyfftw.interfaces.cache.enable()
         pyfftw.interfaces.cache.set_keepalive_time(10)
         pyfftw.config.NUM_THREADS = 1    # things get worse with more threads - for me
-        t = Timer(lambda: pyfftw.interfaces.numpy_fft.fft(complex_data))
-        exec_time = t.timeit(number=iterations)
-        return 1e6 * exec_time / iterations
+        t1 = time.perf_counter()
+        for i in range(iterations):
+            signals_fft = pyfftw.interfaces.numpy_fft.fft(complex_data)
+            signals_fft = np.fft.fftshift(signals_fft)
+            _ = (signals_fft * signals_fft.conj()).real
+        t2 =  time.perf_counter()
+        return (1e6 * (t2 - t1)) / iterations
     return 10e6  # something very big in useconds
 
 
 def test_scipy_fft_speed(complex_data: np.array, iterations: int = 500) -> float:
     if fftpack:
-        t = Timer(lambda: fftpack.fft(complex_data))
-        exec_time = t.timeit(number=iterations)
-        return 1e6 * exec_time / iterations
+        t1 = time.perf_counter()
+        for i in range(iterations):
+            signals_fft = fftpack.fft(complex_data)
+            signals_fft = np.fft.fftshift(signals_fft)
+            _ = (signals_fft * signals_fft.conj()).real
+        t2 = time.perf_counter()
+        return (1e6 * (t2 - t1)) / iterations
     return 10e6  # something very big in useconds
 
 
@@ -79,15 +91,16 @@ def convert_to_frequencies(bins: List[int], sample_rate: float, fft_size: int) -
     return freqs
 
 
-def get_powers(mag_squared: np.ndarray) -> np.ndarray:
+def get_powers(mag_squared: np.ndarray, offset: float) -> np.ndarray:
     """
     Return the dB powers of a magnitude squared fft output
 
     :param mag_squared:
+    :param offset: dbm offset
     :return: dB array of the magnitudes squared
     """
     # convert to dB,
-    scale = 10 * np.log10(mag_squared.size)
+    scale = 10 * np.log10(mag_squared.size) - offset
     # should be 5 not 10 on the power as we have mag^2 not mag so 1/2 of 10
     # but that doesn't tie up with real spec analyser or other sdr ones
     powers = 10 * np.log10(mag_squared) - scale  # dB and normalisation by fft size

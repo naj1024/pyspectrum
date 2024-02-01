@@ -294,13 +294,11 @@ class Input(DataSource.DataSource):
             # library prints a error if in auto when we try to set gain
             if self._gain_mode != "auto":
                 if self._sdr.hasGainMode(SoapySDR.SOAPY_SDR_RX, self._channel):
-                    print(f"gain {gain}, min{self._min_gain}, max {self._max_gain}")
                     if gain > self._max_gain:
                         gain = self._max_gain
                     elif gain < self._min_gain:
                         gain = self._min_gain
                     self._gain = gain
-                    print(f"set gain {self._gain}")
                     self._sdr.setGain(SoapySDR.SOAPY_SDR_RX, self._channel, self._gain)
 
     def get_gain_mode(self) -> str:

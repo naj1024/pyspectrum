@@ -20,7 +20,7 @@ class Stdout(Plugin):
         # Note we need to have a class method for each entry in the self_methods list
         # and the name has to match
         self._methods = ['report']
-        self._on = False
+        self._enabled = False
         self._help_string = help_string
         self._parse_options(kwargs)
 
@@ -39,7 +39,9 @@ class Stdout(Plugin):
                         # --plugin report:stdout:off
                         if parts[0] == "report" and parts[1] == "stdout":
                             if parts[2] == "on":
-                                self._on = True
+                                self._enabled = True
+                            else:
+                                self._enabled = False
 
     def help(self):
         """
@@ -59,7 +61,7 @@ class Stdout(Plugin):
         :param centre_frequency_hz: The centre frequency for the list of frequency offsets
         :return: None
         """
-        if self._on:
+        if self._enabled:
             secs = int(data_samples_time / 1e9)
             micro_secs = ((data_samples_time / 1e9) - secs) * 1000
             happened_at = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(secs))

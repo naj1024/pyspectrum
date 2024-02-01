@@ -28,6 +28,7 @@ class Sdr:
         self.gain_mode = "none"
         self.input_bw_hz = self.sample_rate
         self.ppm_error = 0.0
+        self.dbm_offset = 0.0
 
         self.read_ratio = 0.0  # ratio of time it takes to read samples vs time samples should of taken to arrive
         # >1.0 means that samples are not arriving at the rate we expect

@@ -177,12 +177,12 @@ def main() -> None:
                 ##########################
                 # Calculate the spectrum
                 #################
-                processor.process(samples)
+                processor.process(samples, sdr_config.dbm_offset)
                 time_end = time.perf_counter()
                 process_time.average(time_end - time_start)
 
                 ###########################
-                # analysis of the spectrum
+                # analysis of the spectrum, plugin stuff
                 #################
                 time_start = time.perf_counter()
                 results = plugin_manager.call_plugin_method(method="analysis",
@@ -194,7 +194,7 @@ def main() -> None:
                 analysis_time.average(time_end - time_start)
 
                 #####################
-                # reporting results
+                # reporting results, plugin stuff
                 #############
                 time_start = time.perf_counter()
                 if "peaks" in results and len(results["peaks"]) > 0:
@@ -535,6 +535,7 @@ def fill_shared_status(shared_status: dict, sdr_config: Sdr, snap_config: Snappe
     shared_status['digitiserSampleRate'] = sdr_config.sample_rate
     shared_status['digitiserBandwidth'] = sdr_config.input_bw_hz
     shared_status['digitiserPartsPerMillion'] = sdr_config.ppm_error
+    shared_status['digitiserDbmOffset'] = sdr_config.dbm_offset
     shared_status['digitiserGainTypes'] = sdr_config.gain_modes
     shared_status['digitiserGainType'] = sdr_config.gain_mode
     shared_status['digitiserGain'] = sdr_config.gain
@@ -684,6 +685,11 @@ def sync_state(sdr_config: Sdr,
             sdr_config.ppm_error = data_source.get_ppm()
             config_changed = True
         shared_update.pop('digitiserPartsPerMillion')
+
+    if 'dbmOffset' in shared_update:
+        if shared_update['dbmOffset'] != sdr_config.dbm_offset:
+            sdr_config.dbm_offset = (float(shared_update['dbmOffset']))
+        shared_update.pop('dbmOffset')
 
     if 'digitiserSampleRate' in shared_update:
         if shared_update['digitiserSampleRate'] != sdr_config.sample_rate:

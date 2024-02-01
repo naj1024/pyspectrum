@@ -34,23 +34,25 @@ class Mqtt(Plugin):
         # Note we need to have a class method for each entry in the self_methods list
         # and the name has to match
         self._methods = ['report']
+        self._enabled = False
         self._base_topic = default_base_topic
         self._mqtt_broker_address = ""
         self._mqtt_client = None
         self._help_string = help_string
         self._parse_options(kwargs)
 
-        # if the mqtt broker address is not set then we will not create a client
-        if self._mqtt_broker_address:
-            self._mqtt_client = mqtt.Client("mqttStats")  # create new instance
-            logger.info(f"Connecting to MQTT broker at: {self._mqtt_broker_address}")
-            try:
-                self._mqtt_client.connect(self._mqtt_broker_address)  # connect to broker
-                self._mqtt_client.loop_start()  # start the loop
-                logger.info("Connected to MQTT broker")
-            except OSError as msg:
-                logger.error("MQTT connection failed,", msg)
-                self._mqtt_client = None
+        if self._enabled:
+            # if the mqtt broker address is not set then we will not create a client
+            if self._mqtt_broker_address:
+                self._mqtt_client = mqtt.Client("mqttStats")  # create new instance
+                logger.info(f"Connecting to MQTT broker at: {self._mqtt_broker_address}")
+                try:
+                    self._mqtt_client.connect(self._mqtt_broker_address)  # connect to broker
+                    self._mqtt_client.loop_start()  # start the loop
+                    logger.info("Connected to MQTT broker")
+                except OSError as msg:
+                    logger.error("MQTT connection failed,", msg)
+                    self._mqtt_client = None
 
     def _parse_options(self, options: {}) -> None:
         """
@@ -72,6 +74,13 @@ class Mqtt(Plugin):
                         if parts[0] == "report" and parts[1] == "mqtt" and parts[2] == "topic":
                             self._base_topic = parts[3]
 
+                        # --plugin report:mqtt:enabled:on
+                        if parts[0] == "report" and parts[1] == "mqtt" and parts[2] == "enabled":
+                            if parts[3] == "on":
+                                self._enabled = True
+                            else:
+                                self._enabled = False
+
     def help(self):
         """
         return the help string for this plugin
@@ -91,7 +100,7 @@ class Mqtt(Plugin):
         :return: None
         """
         # we will only process if we have a connection to a mqtt broker
-        if self._mqtt_client:
+        if self._enabled and self._mqtt_client:
             secs = int(data_samples_time / 1e9)
             micro_secs = int(((data_samples_time / 1e9) - secs) * 1000)
 

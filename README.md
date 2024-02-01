@@ -75,101 +75,111 @@ Run, then connect to localhost:8080 in a browser
 ## Complete raspberry pi install, RPI-5
      
     # From fresh install of bookworm on RP-5 (January 2024)
-         sudo apt update
-         sudo apt upgrade
+        $ sudo apt update
+        $ sudo apt upgrade
     
     # python virtual environement     
-        sudo apt install pipenv
+        $ sudo apt install pipenv
         
     # rtlsdr hardware support
-        sudo apt install librtlsdr0
-        sudo apt install librtlsdr-dev
-        sudo apt install rtl-sdr
-        sudo usermod -a -G plugdev pi
+        $ sudo apt install librtlsdr0
+        $ sudo apt install librtlsdr-dev
+        $ sudo apt install rtl-sdr
+        $ sudo usermod -a -G plugdev pi
     
     # pluto hardware support
-        sudo apt install libiio0 libiio-utils
+        $ sudo apt install libiio0 libiio-utils
          
     # audio hardware support
-        sudo apt install libportaudio2
+        $ sudo apt install libportaudio2
     
     # hardware support for control support of funcube devices
-        sudo apt install libhidapi-hidraw0 libhidapi-libusb0
+        $ sudo apt install libhidapi-hidraw0 libhidapi-libusb0
         
     # sdrplay hardware support
-        chmod +x SDRplay_RSP_API-Linux-3.12.1.run
-        sudo ./SDRplay_RSP_API-Linux-3.12.1.run
-        sudo systemctl status sdrplay
-        sudo systemctl enable sdrplay
+        $ chmod +x SDRplay_RSP_API-Linux-3.12.1.run
+        $ sudo ./SDRplay_RSP_API-Linux-3.12.1.run
+        $ sudo systemctl status sdrplay
+        $ sudo systemctl enable sdrplay
     
     # Soapy for sdrplay, because distro soapy does not include sdrplay
         # dependancies for soapy build
-        sudo apt install cmake g++ libpython3-dev python3-numpy swig
+        $ sudo apt install cmake g++ libpython3-dev python3-numpy swig
         
-        # sdrplay base
-        git clone https://github.com/pothosware/SoapySDR.git
-        cd SoapySDR
-        mkdir build
-        cd build
-        cmake ..
-        make
-        sudo make install
-        sudo ldconfig
-        SoapySDRUtil --info    # no modules found
+        ## sdrplay base
+        $ cd
+        $ git clone https://github.com/pothosware/SoapySDR.git
+        $ cd SoapySDR
+        $ mkdir build
+        $ cd build
+        $ cmake ..
+        $ make
+        $ sudo make install
+        $ sudo ldconfig
+        $ SoapySDRUtil --info    # no modules found
         
-        # now for the sdrplay module
-        cd ../..
-        git clone https://github.com/SDRplay/SoapySDRPlay.git
-        cd SoapySDRPlay
-        mkdir build
-        cd build
-        cmake ..
-        make
-        sudo make install
-        sudo ldconfig
-        SoapySDRUtil --info    # libsdrPlaySupport.so module found
+        ## Soapy sdrplay module
+        $ cd ../..
+        $ git clone https://github.com/SDRplay/SoapySDRPlay.git
+        $ cd SoapySDRPlay
+        $ mkdir build
+        $ cd build
+        $ cmake ..
+        $ make
+        $ sudo make install
+        $ sudo ldconfig
+        $ SoapySDRUtil --info    # libsdrPlaySupport.so module found
         
-        # test how fast raw driver can go, change sample rate 
-        SoapySDRUtil --rate=8e6 --direction=RX --args="driver=sdrplay"
+        ## test how fast raw driver can go, change sample rate 
+        $ SoapySDRUtil --rate=8e6 --direction=RX --args="driver=sdrplay"
     
-    # Soapy rtlsdr module
-        git clone https://github.com/pothosware/SoapyRTLSDR.git
-        cd SoapyRTLSDR/
-        mkdir build
-        cd build
-        cmake ..
-        make
-        sudo make install
-        SoapySDRUtil --info    # librtlsdrSupport.so module found
+        ## Soapy rtlsdr module
+        $ git clone https://github.com/pothosware/SoapyRTLSDR.git
+        $ cd SoapyRTLSDR/
+        $ mkdir build
+        $ cd build
+        $ cmake ..
+        $ make
+        $ sudo make install
+        $ SoapySDRUtil --info    # librtlsdrSupport.so module found
         
     # python environment search paths for soapy
-        vi ~/.local/share/virtualenvs/pi-xxxxxx/pyvenv.cfg
+        $ vi ~/.local/share/virtualenvs/pi-xxxxxx/pyvenv.cfg
             # allow search on system packages as Soapy has installed them there
             include-system-site-packages = true
         
     # let things sort themselves out, libraries, rules, groups etc
-        sudo reboot
+        $ sudo reboot
        
     # test for working rtlsdr devices, as normal user
-        rtl_test
+        $ rtl_test
        
     # clone the pyspectrum repository
-        git clone https://github.com/naj1024/pyspectrum.git
-        git checkout flask
+        $ cd
+        $ git clone https://github.com/naj1024/pyspectrum.git
+        $ cd pyspectrum
+        $ git checkout flask
     
         # install python requirements
-        pipenv shell
-        cd pyspectrum/src
+        $ cd
+        $ pipenv shell
+        $ cd pyspectrum/src
         
         # edit for the features you require 
-        vi requirements.txt
-        pip install -r ./requirements.txt
+        $ vi requirements.txt
+        $ pip install -r ./requirements.txt
         
-        python3 ./SpectrumAnalyser.py -vvv
-            ctr-c
+        ## Run the spectrum anlayser
+        $ python3 ./SpectrumAnalyser.py -vvv
+        web server port 8080
+        web socket port 8081
+         * Serving Flask app 'webUI.FlaskInterface'
+         * Debug mode: off
+        
+        ctr-c
             
         # check logs for errors
-        cat ./logs/SpectrumAnalyser.log
+        $ cat ./logs/SpectrumAnalyser.log
         
         
     #############
@@ -177,15 +187,15 @@ Run, then connect to localhost:8080 in a browser
     #   - distrubution provided 
     #   - no sdrplay
     #######
-    sudo apt install soapysdr-module-all
-    sudo apt install python3-soapysdr	
+    $ sudo apt install soapysdr-module-all
+    $ sudo apt install python3-soapysdr	
     
-    vi ~/.local/share/virtualenvs/pi-xxxxxx/pyvenv.cfg
+    $ vi ~/.local/share/virtualenvs/pi-xxxxxx/pyvenv.cfg
         # allow search on system packages as Soapy has installed them there
         include-system-site-packages = true
         
     # check that path includes system path python3/dist-packages
-    pi@pi5:~ $ pipenv shell
+    $ pi@pi5:~ $ pipenv shell
     Launching subshell in virtual environment...
     pi@pi5:~ $  . /home/pi/.local/share/virtualenvs/pi-xxxxxx/bin/activate
     (pi) pi@pi5:~ $ python3.11 -c "import sys; print('\n'.join(sys.path))"
@@ -204,14 +214,15 @@ Run, then connect to localhost:8080 in a browser
 
 # Soapy support - linux
 
-The easiest way to get SoapySDR support is to install it from your distributions repository
+The easiest way to get SoapySDR support is to install it from your distributions repository.
+Distributions may not include the soapy driver you need, see above for source build instead.
 
-    apt install python3-soapysdr
-    dpkg -L dpkg -L python3-soapysdr
+    $ apt install python3-soapysdr
+    $ dpkg -L dpkg -L python3-soapysdr
 
 then your virtual environment searches the system paths as well, say it is called sid-xxxx
 
-    vi ~/.local/share/virtualenvs/pi-xxxx/pyvenv.cfg
+    $ vi ~/.local/share/virtualenvs/pi-xxxx/pyvenv.cfg
 		# allow search on system packages as Soapy has installed them there
 		include-system-site-packages = true
     
@@ -230,7 +241,7 @@ then your virtual environment searches the system paths as well, say it is calle
 
 ## Comand line Examples - generally just need the first one
 
-Some examples for running from command line
+Some examples for running from command line, from a pipenv shell prompt
 
     python ./SpectrumAnalyser.py         - Then goto http://127.0.0.1:8080 and configure the source
 
@@ -280,6 +291,7 @@ The following python modules should be installed. Optional ones provide specific
         soapysdr    - soapy support
         paho-mqtt   - mqtt plugin (client)
         hid         - funcube control through usb hid, linux only?
+        sigmf       - sigmf file support
 
 ## AD936x pluto XO support
 

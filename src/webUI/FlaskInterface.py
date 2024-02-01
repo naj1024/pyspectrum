@@ -186,9 +186,11 @@ class Digitiser(Resource):
                                        'digitiserSampleRate',
                                        'digitiserBandwidth', 'digitiserPartsPerMillion', 'digitiserGainTypes',
                                        'digitiserGainType',
-                                       'digitiserGain']
+                                       'digitiserGain',
+                                       'digitiserDbmOffset',]
         self._allowed_put_endpoints = ['digitiserFormat', 'digitiserSampleRate', 'digitiserBandwidth',
-                                       'digitiserPartsPerMillion', 'digitiserGainType', 'digitiserGain']
+                                       'digitiserPartsPerMillion', 'digitiserGainType', 'digitiserGain',
+                                       'digitiserDbmOffset',]
 
     def get(self, thing):
         # Check for allowed endpoints at this point
@@ -215,6 +217,9 @@ class Digitiser(Resource):
                 elif thing == 'digitiserPartsPerMillion':
                     ppm = float(request.json[thing])
                     self._update[thing] = ppm
+                elif thing == 'digitiserDbmOffset':
+                    offset = float(request.json[thing])
+                    self._update[thing] = offset
                 elif thing == 'digitiserGainType':
                     gt = request.json[thing]
                     if gt in self._status['digitiserGainTypes']:

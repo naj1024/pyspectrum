@@ -97,6 +97,14 @@ function syncCurrent() {
     }).catch(function (error) {
     });
 
+    fetch('./digitiser/digitiserDbmOffset').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        sdrState.setConfigFromJason(obj);
+        $('#currentdBmOffset',).empty().append((sdrState.getDbmOffset()).toFixed(3));
+    }).catch(function (error) {
+    });
+
     fetch('./digitiser/digitiserGainType').then(function (response) {
         return response.json();
     }).then(function (obj) {
@@ -262,7 +270,8 @@ function syncNew() {
     let initUris = ['./input/sources', './digitiser/digitiserFormats', './spectrum/fftSizes', 
                 './spectrum/fftWindows', './digitiser/digitiserGainTypes', './control/presetFps',
                 './digitiser/digitiserGain', './digitiser/digitiserSampleRate', './tuning/frequency',
-                './digitiser/digitiserBandwidth', './digitiser/digitiserPartsPerMillion'];
+                './digitiser/digitiserBandwidth', './digitiser/digitiserPartsPerMillion',
+                './digitiser/digitiserDbmOffset'];
     for (let i = 0; i < initUris.length; i++) {
         fetch(initUris[i]).then(function (response) {
             return response.json();
@@ -429,6 +438,25 @@ function showNew(jsonConfig) {
         new_html += '" id="sdrPpmInput" name="sdrPpmInput">';
         new_html += "</form>";
         $('#newPpm').empty().append(new_html);
+    }
+
+    /////////////
+    // dbm offset
+    ///////
+    if(jsonConfig.dbmOffset != undefined) {
+        let dbm_offset = sdrState.getdbmOffset();
+        let offset_step = 0.0001;
+        new_html = '<form ';
+        new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
+        new_html += 'action="javascript:handleDBmOffsetChange(sdrDBmOffsetInput.value)">';
+        // as we remove the number inc/dec arrows in css the size parameter does work
+        new_html += '<input type="number" size="9" min="-100" max="100" step="';
+        new_html += offset_step;
+        new_html += '" value="';
+        new_html += (dbm_offset).toFixed(2);
+        new_html += '" id="sdrDBmOffsetInput" name="sdrDBmOffsetInput">';
+        new_html += "</form>";
+        $('#newdBmOffset').empty().append(new_html);
     }
 
     /////////////
@@ -723,6 +751,21 @@ function handlePpmChange(newPpm) {
     });
 
     sdrState.setPpmError(newPpm);
+    configFocusOut();
+}
+
+function handleDBmOffsetChange(newOffset) {
+    fetch("./digitiser/digitiserDbmOffset", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"digitiserDbmOffset":(newOffset)})
+    }).then(response => {
+        return response.json();
+    });
+
+    sdrState.setDBmOffset(newOffset);
     configFocusOut();
 }
 

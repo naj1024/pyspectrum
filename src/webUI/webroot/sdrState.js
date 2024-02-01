@@ -73,6 +73,9 @@ sdrState.prototype.setSdrBwHz = function(sdrBwHz) {
 sdrState.prototype.setPpmError = function(error) {
     this.ppmError = parseFloat(error);
 }
+sdrState.prototype.setDBmOffset = function(error) {
+    this.dbmOffset = parseFloat(error);
+}
 
 ////////////////////
 // getters
@@ -166,6 +169,9 @@ sdrState.prototype.getOverflows = function() {
 }
 sdrState.prototype.getPpmError = function() {
     return this.ppmError;
+}
+sdrState.prototype.getDBmOffset = function() {
+    return this.dbmOffset;
 }
 sdrState.prototype.setLastDataTime = function(last) {
     this.lastDataTime = last;
@@ -279,6 +285,10 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         this.ppmError = parseFloat(jsonConfig.digitiserPartsPerMillion);
     }
 
+    if (jsonConfig.dbmOffset != undefined) {
+        this.dbmOffset = parseFloat(jsonConfig.dbmOffset);
+    }
+
     if (jsonConfig.presetFps != undefined) {
         this.fpsAllowed = jsonConfig.presetFps;
     }
@@ -336,6 +346,7 @@ function sdrState() {
     this.sps = 0;
     this.sdrBwHz = 0;
     this.ppmError = 0.0;
+    this.dbmOffset = 0.0;
 
     this.fftSize = 0;
     this.fftSizes = [];
