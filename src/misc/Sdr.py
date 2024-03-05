@@ -11,18 +11,14 @@ import json
 
 class Sdr:
     def __init__(self):
-        # input data related
-        self.fft_size = 2048  # default, but any integer allowed
-        self.window = ""
-        self.window_types = []
-
         self.sample_rate = 1e6  # default
         self.centre_frequency_hz = 433.92e6  # used by the sdr
         self.conversion_frequency_hz = 0.0
         self.sdr_centre_frequency_hz = self.centre_frequency_hz - self.conversion_frequency_hz
         self.sample_types = ['8o', '8t', '16tbe', '16tle', '32fle', '32fbe']
         self.sample_type = '16tbe'  # default Format of sample data
-        self.drop = 0; # drops input buffers, e.g. 2 is 1 in2 3 is 1 in 3
+        self.drop = 0; # drops input buffers, e.g. 1 is drop 1 in 1, 2 is drop 1 in 2, 3 is drop 1 in 3
+        self.keep = 1; # keeps input buffers, e.g. 1 is keep every, 2 is keep 1 in 2, 3 is keep 1 in 3
         self.gain = 0
         self.gain_modes = ['none']
         self.gain_mode = "none"
@@ -30,9 +26,13 @@ class Sdr:
         self.ppm_error = 0.0
         self.dbm_offset = 0.0
 
-        self.read_ratio = 0.0  # ratio of time it takes to read samples vs time samples should of taken to arrive
-        # >1.0 means that samples are not arriving at the rate we expect
-        self.headroom = 0.0  # % processing time left
+        # input data related
+        self.fft_size = 2048  # default, but any integer allowed
+        self.fft_frame_time = 1e6 * (self.fft_size / self.sample_rate) # useconds
+        self.window = ""
+        self.window_types = []
+
+        self.loop_cpu_pc = 0.0  # % of fft/sample rate time being used
 
         # display
         self.fps = 20

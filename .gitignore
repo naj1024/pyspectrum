@@ -23,6 +23,9 @@ src/webUI/webroot/snapshots/*.sigmf*
 
 src/webUI/webroot/thumbnails/*.png
 
+# snapshots in root
+snapshots/
+
 # digitised sample files
 *.8t
 *.8o

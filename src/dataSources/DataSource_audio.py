@@ -151,17 +151,17 @@ class Input(DataSource.DataSource):
             self._audio_stream.start()  # required as we are not using 'with'
 
         except sd.PortAudioError as err_msg:
-            msgs = f"{module_type} inputStream error: {err_msg}"
+            msgs = f"Failed {module_type} inputStream error: {err_msg}"
             self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)  # from None
         except ValueError as err_msg:
-            msgs = f"device number {self._parameters}, {err_msg}"
+            msgs = f"Failed {module_type} device number {self._parameters}, {err_msg}"
             self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)  # from None
         except Exception as err_msg:
-            msgs = f"device number {self._parameters}, {err_msg}"
+            msgs = f"Failed {module_type} device number {self._parameters}, {err_msg}"
             self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)  # from None

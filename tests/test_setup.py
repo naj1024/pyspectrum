@@ -1,9 +1,9 @@
 import os
 import pathlib
 
-from SpectrumAnalyser import setup_logging
-from SpectrumAnalyser import setup_snap_config
-from SpectrumAnalyser import set_thumbs_dir
+from pyspectrum import setup_logging
+from pyspectrum import setup_snap_config
+from pyspectrum import set_thumbs_dir
 from misc import global_vars
 
 

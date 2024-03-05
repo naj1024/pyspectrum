@@ -128,7 +128,7 @@ class Input(DataSource.DataSource):
         try:
             self._sdr = adi.Pluto(uri="ip:" + self._parameters)  # use adi.Pluto() for USB
         except Exception:
-            msgs = f"failed to connect to {self._parameters}"
+            msgs = f"Failed {module_type} connect to ip:{self._parameters}"
             self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)

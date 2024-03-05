@@ -14,6 +14,7 @@ class Ewma:
         """
         self._alpha = alpha
         self._ewma = initial
+        self._initial = initial
 
     def average(self, value: float) -> float:
         """
@@ -26,3 +27,7 @@ class Ewma:
 
     def get_ewma(self) -> float:
         return self._ewma
+
+    def clear(self):
+        self._ewma = self._initial
+        return

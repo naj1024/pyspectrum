@@ -13,9 +13,11 @@ default_threshold = 100.0  # very large to stop any peak detects unless we use -
 help_string = textwrap.dedent(f'''
               Analysis type plugin. 
                 Finds peaks above a threshold from the average noise floor.
-                Takes option:
+                Takes options:
                    --plugin analysis:peak:threshold:10 
-                default threshold: {default_threshold}dB''')
+                   --plugin analysis:peak:enabled:on 
+                default threshold: {default_threshold}dB
+                default enabled:off''')
 
 
 class PeakDetect(Plugin):

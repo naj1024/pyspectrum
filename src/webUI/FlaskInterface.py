@@ -241,7 +241,7 @@ class Spectrum(Resource):
         # set the dictionary we use for updating things
         self._status = kwargs['status']
         self._update = kwargs['update']
-        self._allowed_get_endpoints = ['fftSizes', 'fftSize', 'fftWindows', 'fftWindow']
+        self._allowed_get_endpoints = ['fftSizes', 'fftSize', 'fftFrameTime', 'fftWindows', 'fftWindow']
         self._allowed_put_endpoints = ['fftSize', 'fftWindow']
 
     def get(self, thing):
@@ -277,7 +277,7 @@ class Control(Resource):
         # set the dictionary we use for updating things
         self._status = kwargs['status']
         self._update = kwargs['update']
-        self._allowed_get_endpoints = ['presetFps', 'fps', 'stop', 'fpsMeasured', 'delay', 'readRatio', 'headroom',
+        self._allowed_get_endpoints = ['presetFps', 'fps', 'stop', 'fpsMeasured', 'delay', 'loopCpuPc',
                                        'overflows', 'oneInN']
         self._allowed_put_endpoints = ['ackTime', 'fps', 'stop']
 

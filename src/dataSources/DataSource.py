@@ -87,7 +87,7 @@ class DataSource:
 
         self._rx_time = 0
 
-        self._overflows = -1
+        self._overflows = -1 # zero or above means source can detect overflows (ie. not reading fast enough)
         _ = read_and_reset_overflow()
 
         self._bytes_per_complex_sample = 0  # used for input sources that need to know bytes per sample

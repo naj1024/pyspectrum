@@ -134,7 +134,7 @@ class Input(DataSource.DataSource):
         try:
             self._sdr = RtlSdr(device_index=self._device_index)
         except Exception as err:
-            self._error = f"Failed to connect {str(err)}"
+            self._error = f"Failed {module_type} to connect {str(err)}"
             logger.error(self._error)
             raise ValueError(self._error)
 

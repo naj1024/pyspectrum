@@ -4,10 +4,21 @@ html, body {
     margin: 0;
     background-color: whitesmoke;
 }
-
-/* remove padding from bootstrap navbar to spectrum canvas */
-body {
-    padding-top: 0rem;
+/* mobile/tablet screen orientation should be landscape
+ Doesn't really work though as screen not wide enough
+ */
+#portrait-only { display: none;}
+@media only screen and (orientation:portrait){
+    #portrait-only { display:block; }
+    #landscape-only { display:none; }
+}
+@media only screen and (orientation:landscape){
+    #portrait-only { display:none; }
+}
+/* used to stop scrolling when touch events in canvas */
+.stop-scrolling {
+  height: 100%;
+  overflow: hidden;
 }
 
 /* force canvas to be 100% wide, auto scale height */
@@ -23,7 +34,7 @@ canvas {
     font-size:12pt;
 }
 .blank_row {
-  line-height: 1px;
+    line-height: 1px;
 }
 
 hr {

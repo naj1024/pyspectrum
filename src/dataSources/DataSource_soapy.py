@@ -20,6 +20,7 @@ On Linux, debian bullseye ():
 """
 
 import logging
+import selectors
 import time
 from typing import Tuple
 
@@ -71,6 +72,7 @@ class Input(DataSource.DataSource):
         self._name = module_type
         self._connected = False
         self._sdr = None
+        self._overflows = 0 # interface that actually returns overflows
         self._channel = 0  # we will use channel zero for now
         # soapy has quite large read blocks, so read a complete block at a time
         self._complex_data = None
@@ -194,6 +196,8 @@ class Input(DataSource.DataSource):
 
             logger.info(f"setting sps {self._sample_rate_sps}")
             self.set_sample_rate_sps(self._sample_rate_sps)
+            self.get_sample_rate_sps()
+            self.get_bandwidth_hz()
             logger.info(f"set sps {self._sample_rate_sps}")
             self.set_centre_frequency_hz(self._centre_frequency_hz)
             self._rx_stream = self._sdr.setupStream(SoapySDR.SOAPY_SDR_RX, SoapySDR.SOAPY_SDR_CF32)
@@ -205,6 +209,7 @@ class Input(DataSource.DataSource):
             self._soapyMTU = self._sdr.getStreamMTU(self._rx_stream)
             logger.debug(f"Soapy buffer MTU {self._soapyMTU}")
 
+            # local buffer so we read samples in divorced from fft sizes
             self._complex_data = np.array([0] * self._soapyMTU, np.complex64)
             self._index = self._soapyMTU  # force read on first pass
 
@@ -231,9 +236,9 @@ class Input(DataSource.DataSource):
         return self._sample_rate_sps
 
     def set_sample_rate_sps(self, sr: float) -> None:
-        logger.info("set_sample_rate_sps()")
         if self._sdr:
             # find an allowed sr from the set
+            self._sample_rate_sps = 0
             min_sr = max(self._allowed_sps)
             for asr in self._allowed_sps:
                 if asr >= sr:
@@ -243,6 +248,7 @@ class Input(DataSource.DataSource):
             self._sample_rate_sps = min_sr
             self._sdr.setSampleRate(SoapySDR.SOAPY_SDR_RX, self._channel, self._sample_rate_sps)
             self.get_sample_rate_sps()
+            self.get_bandwidth_hz()
             logger.info(f"Set sample rate {sr}sps as {self._sample_rate_sps}sps")
 
     def get_centre_frequency_hz(self) -> float:
@@ -351,11 +357,16 @@ class Input(DataSource.DataSource):
         if self._sdr:
             try:
                 # find a bw
+                self._bandwidth_hz = 0
                 for bw_entry in self._allowed_bws:
                     self._bandwidth_hz = bw_entry
                     if bw_entry >= bw:
                         break  # take first BW above what we require
                 self._sdr.setBandwidth(SoapySDR.SOAPY_SDR_RX, self._channel, self._bandwidth_hz)
+                self.get_bandwidth_hz()
+                # sdrplay seems to mess with the sps when bw much greater than the wanted sps
+                # so put the sps back to what we want
+                self.set_sample_rate_sps(self._sample_rate_sps)
             except AttributeError:
                 pass
 
@@ -378,21 +389,16 @@ class Input(DataSource.DataSource):
         :return: A tuple of a numpy array of complex samples and time in nsec
         """
         complex_data = None
-        #time_read_cplx_start = time.perf_counter()
 
         if self._connected:
             amount_read = 0
             complex_data = np.array([0] * number_samples, np.complex64)
             while amount_read < number_samples:
                 # do we need to read in the next block from soapy
-                #time_read_start = 0
-                #time_read_end = 0
                 if self._index >= self._block_read_size:
                     try:
-                       # time_read_start = time.perf_counter()
                         read_status = self._sdr.readStream(self._rx_stream, [self._complex_data],
                                                            len(self._complex_data), timeoutUs=2000000)
-                        #time_read_end = time.perf_counter()
 
                         # did anything go wrong
                         if read_status.ret < 0:
@@ -420,8 +426,6 @@ class Input(DataSource.DataSource):
 
                             self._index = 0
 
-                        #if read_status.flags != 0:
-                        #    print(f"flags {read_status.flags}")
                     except Exception as err:
                         self._connected = False
                         self._error = str(err)
@@ -435,16 +439,8 @@ class Input(DataSource.DataSource):
                     num_to_use = number_samples - amount_read
 
                 # copy into output buffer
-                #time_copy_start = time.perf_counter()
                 complex_data[amount_read:(amount_read + num_to_use)] = self._complex_data[
                                                                        self._index:(self._index + num_to_use)]
-                #time_copy_end = time.perf_counter()
-
-                #print(f"read {time_read_end-time_read_start}, copy {time_copy_end-time_copy_start}, "
-                #      f"index {self._index}, buf {self._block_read_size}")
-
-                # print(f"need {number_samples} data[{amount_read}:{amount_read+num_to_use}] = "
-                #       f"cd[{self._index}:{self._index+num_to_use}] from {self._block_read_size}")
 
                 # work out the time of our samples from the beginning of the block
                 if amount_read == 0:
@@ -469,8 +465,5 @@ class Input(DataSource.DataSource):
             # SOAPY_SDR_ONE_PACKET 16
             # SOAPY_SDR_MORE_FRAGMENTS 32
             # SOAPY_SDR_WAIT_TRIGGER 64
-
-        #time_read_cplx_end = time.perf_counter()
-        #print(f"read {time_read_cplx_end - time_read_cplx_start}")
 
         return complex_data, self._rx_time

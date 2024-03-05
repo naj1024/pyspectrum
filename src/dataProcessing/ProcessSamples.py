@@ -39,7 +39,7 @@ class ProcessSamples:
         self._long_average = np.zeros(configuration.fft_size)
         self._powers = np.zeros(configuration.fft_size)
         self._alpha_for_ewma = 0.01
-        self._count = 0
+        # self._count = 0 debug of extra timing prints
 
         # easier to ignore divide by zeros than test for them
         np.seterr(divide='ignore')
@@ -73,10 +73,11 @@ class ProcessSamples:
         self._long_average += (self._powers * self._alpha_for_ewma)
         time_average = (time.perf_counter() - time_average)*1e6
 
-        self._count += 1
-        if (self._count % 400) == 0:
-            logger.debug(f"fft {time_spec:.0f}us, powers {time_powers:.0f}us, average {time_average:.0f}us")
-            self._count = 0
+        # debug of extra timing prints
+        # self._count += 1
+        # if (self._count % 400) == 0:
+        #     logger.debug(f"fft {time_spec:.0f}us, powers {time_powers:.0f}us, average {time_average:.0f}us")
+        #     self._count = 0
 
     def get_long_average(self, reorder: bool = False) -> np.ndarray:
         """

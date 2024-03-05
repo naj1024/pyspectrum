@@ -10,6 +10,11 @@ var updateTimer = null;  // for when we are not streaming we still need to updat
 var configFormInFocus = false;
 var snapFormInFocus = false;
 
+// on mobile if orientation changes re-load the page. The canvas was not appearing on roation */
+if (window.DeviceOrientationEvent) {
+    window.addEventListener('orientationchange', function() { location.reload(); }, false);
+}
+
 function syncCurrent() {
     // currnet values not covered by fast update method
     // TODO: maybe this should be one big json document instead of lots of small fetch'es
@@ -85,7 +90,7 @@ function syncCurrent() {
         return response.json();
     }).then(function (obj) {
         sdrState.setConfigFromJason(obj);
-        $('#currentSdrBw').empty().append((sdrState.getSdrBwHz()/1e6).toFixed(2)+' MHz');
+        $('#currentSdrBw').empty().append((sdrState.getSdrBwHz()/1e6).toFixed(6)+' MHz');
     }).catch(function (error) {
     });
 
@@ -101,7 +106,7 @@ function syncCurrent() {
         return response.json();
     }).then(function (obj) {
         sdrState.setConfigFromJason(obj);
-        $('#currentdBmOffset',).empty().append((sdrState.getDbmOffset()).toFixed(3));
+        $('#currentdBmOffset',).empty().append((sdrState.getDBmOffset()).toFixed(3));
     }).catch(function (error) {
     });
 
@@ -121,7 +126,15 @@ function syncCurrent() {
         $('#currentRBW').empty().append(spectrum.convertFrequencyForDisplay(sdrState.getSps() / sdrState.getFftSize(),2));
     }).catch(function (error) {
     });
-    
+
+    fetch('./spectrum/fftFrameTime').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        sdrState.setConfigFromJason(obj);
+        $('#fftFrameTime').empty().append(sdrState.getFftFrameTime().toFixed(0) + " usec");
+    }).catch(function (error) {
+    });
+
     fetch('./spectrum/fftWindow').then(function (response) {
         return response.json();
     }).then(function (obj) {
@@ -184,19 +197,11 @@ function syncCurrentFast() {
     }).catch(function (error) {
     });
 
-    fetch('./control/readRatio').then(function (response) {
+    fetch('./control/loopCpuPc').then(function (response) {
         return response.json();
     }).then(function (obj) {
-        sdrState.setReadRatio(obj.readRatio);
-        $('#currentReadRatio').empty().append(sdrState.getReadRatio().toFixed(2));
-    }).catch(function (error) {
-    });
-
-    fetch('./control/headroom').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setHeadroom(obj.headroom);
-        $('#currentHeadroom').empty().append(sdrState.getHeadroom().toFixed(1) +'%');
+        sdrState.setLoopCpuPc(obj.loopCpuPc);
+        $('#currentLoopCpuPc').empty().append(sdrState.getLoopCpuPc().toFixed(1) +'%');
     }).catch(function (error) {
     });
 
@@ -267,7 +272,7 @@ function syncNew() {
     }
 
     // get all the main stuff
-    let initUris = ['./input/sources', './digitiser/digitiserFormats', './spectrum/fftSizes', 
+    let initUris = ['./input/sources', './digitiser/digitiserFormats', './spectrum/fftSizes', './spectrum/fftFrameTime',
                 './spectrum/fftWindows', './digitiser/digitiserGainTypes', './control/presetFps',
                 './digitiser/digitiserGain', './digitiser/digitiserSampleRate', './tuning/frequency',
                 './digitiser/digitiserBandwidth', './digitiser/digitiserPartsPerMillion',
@@ -407,15 +412,15 @@ function showNew(jsonConfig) {
     ///////
     if(jsonConfig.digitiserBandwidth != undefined) {
         let sdrBwHz = sdrState.getSdrBwHz();
-        let sdrbw_step = 0.01; // 10kHz
+        let sdrbw_step = 0.001; // 1kHz
         new_html = '<form ';
         new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
         new_html += 'action="javascript:handleSdrBwChange(sdrBwInput.value)">';
         // as we remove the number inc/dec arrows in css the size parameter does work
-        new_html += '<input type="number" size="3" min="0" max="100" step="';
+        new_html += '<input type="number" size="9" min="0" max="100" step="';
         new_html += sdrbw_step;
         new_html += '" value="';
-        new_html += (sdrBwHz/1e6).toFixed(2);
+        new_html += (sdrBwHz/1e6).toFixed(6);
         new_html += '" id="sdrBwInput" name="sdrBwInput">';
         new_html += "&nbsp MHz</form>";
         $('#newSdrBw').empty().append(new_html);
@@ -443,8 +448,8 @@ function showNew(jsonConfig) {
     /////////////
     // dbm offset
     ///////
-    if(jsonConfig.dbmOffset != undefined) {
-        let dbm_offset = sdrState.getdbmOffset();
+    if(jsonConfig.digitiserDbmOffset != undefined) {
+        let dbm_offset = sdrState.getDBmOffset();
         let offset_step = 0.0001;
         new_html = '<form ';
         new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
@@ -1214,6 +1219,25 @@ function Main() {
     }, false);
     canvas.addEventListener('wheel', function(evt) {
         spectrum.handleMouseWheel(evt);
+    }, false);
+
+    // touch events
+    // https://bencentra.com/code/2014/12/05/html5-canvas-touch-events.html
+    canvas.addEventListener('touchmove', function(evt) {
+        var touch = evt.touches[0];
+          var mouseEvent = new MouseEvent("mousemove", {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+          });
+          canvas.dispatchEvent(mouseEvent);
+    }, false);
+    canvas.addEventListener('touchmove', function(evt) {
+       $('body').addClass('stop-scrolling');
+       console.log("stop scrolling");
+    }, false);
+    canvas.addEventListener('touchend', function(evt) {
+       $('body').removeClass('stop-scrolling');
+       console.log("scrolling");
     }, false);
 
     // remove default canvas context menu if need to handle right mouse click

@@ -25,8 +25,10 @@ help_string = textwrap.dedent(f'''
                 Takes options:
                     --plugin report:mqtt:broker:ip-address-name
                     --plugin report:mqtt:topic:spectrum
+                    --plugin report:mqtt:enabled:on
                 default broker address: "{default_broker_address}"
-                default base topic: "{default_base_topic}"''')
+                default base topic: "{default_base_topic}"
+                default enabled:off''')
 
 
 class Mqtt(Plugin):

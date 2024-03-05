@@ -28,6 +28,9 @@ sdrState.prototype.setSps = function(sps) {
 sdrState.prototype.setFftSize = function(fftSize) {
     this.fftSize = parseInt(fftSize);
 }
+sdrState.prototype.setFftFrameTime = function(fftFrameTime) {
+    this.fftFrameTime = parseInt(fftFrameTime);
+}
 sdrState.prototype.setFftSizes = function(fftSizes) {
     this.fftSizes = fftSizes;
 }
@@ -98,6 +101,9 @@ sdrState.prototype.getSps = function() {
 sdrState.prototype.getFftSize = function() {
     return this.fftSize;
 }
+sdrState.prototype.getFftFrameTime = function() {
+    return this.fftFrameTime;
+}
 sdrState.prototype.getFftSizes = function() {
     return this.fftSizes;
 }
@@ -158,11 +164,8 @@ sdrState.prototype.getLastDataTime = function() {
 sdrState.prototype.getUiDelay = function() {
     return this.uiDelay;
 }
-sdrState.prototype.getReadRatio = function() {
-    return this.readRatio;
-}
-sdrState.prototype.getHeadroom = function() {
-    return this.headroom;
+sdrState.prototype.getLoopCpuPc = function() {
+    return this.loopCpuPc;
 }
 sdrState.prototype.getOverflows = function() {
     return this.overflows;
@@ -182,11 +185,8 @@ sdrState.prototype.setNextAckTime = function(next) {
 sdrState.prototype.setUiDelay = function(delay) {
     this.uiDelay = delay;
 }
-sdrState.prototype.setReadRatio = function(ratio) {
-    this.readRatio = ratio;
-}
-sdrState.prototype.setHeadroom = function(headroom) {
-    this.headroom = headroom;
+sdrState.prototype.setLoopCpuPc = function(loopCpuPc) {
+    this.loopCpuPc = loopCpuPc;
 }
 sdrState.prototype.setOverflows = function(overflows) {
     this.overflows = overflows;
@@ -223,6 +223,10 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
 
     if (jsonConfig.fftSizes != undefined) {
         this.fftSizes = jsonConfig.fftSizes;
+    }
+
+    if (jsonConfig.fftFrameTime != undefined) {
+        this.fftFrameTime = jsonConfig.fftFrameTime;
     }
 
     if (jsonConfig.fftSize != undefined) {
@@ -285,8 +289,8 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         this.ppmError = parseFloat(jsonConfig.digitiserPartsPerMillion);
     }
 
-    if (jsonConfig.dbmOffset != undefined) {
-        this.dbmOffset = parseFloat(jsonConfig.dbmOffset);
+    if (jsonConfig.digitiserDbmOffset != undefined) {
+        this.dbmOffset = parseFloat(jsonConfig.digitiserDbmOffset);
     }
 
     if (jsonConfig.presetFps != undefined) {
@@ -296,23 +300,14 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
     if (jsonConfig.delay != undefined) {
         this.uiDelay = parseFloat(jsonConfig.delay);
     }
-    if (jsonConfig.readRatio != undefined) {
-        this.readRatio = parseFloat(jsonConfig.readRatio);
-    }
-    if (jsonConfig.headroom != undefined) {
-        this.headroom = parseFloat(jsonConfig.headroom);
+    if (jsonConfig.loopCpuPc != undefined) {
+        this.loopCpuPc = parseFloat(jsonConfig.loopCpuPc);
     }
     if (jsonConfig.overflows != undefined) {
         this.overflows = parseInt(jsonConfig.overflows);
     }
     if (jsonConfig.ui_delay != this.uiDelay) {
         this.uiDelay = parseFloat(jsonConfig.ui_delay);
-    }
-    if (jsonConfig.read_ratio != this.readRatio) {
-        this.readRatio = parseFloat(jsonConfig.read_ratio);
-    }
-    if (jsonConfig.headroom != this.headroom) {
-        this.headroom = parseFloat(jsonConfig.headroom);
     }
     if (jsonConfig.overflows != this.overflows) {
         this.overflows = parseInt(jsonConfig.input_overflows);
@@ -330,8 +325,7 @@ function sdrState() {
     this.measuredFps = 0;
     this.fps = 0;
     this.uiDelay = 0;
-    this.readRatio = 0;
-    this.headroom = 0;
+    this.loopCpuPc = 0;
     this.overflows = 0;
 
     // non visible things
@@ -350,6 +344,7 @@ function sdrState() {
 
     this.fftSize = 0;
     this.fftSizes = [];
+    this.fftFrameTime = 0;
     this.window = "";
     this.windows = [];
 

@@ -26,11 +26,11 @@ def parse_command_line(configuration: Sdr, logger: logging.Logger) -> None:
         A web interface is provided and uses requires two ports.
         
         Try:
-            python3 ./SpectrumAnalyser.py -i? 
+            python3 ./pyspectrum.py -i? 
                 Add -vvv for more debug
         
             Web
-            python3 ./SpectrumAnalyser.py 
+            python3 ./pyspectrum.py 
             
         Best to configure through the web interface, default is on port 8080.
         Select a source and type and give '?' as the option to see available sources
@@ -67,8 +67,12 @@ def parse_command_line(configuration: Sdr, logger: logging.Logger) -> None:
                            default=configuration.sample_type,
                            choices=DataSource.supported_data_types,
                            required=False)
+    data_opts.add_argument('-K', '--Keep',
+                           help='Keep 1 in N input sample buffers (default: 1)',
+                           default=1,
+                           required=False)
     data_opts.add_argument('-D', '--Drop',
-                           help='Drop input sample buffers by 1 in n (default: 0)',
+                           help='Drop 1 in N input sample buffers(default: 0)',
                            default=0,
                            required=False)
 
@@ -96,7 +100,7 @@ def parse_command_line(configuration: Sdr, logger: logging.Logger) -> None:
                              action='append', nargs='+')
 
     #####################
-    # now parse them into configuration, suppose could of used a dictionary instead of a Class to hold these
+    # now parse them into configuration, maybe use a dictionary instead of a Class to hold these?
     ############
     args = vars(parser.parse_args())
 
@@ -106,18 +110,37 @@ def parse_command_line(configuration: Sdr, logger: logging.Logger) -> None:
         list_plugin_help()
         quit()
 
-    if args['centreFrequency'] is not None:
-        configuration.centre_frequency_hz = float(args['centreFrequency'])
-    if args['conversionFrequency'] is not None:
-        configuration.conversion_frequency_hz = float(args['conversionFrequency'])
-    if args['sampleRate'] is not None:
-        configuration.sample_rate = float(args['sampleRate'])
-    if args['type'] is not None:
-        configuration.sample_type = args['type']
-    if args['Drop'] is not None:
-        configuration.drop = int(args['Drop'])
-        if configuration.drop == 1:
-            configuration.drop = 0
+    try:
+        if args['centreFrequency'] is not None:
+            configuration.centre_frequency_hz = float(args['centreFrequency'])
+        if args['conversionFrequency'] is not None:
+            configuration.conversion_frequency_hz = float(args['conversionFrequency'])
+        if args['sampleRate'] is not None:
+            configuration.sample_rate = float(args['sampleRate'])
+        if args['type'] is not None:
+            configuration.sample_type = args['type']
+        if args['Keep'] is not None:
+            configuration.keep = abs(int(args['Keep']))
+        if args['Drop'] is not None:
+            configuration.drop = abs(int(args['Drop']))
+
+        if args['fftSize'] is not None:
+            configuration.fft_size = abs(int(args['fftSize']))
+
+        if args['web']:
+            configuration.web_port = abs(int(args['web']))
+
+        if args['verbose']:
+            if args['verbose'] > 2:
+                logger.setLevel(logging.DEBUG)
+            elif args['verbose'] > 1:
+                logger.setLevel(logging.INFO)
+            elif args['verbose'] > 0:
+                logger.setLevel(logging.WARNING)
+    except ValueError as msg:
+        print(f"Failed to convert option argument to a number, {msg}")
+        logger.error(f"Failed to convert option argument to a number, {msg}")
+        quit()
 
     # allow for conversion frequency
     configuration.sdr_centre_frequency_hz = configuration.centre_frequency_hz - configuration.conversion_frequency_hz
@@ -144,20 +167,6 @@ def parse_command_line(configuration: Sdr, logger: logging.Logger) -> None:
             else:
                 logger.critical(f"input parameter incorrect, {full_source_name}")
                 quit()
-
-    if args['fftSize'] is not None:
-        configuration.fft_size = abs(int(args['fftSize']))
-
-    if args['web']:
-        configuration.web_port = abs(int(args['web']))
-
-    if args['verbose']:
-        if args['verbose'] > 2:
-            logger.setLevel(logging.DEBUG)
-        elif args['verbose'] > 1:
-            logger.setLevel(logging.INFO)
-        elif args['verbose'] > 0:
-            logger.setLevel(logging.WARNING)
 
     if args['plugin'] is not None:
         # is any of the options a '?'

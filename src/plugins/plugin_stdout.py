@@ -10,9 +10,9 @@ logger = logging.getLogger('spectrum_logger')
 help_string = textwrap.dedent(f'''
               Report type plugin. 
                 Sends any results to stdout.
-                Takes optional:
-                    --plugin report:stdout:on
-                default: off''')
+                Takes options:
+                    --plugin report:stdout:enabled:on
+                default enabled:off''')
 
 
 class Stdout(Plugin):
@@ -36,9 +36,9 @@ class Stdout(Plugin):
                     opt = opts[0]
                     parts = [x.strip() for x in opt.split(':')]
                     if len(parts) == 3:
-                        # --plugin report:stdout:off
-                        if parts[0] == "report" and parts[1] == "stdout":
-                            if parts[2] == "on":
+                        # --plugin report:stdout:enabled:off
+                        if parts[0] == "report" and parts[1] == "stdout" and parts[2] == "enabled":
+                            if parts[3] == "on":
                                 self._enabled = True
                             else:
                                 self._enabled = False

@@ -139,7 +139,7 @@ class Input(DataSource.DataSource):
             # otherwise the acks coming back will allow huge tcp buffer storage
             # self._file_time = self._create_time  # start again
         except OSError as msg:
-            msgs = f'Failed to rewind {self._parameters}, {msg}'
+            msgs = f'Failed {module_type} to rewind {self._parameters}, {msg}'
             self._error = str(msgs)
             logger.error(msgs)
             raise ValueError(msgs)
