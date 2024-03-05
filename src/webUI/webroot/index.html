@@ -168,6 +168,20 @@
                                 </td>
                                 <td/>
                             </tr>
+                            <tr title="Approximate delay from front end to UI">
+                                <td><b>UI delay</b></td>
+                                <td>
+                                    <div id="currentDelay"></div>
+                                </td>
+                                <td/>
+                            </tr>
+                            <tr title="Percentage of FFT frame time being used. Should be close to 100%, >100% may indicate problem with keeping up. The percentage includes all processing and time to get samples">
+                                <td><b>Loop %</b></td>
+                                <td>
+                                    <div id="currentLoopCpuPc"></div>
+                                </td>
+                                <td/>
+                            </tr>
                             </tbody>
                         </table>
                     </div>
@@ -251,23 +265,6 @@
                                     <td><b>Peak over </b></td>
                                     <td>
                                         <div id="currentOneInN"></div>
-                                    </td>
-                                    <td/>
-                                </tr>
-                                <tr class="blank_row">
-                                    <td bgcolor="#000" colspan="3">&nbsp;</td>
-                                </tr>
-                                <tr title="Approximate delay from front end to UI">
-                                    <td><b>UI delay</b></td>
-                                    <td>
-                                        <div id="currentDelay"></div>
-                                    </td>
-                                    <td/>
-                                </tr>
-                                <tr title="Percentage of FFT frame time being used. Should be close to 100%, >100% may indicate problem with keeping up. The percentage includes all processing and time to get samples">
-                                    <td><b>Loop %</b></td>
-                                    <td>
-                                        <div id="currentLoopCpuPc"></div>
                                     </td>
                                     <td/>
                                 </tr>
