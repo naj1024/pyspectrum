@@ -4,7 +4,6 @@
 # Pycharm
 __pycache__/
 .idea/
-Pipfile
 
 # local python environment
 venv/
