@@ -1,0 +1,26 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+websockets = "*"
+flask = "*"
+flask-restful = "*"
+matplotlib = "*"
+numpy = "*"
+scipy = "*"
+pyfftw = "*"
+pyadi-iio = "*"
+pylibiio = "*"
+pyrtlsdr = "*"
+sounddevice = "*"
+hid = "*"
+paho-mqtt = "*"
+sigmf = "*"
+
+[dev-packages]
+pytest = "*"
+
+[requires]
+python_version = "3.11"
