@@ -317,49 +317,38 @@ class Input(DataSource.DataSource):
 
         # what type of tuner do we have ?
         freq_ok = True
+        frequency_to_use = frequency
         freq_range = ""
         if self._tuner_type_str == allowed_tuner_types[1]:
             # E4000
-            if (frequency < 52e6) or (frequency > 2200e6):
-                freq_ok = False
-                freq_range = "52 – 1100 MHz and 1250 - 2200 MHz"
-            elif (frequency > 1100e6) and (frequency < 1250e6):
-                freq_ok = False
-                freq_range = "52 – 1100 MHz and 1250 - 2200 MHz"
+            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 52e6, 2200e6)
+            if freq_ok:
+                freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 1100e6, 1250e6)
         elif self._tuner_type_str == allowed_tuner_types[2]:
             # FC0012
-            if (frequency < 22e6) or (frequency > 948.6e6):
-                freq_ok = False
-                freq_range = "22 - 948.6 MHz"
+            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 22e6, 948.6e6)
         elif self._tuner_type_str == allowed_tuner_types[3]:
             # FC0013
-            if (frequency < 22e6) or (frequency > 1100e6):
-                freq_ok = False
-                freq_range = "22 – 1100 MHz"
+            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 22e6, 1100e6)
         elif self._tuner_type_str == allowed_tuner_types[4]:
             # FC2580
-            if (frequency < 146e6) or (frequency > 924e6):
-                freq_ok = False
-                freq_range = "146 – 308 MHz and 438 – 924 MHz"
-            elif (frequency > 308e6) and (frequency < 438e6):
-                freq_ok = False
-                freq_range = "146 – 308 MHz and 438 – 924 MHz"
+            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 146e6, 924e6)
+            if freq_ok:
+                freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 308e6, 438e6)
         elif self._tuner_type_str == allowed_tuner_types[5] or self._tuner_type_str == allowed_tuner_types[6]:
             # R820T or R828D
-            if (frequency < 24e6) or (frequency > 1.766e9):
-                freq_ok = False
-                freq_range = "24 – 1766 MHz"
+            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 24e6, 1766e6)
 
         if not freq_ok:
-            err = f"{self._tuner_type_str}, {frequency}Hz outside range {freq_range}"
+            err = f"{self._tuner_type_str}, {frequency}Hz outside range {freq_range}. Setting{frequency_to_use}Hz"
             self._error = err
             logger.error(err)
-        else:
-            logger.info(f"Set frequency {frequency / 1e6:0.6f}MHz")
-            self._centre_frequency_hz = frequency
-            if not self._hw_ppm_compensation:
-                frequency = self.get_ppm_corrected(frequency)
-            self.send_command(0x01, int(frequency))
+
+        logger.info(f"Set frequency {frequency_to_use / 1e6:0.6f}MHz")
+        self._centre_frequency_hz = frequency_to_use
+        if not self._hw_ppm_compensation:
+            frequency_to_use = self.get_ppm_corrected(frequency_to_use)
+        self.send_command(0x01, int(frequency_to_use))
 
     def set_sample_rate_sps(self, sample_rate: float) -> None:
         # rtlsdr has limits on allowed sample rates

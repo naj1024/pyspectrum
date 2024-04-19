@@ -244,42 +244,30 @@ class Input(DataSource.DataSource):
         # FCI FC2580 	         146 – 308 MHz / 438 – 924 MHz
 
         freq_ok = True
-        ok = True
+        frequency_to_use = frequency
         # logger.info(f"set cf rtlsdr tuner type {self._tuner_type}, {allowed_tuner_types[self._tuner_type]}")
 
         # what type of tuner do we have ?
         freq_range = ""
         if self._tuner_type == 1:
             # E4000
-            if (frequency < 52e6) or (frequency > 2200e6):
-                freq_ok = False
-                freq_range = "52 – 1100 MHz and 1250 - 2200 MHz"
-            elif (frequency > 1100e6) and (frequency < 1250e6):
-                freq_ok = False
-                freq_range = "52 – 1100 MHz and 1250 - 2200 MHz"
+            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 52e6, 2200e6)
+            if freq_ok:
+                freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 1100e6, 1250e6)
         elif self._tuner_type == 2:
             # FC0012
-            if (frequency < 22e6) or (frequency > 948.6e6):
-                freq_ok = False
-                freq_range = "22 - 948.6 MHz"
+            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 22e6, 948.6e6)
         elif self._tuner_type == 3:
             # FC0013
-            if (frequency < 22e6) or (frequency > 1100e6):
-                freq_ok = False
-                freq_range = "22 – 1100 MHz"
+            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 22e6, 1100e6)
         elif self._tuner_type == 4:
             # FC2580
-            if (frequency < 146e6) or (frequency > 924e6):
-                freq_ok = False
-                freq_range = "146 – 308 MHz and 438 – 924 MHz"
-            elif (frequency > 308e6) and (frequency < 438e6):
-                freq_ok = False
-                freq_range = "146 – 308 MHz and 438 – 924 MHz"
+            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 146e6, 924e6)
+            if freq_ok:
+                freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 308e6, 438e6)
         elif self._tuner_type == 5 or self._tuner_type == 6:
             # R820T or R828D
-            if (frequency < 24e6) or (frequency > 1.766e9):
-                freq_ok = False
-                freq_range = "24 – 1766 MHz"
+            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 24e6, 1766e6)
         else:
             self._error = f"Unknown tuner type {self._tuner_type}, frequency range checking impossible"
             logger.error(self._error)
@@ -287,20 +275,19 @@ class Input(DataSource.DataSource):
 
         if not freq_ok:
             self._error = f"{allowed_tuner_types[self._tuner_type]} invalid frequency {frequency}Hz, " \
-                          f"outside range {freq_range}"
+                          f"failing range {freq_range}. Setting {frequency_to_use}Hz"
             logger.error(self._error)
-            ok = False
 
-        if self._sdr and ok:
+        if self._sdr:
             try:
                 if self._hw_ppm_compensation:
-                    self._sdr.center_freq = frequency
+                    self._sdr.center_freq = frequency_to_use
                     self._centre_frequency_hz = float(self._sdr.get_center_freq())
                 else:
-                    self._centre_frequency_hz = frequency
-                    self._sdr.center_freq = self.get_ppm_corrected(frequency)
-                    # print(f"freq {frequency} ppm {self._ppm} -> {frequency + (self._ppm * frequency / 1e6)}")
-                logger.info(f"Set frequency {frequency / 1e6:0.6f}MHz")
+                    self._centre_frequency_hz = frequency_to_use
+                    self._sdr.center_freq = self.get_ppm_corrected(frequency_to_use)
+                    # print(f"freq {frequency_to_use} ppm {self._ppm} -> {frequency_to_use + (self._ppm * frequency_to_use / 1e6)}")
+                logger.info(f"Set frequency {frequency_to_use / 1e6:0.6f}MHz")
             except Exception as err:
                 self._error = str(err)
 

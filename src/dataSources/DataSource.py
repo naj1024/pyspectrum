@@ -2,6 +2,7 @@ import logging
 import threading
 import time
 from typing import List
+from typing import Tuple
 
 import numpy as np
 
@@ -33,6 +34,21 @@ def read_and_reset_overflow() -> int:
     overflow_count = 0
     overflow_lock.release()
     return tmp
+
+
+def validate_number(val: float, min_v: float, max_v: float) -> Tuple[bool, float, str]:
+    valid = True
+    value = val
+    error_string = ""
+    if val < min_v:
+        valid = False
+        error_string = f"Valid range {min_v}Hz to {max_v}Hz"
+        value = min_v
+    elif val > max_v:
+        valid = False
+        error_string = f"Valid range {min_v}Hz to {max_v}Hz"
+        value = max_v
+    return valid, value, error_string
 
 
 class DataSource:

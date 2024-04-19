@@ -209,15 +209,21 @@ class Input(DataSource.DataSource):
             # native pluto ad9363 325 - 3800 MHz 	BW:20 MHz 	channels:2 Rx, 2 Tx
             # ad9364 is 70 - 6000 MHz 	BW:56 MHz 	channels: 1 Rx, 1 Tx
             # ad9361 is 70 - 6000 MHz 	BW:56 MHz 	channels: 2 Rx, 2 Tx
+            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(cf, 70e6, 6000e6)
+            if not freq_ok:
+                self._error = f"{[module_type]} invalid frequency {cf}Hz, " \
+                              f"failing range {freq_range}. Setting {frequency_to_use}Hz"
+                logger.error(self._error)
+
             try:
                 if self._hw_ppm_compensation:
-                    self._sdr.rx_lo = int(cf)
+                    self._sdr.rx_lo = int(frequency_to_use)
                     self._centre_frequency_hz = float(self._sdr.rx_lo)
                 else:
-                    self._sdr.rx_lo = int(self.get_ppm_corrected(cf))
-                    self._centre_frequency_hz = cf
+                    self._sdr.rx_lo = int(self.get_ppm_corrected(frequency_to_use))
+                    self._centre_frequency_hz = frequency_to_use
             except OSError:
-                hhh = f"error in setting frequency {cf}"
+                hhh = f"error in setting frequency {frequency_to_use}"
                 logger.error(hhh)
 
     def get_ppm(self) -> float:
