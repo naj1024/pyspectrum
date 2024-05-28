@@ -1065,6 +1065,7 @@ function configFocusOut(){
 }
 
 function connectWebSocket(spec) {
+    // connect to a websocket server, note socket is one up from rest-api socket
     let server_hostname = window.location.hostname;
     let server_port = parseInt(window.location.port) + 1;
     let server = "ws://"+server_hostname+":"+server_port+"/";

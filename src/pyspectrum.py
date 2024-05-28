@@ -275,7 +275,7 @@ def main() -> None:
                         peak_average.get_ewma(),
                         sdr_config.fps,
                         sdr_config.measured_fps)
-            debug_time = now + 6
+            debug_time = now + 60
 
         # check on the source, maybe the gain changed etc
         if now > config_time:
@@ -564,6 +564,7 @@ def fill_shared_status(shared_status: dict, sdr_config: Sdr, snap_config: Snappe
                              'measured': sdr_config.measured_fps})
     shared_status['presetFps'] = [1, 5, 10, 20, 40, 80, 160, 320, 640, 10000, 100000]
     shared_status['stop'] = sdr_config.stop
+    shared_status['fpsMeasured'] = 0
     shared_status['delay'] = sdr_config.ui_delay
     shared_status['loopCpuPc'] = sdr_config.loop_cpu_pc
     shared_status['overflows'] = sdr_config.input_overflows

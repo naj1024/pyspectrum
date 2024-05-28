@@ -49,6 +49,14 @@ class FlaskInterface(multiprocessing.Process):
         self._log_level = log_level
         self._shutdown = False
 
+        # dictionary linking api names to Classes for the main endpoints
+        self._endpoints ={'input': Input,
+                          'digitiser': Digitiser,
+                          'spectrum': Spectrum,
+                          'control': Control,
+                          'snapshot': Snapshot,
+                          'tuning': Tuning}
+
     def shutdown(self):
         logger.debug("FlaskServer Shutting down")
         self._shutdown = True
@@ -90,25 +98,27 @@ class FlaskInterface(multiprocessing.Process):
         def index():
             return flask_app.send_static_file('index.html')
 
-        rest_api.add_resource(Input, '/input/<string:thing>',
-                              resource_class_kwargs={'status': self._status, 'update': self._update})
-        rest_api.add_resource(Digitiser, '/digitiser/<string:thing>',
-                              resource_class_kwargs={'status': self._status, 'update': self._update})
-        rest_api.add_resource(Spectrum, '/spectrum/<string:thing>',
-                              resource_class_kwargs={'status': self._status, 'update': self._update})
-        rest_api.add_resource(Control, '/control/<string:thing>',
-                              resource_class_kwargs={'status': self._status, 'update': self._update})
-        rest_api.add_resource(Snapshot, '/snapshot/<string:thing>',
-                              resource_class_kwargs={'status': self._status, 'update': self._update})
-        rest_api.add_resource(Tuning, '/tuning/<string:thing>',
-                              resource_class_kwargs={'status': self._status, 'update': self._update})
+        # for Flask associate each endpoint with the class that handles it
+        # each endpoint Class handles all the endpoints under it, hence it must have something
+        # after the /{entry}/, e.g. /{entry()}/sources but not just /{entry}/
+        for entry, c in self._endpoints.items():
+            # describe the endpoint
+            uri = f"/{entry}/<string:thing>"
+            rest_api.add_resource(c,
+                                  uri,
+                                  resource_class_kwargs={'status': self._status, 'update': self._update})
 
+        # api endpoint is different from all the other ones
+        rest_api.add_resource(Api,
+                              '/api',
+                              resource_class_kwargs={'endpoints': self._endpoints})
+
+        # server the content forever
         global web_root
         while not self._shutdown:
             try:
                 logger.info(f"flask server serving {web_root} on port {self._port}")
                 flask_app.run(host="0.0.0.0", port=self._port, debug=False)
-
             except Exception as msg:
                 logger.error(f"FlaskServer {msg}")
                 time.sleep(1)
@@ -140,6 +150,17 @@ class FlaskInterface(multiprocessing.Process):
 #
 ############
 
+class Api(Resource):
+    # returns one json containing all the first level endpoints we support
+    def __init__(self, **kwargs):
+        self._eps = kwargs['endpoints']
+
+    def get(self):
+        endpoints = ['api']
+        for endpoint in self._eps:
+            endpoints.append(endpoint)
+        return jsonify({"endpoints": endpoints})
+
 
 class Input(Resource):
     # Handle all web requests on the /input endpoint
@@ -150,7 +171,19 @@ class Input(Resource):
         self._allowed_get_endpoints = ['sources', 'source', 'errors']
         self._allowed_put_endpoints = ['source']
 
+    def api(self):
+        points = {}
+        for ep in self._allowed_get_endpoints:
+            try:
+                points[ep] = self._status[ep]
+            except Exception as err:
+                points[ep] = "tbd"  # not present in status yet
+        return points
+
     def get(self, thing):
+        if thing == "api":
+            return jsonify({"input": self.api()})
+
         if thing in self._allowed_get_endpoints:
             if thing == "errors":
                 tmp = ""
@@ -192,7 +225,19 @@ class Digitiser(Resource):
                                        'digitiserPartsPerMillion', 'digitiserGainType', 'digitiserGain',
                                        'digitiserDbmOffset',]
 
+    def api(self):
+        points = {}
+        for ep in self._allowed_get_endpoints:
+            try:
+                points[ep] = self._status[ep]
+            except Exception as err:
+                points[ep] = "tbd"  # not present in status yet
+        return points
+
     def get(self, thing):
+        if thing == "api":
+            return jsonify({"digitiser": self.api()})
+
         # Check for allowed endpoints at this point
         if thing in self._allowed_get_endpoints:
             return jsonify({thing: self._status[thing]})
@@ -244,7 +289,19 @@ class Spectrum(Resource):
         self._allowed_get_endpoints = ['fftSizes', 'fftSize', 'fftFrameTime', 'fftWindows', 'fftWindow']
         self._allowed_put_endpoints = ['fftSize', 'fftWindow']
 
+    def api(self):
+        points = {}
+        for ep in self._allowed_get_endpoints:
+            try:
+                points[ep] = self._status[ep]
+            except Exception as err:
+                points[ep] = "tbd"  # not present in status yet
+        return points
+
     def get(self, thing):
+        if thing == "api":
+            return jsonify({"spectrum": self.api()})
+
         if thing in self._allowed_get_endpoints:
             return jsonify({thing: self._status[thing]})
         return f"Endpoint {thing} not supported", 403
@@ -281,7 +338,19 @@ class Control(Resource):
                                        'overflows', 'oneInN']
         self._allowed_put_endpoints = ['ackTime', 'fps', 'stop']
 
+    def api(self):
+        points = {}
+        for ep in self._allowed_get_endpoints:
+            try:
+                points[ep] = self._status[ep]
+            except Exception as err:
+                points[ep] = "tbd"  # not present in status yet
+        return points
+
     def get(self, thing):
+        if thing == "api":
+            return jsonify({"control": self.api()})
+
         if thing in self._allowed_get_endpoints:
             return jsonify({thing: self._status[thing]})
         return f"Endpoint {thing} not supported", 403
@@ -317,7 +386,19 @@ class Snapshot(Resource):
                                        'snapPreTrigger', 'snapPostTrigger']
         self._allowed_delete_endpoints = ['snapDelete']
 
+    def api(self):
+        points = {}
+        for ep in self._allowed_get_endpoints:
+            try:
+                points[ep] = self._status[ep]
+            except Exception as err:
+                points[ep] = "tbd"  # not present in status yet
+        return points
+
     def get(self, thing):
+        if thing == "api":
+            return jsonify({"snapshot": self.api()})
+
         if thing in self._allowed_get_endpoints:
             return jsonify({thing: self._status[thing]})
         return f"Endpoint {thing} not supported", 403
@@ -373,7 +454,19 @@ class Tuning(Resource):
         self._allowed_get_endpoints = ['frequency']
         self._allowed_put_endpoints = ['frequency']
 
+    def api(self):
+        points = {}
+        for ep in self._allowed_get_endpoints:
+            try:
+                points[ep] = self._status[ep]
+            except Exception as err:
+                points[ep] = "tbd"  # not present in status yet
+        return points
+
     def get(self, thing):
+        if thing == "api":
+            return jsonify({"tuning": self.api()})
+
         if thing in self._allowed_get_endpoints:
             return jsonify({thing: self._status[thing]})
         return f"Endpoint {thing} not supported", 403

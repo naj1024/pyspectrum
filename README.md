@@ -25,6 +25,9 @@ The fft computations are done by libraries in Python, so not the fastest.
 If you have some sort of sdr working with other tools then after installing the required python 
 dependencies it should just work, mmmmm.
 
+This project is a bit like the Krikkit One spaceship in The Hitchhiker's Guide to the Galaxy. 
+It does the job, but not something you want to rely on.
+
 Performance will depend on your machine and how the supporting fft libraries were compiled.
 
 ## Features
