@@ -42,9 +42,9 @@
                 <ul class="nav nav-tabs">
                     <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#sourceTab">Source</a></li>
                     <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#analysisTab">Analysis</a></li>
-                    <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#operationTab">Operations</a></li>
+                    <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#operationTab">Ops</a></li>
                     <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#markersTab">Markers</a></li>
-                    <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#snapshotTab">Snapshot</a></li>
+                    <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#snapshotTab">Snap</a></li>
                 </ul>
 
                 <div class="tab-content">
@@ -281,18 +281,22 @@
                                 <button type="button" id="stopBut" title="stop front end sending data" data-toggle="button"
                                         class="specbuttons btn btn-outline-dark mx-1 my-1">Stop
                                 </button>
+                            </div>
+
+                            <h4>Frequency</h4>
+                            <div>
                                 <button type="button" id="cfDwnBut4" title="decrease centre frequency by 1/4th displayed BW"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">cf4-
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">&lt&lt
                                 </button>
                                 <button type="button" id="cfDwnBut1"
                                         title="decrease centre frequency by 1/10th displayed BW"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">cf1-
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">&lt
                                 </button>
                                 <button type="button" id="cfUpBut1" title="increase centre frequency by 1/10th displayed BW"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">cf1+
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">&gt
                                 </button>
                                 <button type="button" id="cfUpBut4" title="increase centre frequency by 1/4th displayed BW"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">cf4+
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">&gt&gt
                                 </button>
                                 <button type="button" id="zoomToCfBut"
                                         title="set the zoomed centre frequency as the centre frequency "
@@ -313,10 +317,10 @@
                                         class="specbuttons btn btn-outline-dark mx-1 my-1">Peak
                                 </button>
                                 <button type="button" id="avgDwnBut" title="decrease the number of averages"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Avg-
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Avg&lt
                                 </button>
                                 <button type="button" id="avgUpBut" title="increase number of averages"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Avg+
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Avg&gt
                                 </button>
                                 <button type="button" id="avgOffBut" title="turn averaging off"
                                         class="specbuttons btn btn-outline-dark mx-1 my-1">Avg0
@@ -329,13 +333,13 @@
                             <h4>Trace 1</h4>
                             <div>
                                 <button type="button" id="maxToTrc1But" title="peak to trace1"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">peak->
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">peak-&gt
                                 </button>
                                 <button type="button" id="avgToTrc1But" title="average to trace1"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Avg->
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Avg-&gt
                                 </button>
                                 <button type="button" id="curToTrc1But" title="current to trace1"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Curr->
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Curr-&gt
                                 </button>
                                 <button type="button" id="clrToTrc1But" title="clear trace1"
                                         class="specbuttons btn btn-outline-dark mx-1 my-1">clear
@@ -348,16 +352,16 @@
                             <h4>Magnitude</h4>
                             <div>
                                 <button type="button" id="refUpBut" title="decrease the reference dB"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Ref-
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Ref&lt
                                 </button>
                                 <button type="button" id="refDwnBut" title="increase the reference dB"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Ref+
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Ref&gt
                                 </button>
                                 <button type="button" id="rangeDwnBut" title="decrease the dB range"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Rng-
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Rng&lt
                                 </button>
                                 <button type="button" id="rangeUpBut" title="increase the dB range"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Rng+
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Rng&gt
                                 </button>
                                 <button type="button" id="autoRangeBut" title="singlie shot autorange on dB across spectrum"
                                         class="specbuttons btn btn-outline-dark mx-1 my-1">Auto
@@ -367,23 +371,23 @@
                             <h4>Span</h4>
                             <div>
                                 <button type="button" id="zoomInBut" title="decrease span"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Spn-
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Spn&lt
                                 </button>
                                 <button type="button" id="zoomOutBut" title="increase span"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Spn+
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Spn&gt
                                 </button>
                                 <button type="button" id="unZoomBut" title="reset span"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Full
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Reset
                                 </button>
                             </div>
 
                             <h4>Visualisation</h4>
                             <div>
                                 <button type="button" id="SpecPcUpBut" title="decrease spectrum size"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Spc-
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Spec&lt
                                 </button>
                                 <button type="button" id="SpecPcDownBut" title="increase spectrum size"
-                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Spc+
+                                        class="specbuttons btn btn-outline-dark mx-1 my-1">Spec&gt
                                 </button>
                                 <button type="button" id="ColourMapBut" title="cycle through colour maps"
                                         class="specbuttons btn btn-outline-dark mx-1 my-1">Map

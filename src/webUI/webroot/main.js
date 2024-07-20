@@ -904,14 +904,14 @@ function handleStopToggle() {
 }
 
 function handlePauseToggle() {
-    // when we pause we will also set stop if it is not already set
     spectrum.togglePaused();
-    if(spectrum.paused) {
-        if (!stop.value) {
-            handleStopToggle();
-            $("#stopBut").button('toggle'); // update the UI button state
-        }
-    }
+    // when we pause we will also set stop if it is not already set
+//    if(spectrum.paused) {
+//        if (!stop.value) {
+//            handleStopToggle();
+//            $("#stopBut").button('toggle'); // update the UI button state
+//        }
+//    }
 }
 
 function showSnapTable() {

@@ -89,7 +89,8 @@ class FlaskInterface(multiprocessing.Process):
         # remove all logging from the flask server, removes prints of urls to console
         logw = logging.getLogger('werkzeug')
         logw.disabled = True
-        flask_app.logger.disabled = True
+        # don't disable the next one as it stops our logging as well
+        # flask_app.logger.disabled = True
 
         rest_api = Rest_Api(flask_app)
 
@@ -113,11 +114,14 @@ class FlaskInterface(multiprocessing.Process):
                               '/api',
                               resource_class_kwargs={'endpoints': self._endpoints})
 
-        # server the content forever
+        # web_socket_api.route(Websock,
+        #                      '/spectrum')
+
+        # serve the content forever
         global web_root
         while not self._shutdown:
             try:
-                logger.info(f"flask server serving {web_root} on port {self._port}")
+                logger.info(f"flask restful server serving {web_root} on port {self._port}")
                 flask_app.run(host="0.0.0.0", port=self._port, debug=False)
             except Exception as msg:
                 logger.error(f"FlaskServer {msg}")
