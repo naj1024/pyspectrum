@@ -25,6 +25,9 @@ class Sdr:
         self.input_bw_hz = self.sample_rate
         self.ppm_error = 0.0
         self.dbm_offset = 0.0
+        self.dc_removal = "Off"
+        self.dc_error = complex(0,0)
+        self.input_level = 0.0;
 
         # input data related
         self.fft_size = 2048  # default, but any integer allowed

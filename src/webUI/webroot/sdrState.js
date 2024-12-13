@@ -79,6 +79,15 @@ sdrState.prototype.setPpmError = function(error) {
 sdrState.prototype.setDBmOffset = function(error) {
     this.dbmOffset = parseFloat(error);
 }
+sdrState.prototype.setDcRemoval = function(state) {
+    this.dcRemoval = state;
+}
+sdrState.prototype.setDcRemovals = function(states) {
+    this.dcRemovals = states;
+}
+sdrState.prototype.setInputLevel = function(state) {
+    this.inputLevel = state;
+}
 
 ////////////////////
 // getters
@@ -176,6 +185,17 @@ sdrState.prototype.getPpmError = function() {
 sdrState.prototype.getDBmOffset = function() {
     return this.dbmOffset;
 }
+sdrState.prototype.getDcRemoval = function() {
+    return this.dcRemoval;
+}
+sdrState.prototype.getDcRemovals = function() {
+    return this.dcRemovals;
+}
+sdrState.prototype.getInputLevel = function() {
+    return this.inputLevel;
+}
+
+
 sdrState.prototype.setLastDataTime = function(last) {
     this.lastDataTime = last;
 }
@@ -289,6 +309,18 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         this.ppmError = parseFloat(jsonConfig.digitiserPartsPerMillion);
     }
 
+    if (jsonConfig.digitiserDcRemoval != undefined) {
+        this.dcRemoval = jsonConfig.digitiserDcRemoval;
+    }
+
+    if (jsonConfig.digitiserDcRemovals != undefined) {
+        this.dcRemovals = jsonConfig.digitiserDcRemovals;
+    }
+
+    if (jsonConfig.digitiserInputLevel != undefined) {
+        this.inputLevel = jsonConfig.digitiserInputLevel;
+    }
+
     if (jsonConfig.digitiserDbmOffset != undefined) {
         this.dbmOffset = parseFloat(jsonConfig.digitiserDbmOffset);
     }
@@ -341,7 +373,9 @@ function sdrState() {
     this.sdrBwHz = 0;
     this.ppmError = 0.0;
     this.dbmOffset = 0.0;
-
+    this.dcRemoval = false;
+    this.inputLevel = 0.0;
+    
     this.fftSize = 0;
     this.fftSizes = [];
     this.fftFrameTime = 0;

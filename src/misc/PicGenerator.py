@@ -19,7 +19,6 @@ from misc import global_vars
 # for logging
 logger = logging.getLogger(__name__)
 
-
 class PicGenerator(multiprocessing.Process):
 
     def __init__(self, snap_dir: pathlib.PurePath, web_thumb_dir: pathlib.PurePath, log_level: int):
@@ -85,15 +84,15 @@ class PicGenerator(multiprocessing.Process):
                                     try:
                                         _ = gen.create_picture(path)  # returns True if managed to create picture
                                     except ValueError as msg:
-                                        logger.error(f"PicGenerator {msg}")
+                                        logger.error(f"PicGenerator failed to generate picture, {msg}")
 
                     time.sleep(1)  # check every second
 
                 except Exception as msg:
-                    logger.error(f"PicGenerator {msg}")
+                    logger.error(f"PicGenerator failed somewhere, {msg}")
                     time.sleep(1)
         else:
-            logger.error("Cant create spectral pictures, spectrumPicture failed")
+            logger.error("PicGenerator, failed")
 
         logger.error("Process exited")
         return

@@ -222,12 +222,12 @@ class Digitiser(Resource):
         self._allowed_get_endpoints = ['digitiserFrequency', 'digitiserFormats', 'digitiserFormat',
                                        'digitiserSampleRate',
                                        'digitiserBandwidth', 'digitiserPartsPerMillion', 'digitiserGainTypes',
-                                       'digitiserGainType',
-                                       'digitiserGain',
-                                       'digitiserDbmOffset',]
+                                       'digitiserGainType', 'digitiserGain',
+                                       'digitiserDcRemoval', 'digitiserDcRemovals',
+                                       'digitiserDbmOffset', 'digitiserInputLevel']
         self._allowed_put_endpoints = ['digitiserFormat', 'digitiserSampleRate', 'digitiserBandwidth',
                                        'digitiserPartsPerMillion', 'digitiserGainType', 'digitiserGain',
-                                       'digitiserDbmOffset',]
+                                       'digitiserDcRemoval', 'digitiserDbmOffset',]
 
     def api(self):
         points = {}
@@ -273,6 +273,12 @@ class Digitiser(Resource):
                     gt = request.json[thing]
                     if gt in self._status['digitiserGainTypes']:
                         self._update[thing] = gt
+                    else:
+                        raise ValueError()
+                elif thing == 'digitiserDcRemoval':
+                    dc = request.json[thing]
+                    if dc in self._status['digitiserDcRemovals']:
+                        self._update[thing] = dc
                     else:
                         raise ValueError()
                 elif thing == 'digitiserGain':

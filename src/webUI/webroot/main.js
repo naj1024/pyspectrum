@@ -101,6 +101,22 @@ function syncCurrent() {
         $('#currentPpm',).empty().append((sdrState.getPpmError()).toFixed(3));
     }).catch(function (error) {
     });
+    
+    fetch('./digitiser/digitiserDcRemoval').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        sdrState.setConfigFromJason(obj);
+        $('#currentDcRemoval',).empty().append(sdrState.getDcRemoval());
+    }).catch(function (error) {
+    });
+
+    fetch('./digitiser/digitiserInputLevel').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        sdrState.setConfigFromJason(obj);
+        $('#currentInputLevel',).empty().append(sdrState.getInputLevel().toFixed(1)+'%');
+    }).catch(function (error) {
+    });
 
     fetch('./digitiser/digitiserDbmOffset').then(function (response) {
         return response.json();
@@ -229,6 +245,14 @@ function syncCurrentFast() {
     }).catch(function (error) {
     });
 
+    fetch('./digitiser/digitiserInputLevel').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        sdrState.setInputLevel(obj.digitiserInputLevel)
+        $('#currentInputLevel',).empty().append(sdrState.getInputLevel().toFixed(1)+'%');
+    }).catch(function (error) {
+    });
+
     fetch('./digitiser/digitiserGain').then(function (response) {
         return response.json();
     }).then(function (obj) {
@@ -276,7 +300,7 @@ function syncNew() {
                 './spectrum/fftWindows', './digitiser/digitiserGainTypes', './control/presetFps',
                 './digitiser/digitiserGain', './digitiser/digitiserSampleRate', './tuning/frequency',
                 './digitiser/digitiserBandwidth', './digitiser/digitiserPartsPerMillion',
-                './digitiser/digitiserDbmOffset'];
+                './digitiser/digitiserDbmOffset', './digitiser/digitiserDcRemovals'];
     for (let i = 0; i < initUris.length; i++) {
         fetch(initUris[i]).then(function (response) {
             return response.json();
@@ -443,6 +467,25 @@ function showNew(jsonConfig) {
         new_html += '" id="sdrPpmInput" name="sdrPpmInput">';
         new_html += "</form>";
         $('#newPpm').empty().append(new_html);
+    }
+
+    /////////////
+    //DC removal modes
+    ///////    
+    if((jsonConfig.digitiserDcRemovals != undefined)  || (jsonConfig.digitiserDcRemoval != undefined)) {
+        let dcModes = sdrState.getDcRemovals();
+        let dcMode = sdrState.getDcRemoval();
+        if (dcModes.length > 0) {
+            new_html = '<form';
+            new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
+            new_html += ' action="javascript:handleDcRemovalChange(dcRemovalInput.value)">';
+            new_html += '<select id="dcRemovalInput" name="dcRemovalInput" onchange="this.form.submit()">';
+            dcModes.forEach(function(mode) {
+                new_html += '<option value="'+mode+'"'+((mode==dcMode)?"selected":"")+'>'+mode+'</option>';
+            });
+            new_html += '</select></form>';
+            $('#newDcRemoval').empty().append(new_html);
+        }
     }
 
     /////////////
@@ -756,6 +799,21 @@ function handlePpmChange(newPpm) {
     });
 
     sdrState.setPpmError(newPpm);
+    configFocusOut();
+}
+
+function handleDcRemovalChange(newRemoval) {
+    fetch("./digitiser/digitiserDcRemoval", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"digitiserDcRemoval":(newRemoval)})
+    }).then(response => {
+        return response.json();
+    });
+
+    sdrState.setDcRemoval(newRemoval);
     configFocusOut();
 }
 

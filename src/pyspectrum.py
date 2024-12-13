@@ -158,6 +158,7 @@ def main() -> None:
                 time_start = time.perf_counter()
                 samples, time_rx_nsec = data_source.read_cplx_samples(sdr_config.fft_size)
                 time_end = time.perf_counter()
+                
                 sdr_config.input_overflows = data_source.get_overflows()
                 _ = capture_time.average(time_end - time_start)
 
@@ -176,7 +177,15 @@ def main() -> None:
                         drop_count = 0
                     drop_count += 1
 
+            # dc input offset calculation
             if samples is not None:
+                if sdr_config.dc_removal != "Off":
+                    # remove the average value to reduce the dc component
+                    # weighted towards newest average quickly with previous error less significant than current
+                    sdr_config.dc_error = sdr_config.dc_error * 0.3 \
+                                          + np.average(samples) * 0.7  
+                    samples -= sdr_config.dc_error 
+
                 ##########################
                 # Calculate the spectrum
                 #################
@@ -209,16 +218,16 @@ def main() -> None:
                 snap_config.expectedSizeMbytes = data_sink.get_size_mbytes()
 
                 # has underlying sps or cf changed for the snap
-                # if snap_configuration.cf != configuration.real_centre_frequency_hz or \
-                #         snap_configuration.sps != configuration.sample_rate:
-                #     snap_configuration.cf = configuration.real_centre_frequency_hz
-                #     snap_configuration.sps = configuration.sample_rate
-                #     snap_configuration.triggered = False
-                #     snap_configuration.triggerState = "wait"
-                #     data_sink = DataSink_file.FileOutput(snap_configuration, global_vars.SNAPSHOT_DIRECTORY)
-                #     snap_configuration.currentSizeMbytes = 0
-                #     snap_configuration.expectedSizeMbytes = data_sink.get_size_mbytes()
-                #     config_changed = True
+                if snap_config.cf != sdr_config.sdr_centre_frequency_hz or \
+                        snap_config.sps != sdr_config.sample_rate:
+                    snap_config.cf = sdr_config.sdr_centre_frequency_hz
+                    snap_config.sps = sdr_config.sample_rate
+                    snap_config.triggered = False
+                    snap_config.triggerState = "wait"
+                    data_sink = DataSink_file.FileOutput(snap_config, global_vars.SNAPSHOT_DIRECTORY)
+                    snap_config.currentSizeMbytes = 0
+                    snap_config.expectedSizeMbytes = data_sink.get_size_mbytes()
+                    config_changed = True
 
                 if config_changed:
                     fill_shared_status(shared_status, sdr_config, snap_config)
@@ -253,6 +262,8 @@ def main() -> None:
                 logger.error(sdr_config.error)
 
         now = time.time()
+
+        # update fps occasionally
         if now > fps_update_time:
             if (now - sdr_config.time_measure_fps) > 0:
                 sdr_config.measured_fps = round(sdr_config.sent_count / (now - sdr_config.time_measure_fps), 1)
@@ -261,7 +272,7 @@ def main() -> None:
             sdr_config.sent_count = 0
             fill_status_fast(shared_status, sdr_config, snap_config)
 
-        # Debug print on how long things are taking
+        # Occasional debug prints
         if now > debug_time:
             debug_print(sdr_config.sample_rate,
                         sdr_config.fft_size,
@@ -277,12 +288,17 @@ def main() -> None:
                         sdr_config.measured_fps)
             debug_time = now + 60
 
-        # check on the source, maybe the gain changed etc
+        # Occasionally check on the source, maybe the gain changed etc
         if now > config_time:
             sdrStuff.update_source_state(sdr_config, data_source)
             config_time = now + 1
             data_time = (sdr_config.fft_size / sdr_config.sample_rate)
             sdr_config.loop_cpu_pc = 100.0 * (loop_time.get_ewma() / data_time)
+
+            # update the input level
+            if samples is not None:
+                sdr_config.input_level = 100.0 * np.max(np.absolute(samples))
+                shared_status['digitiserInputLevel'] = sdr_config.input_level
 
         if sdr_config.stop or not data_source.connected():
             loop_time.clear()
@@ -548,6 +564,9 @@ def fill_shared_status(shared_status: dict, sdr_config: Sdr, snap_config: Snappe
     shared_status['digitiserGainTypes'] = sdr_config.gain_modes
     shared_status['digitiserGainType'] = sdr_config.gain_mode
     shared_status['digitiserGain'] = sdr_config.gain
+    shared_status['digitiserDcRemovals'] = ["Average", "Off"]
+    shared_status['digitiserDcRemoval'] = sdr_config.dc_removal
+    shared_status['digitiserInputLevel'] = sdr_config.input_level
 
     # spectrum stuff
     shared_status['fftSize'] = sdr_config.fft_size
@@ -699,6 +718,12 @@ def sync_state(sdr_config: Sdr,
                 sdr_config.ppm_error = data_source.get_ppm()
                 config_changed = True
             shared_update.pop('digitiserPartsPerMillion')
+
+        if 'digitiserDcRemoval' in shared_update:
+            sdr_config.dc_removal = shared_update['digitiserDcRemoval']
+            shared_update.pop('digitiserDcRemoval')
+            sdr_config.dc_error = complex(0,0)
+            config_changed = True
 
         if 'digitiserDbmOffset' in shared_update:
             if shared_update['digitiserDbmOffset'] != sdr_config.dbm_offset:

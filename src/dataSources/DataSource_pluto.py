@@ -319,7 +319,7 @@ class Input(DataSource.DataSource):
             if self._index >= self._read_block_size:
                 try:
                     # we don't append to the end
-                    self._complex_data = self._sdr.rx()  # the samples here are complex128 i.e. full doubles
+                    self._complex_data = self._sdr.rx()  # the samples here are complex128 i.e. full double                
                     try:
                         self._block_time = time.time_ns()
                     except AttributeError:
