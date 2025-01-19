@@ -68,9 +68,8 @@ class Input(DataSource.DataSource):
         self._constant_data_type = "32fle"
         if not parameters or parameters == "":
             parameters = "rtlsdr"  # default
-        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
-        self._name = module_type
-        self._connected = False
+
+        # add this classes own variables before calling super() in case we get called back and don't have them
         self._sdr = None
         self._overflows = 0 # interface that actually returns overflows
         self._channel = 0  # we will use channel zero for now
@@ -82,10 +81,10 @@ class Input(DataSource.DataSource):
         self._soapyMTU = 0
         self._index = -1
         self._rx_stream = None
-        self._gain_modes = []
-        self._gain_mode = "auto"
+
         self._max_gain: float = 100.0
         self._min_gain: float = -100.0
+
         # not correctly setting min,max on sps and freq yet
         self._min_sps: float = 0.0
         self._max_sps: float = 8e6
@@ -93,6 +92,13 @@ class Input(DataSource.DataSource):
         self._min_cf: float = 50.0e6
         self._max_cf: float = 1.0e9
         self._allowed_bws = []
+        
+        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
+        self._name = module_type
+        self._connected = False
+        
+        self._gain_modes = []
+        self._gain_mode = "auto"
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 

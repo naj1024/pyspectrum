@@ -261,6 +261,22 @@ function syncCurrentFast() {
     }).catch(function (error) {
     });
 
+    fetch('./digitiser/streamLength').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        sdrState.setStreamLength(obj.streamLength)
+        $('#streamLength',).empty().append(sdrState.getStreamLength().toFixed(2)+' sec');
+    }).catch(function (error) {
+    });
+
+    fetch('./digitiser/streamCurrent').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        sdrState.setStreamCurrent(obj.streamCurrent)
+        $('#streamCurrent',).empty().append(sdrState.getStreamCurrent().toFixed(2)+' sec');
+    }).catch(function (error) {
+    });
+
     fetch('./snapshot/snapSize').then(function (response) {
         return response.json();
     }).then(function (obj) {

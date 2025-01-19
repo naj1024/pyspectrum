@@ -259,6 +259,14 @@ class DataSource:
     def get_gain(self) -> float:
         return self._gain
 
+    def get_seconds_length(self) -> float:
+        # used for file inputs, length of file in seconds
+        return 0.0
+    
+    def get_seconds_current(self) -> float:
+        # used for file inputs, current position in file in seconds
+        return 0.0
+    
     def get_time_ns(self, number_samples: int) -> float:
         # TODO: work out why counting samples for time does not work
         # if we add the time fo the previous samples to the previous time

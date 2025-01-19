@@ -48,15 +48,20 @@ class Input(DataSource.DataSource):
 
         if not parameters or parameters == "":
             parameters = "not-given"  # default
+
+        # add this classes own variables before calling super() in case we get called back and don't have them
+        self._file = None
+        self._rewind = True  # true if we will rewind the file each time it ends
+        self._full_path = ""
+        self._file_time = 0
+        self._sleep = True  # may want to read file as fast as possible
+        self._file_in_seconds = 0.0  # how long is the file
+        self._file_current_seconds = 0.0
+
         super().__init__(parameters, data_type, sample_rate, centre_frequency, input_bw)
 
         self._name = module_type
-        self._file = None
-        self._rewind = True  # true if we will rewind the file each time it ends
         self._connected = False
-
-        self._sleep = True  # may want to read file as fast as possible
-        self._samples_time_ns = 0.0  # how long these samples should take to arrive
 
         try:
             self._create_time = time.time_ns()
@@ -71,14 +76,32 @@ class Input(DataSource.DataSource):
         if self._file:
             self._file.close()
 
-    def set_sleep(self, sleep: bool):
+    def set_sleep(self, sleep: bool) -> None:
         self._sleep = sleep
+
+    def set_file_in_seconds(self):
+        if os.path.exists(self._full_path):
+            self._file_in_seconds = (os.path.getsize(self._full_path) / self._bytes_per_complex_sample) \
+                                    / self._sample_rate_sps
+
+    def set_sample_type(self, data_type: str) -> None:
+        super().set_sample_type(data_type)
+        self.set_file_in_seconds()
 
     def set_sample_rate_sps(self, sr: float) -> None:
         if sr <= 0:
             sr = 10000.0  # small default, but not too small
         self._sample_rate_sps = sr
+        self.set_file_in_seconds()
 
+    def get_seconds_length(self) -> float:
+        # used for file inputs, length of file in seconds
+        return self._file_in_seconds
+    
+    def get_seconds_current(self) -> float:
+        # used for file inputs, current position in file in seconds
+        return self._file_current_seconds
+    
     def open(self) -> bool:
 
         if self._parameters == "?":
@@ -90,6 +113,7 @@ class Input(DataSource.DataSource):
             fn = os.path.basename(self._parameters)
             full_path = pathlib.PurePath(global_vars.SNAPSHOT_DIRECTORY, fn)
             full_path = str(full_path)
+            self._full_path = full_path
 
             # now open the actual file
             file = FileMetaData.FileMetaData(full_path)
@@ -98,11 +122,14 @@ class Input(DataSource.DataSource):
 
             # only update the following if we managed to recover them on the open()
             if ok:
-                self.set_sample_type(data_type)
+                super().set_sample_type(data_type)
 
             # cf and sps can be overridden from ui
             self._centre_frequency_hz = cf
             self._sample_rate_sps = sps
+
+            self.set_file_in_seconds()
+            self._file_current_seconds = 0.0
 
         except ValueError as msg:
             self._error = msg
@@ -138,6 +165,8 @@ class Input(DataSource.DataSource):
             # could reset to create_time but time must always increase
             # otherwise the acks coming back will allow huge tcp buffer storage
             # self._file_time = self._create_time  # start again
+
+            self._file_current_seconds = 0.0
         except OSError as msg:
             msgs = f'Failed {module_type} to rewind {self._parameters}, {msg}'
             self._error = str(msgs)
@@ -168,7 +197,8 @@ class Input(DataSource.DataSource):
                     rx_time = self._file_time  # mark start of buffer as current distance into file
 
                     # update time into the file by the sample rate
-                    self._file_time += (1.0e9 * number_samples / self._sample_rate_sps)
+                    self._file_time += (1.0e9 * number_samples / self._sample_rate_sps)  # nano seconds
+                    self._file_current_seconds +=  number_samples / self._sample_rate_sps  # seconds
 
                     if len(raw_bytes) != total_bytes:
                         raw_bytes = None
@@ -180,7 +210,7 @@ class Input(DataSource.DataSource):
                     if self._sleep:
                         sleep_time = number_samples / self._sample_rate_sps
                         if sleep_time > 0.001:
-                            # wait how long these samples would of taken to arrive
+                            # wait how long these samples should of taken to arrive
                             time.sleep(sleep_time)
 
                 except OSError as msg:

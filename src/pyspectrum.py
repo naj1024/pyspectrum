@@ -300,6 +300,12 @@ def main() -> None:
                 sdr_config.input_level = 100.0 * np.max(np.absolute(samples))
                 shared_status['digitiserInputLevel'] = sdr_config.input_level
 
+            # for file inputs, show where we are
+            sdr_config.seconds_current = data_source.get_seconds_current()
+            shared_status['streamCurrent'] = sdr_config.seconds_current
+            sdr_config.seconds_length = data_source.get_seconds_length()
+            shared_status['streamLength'] = sdr_config.seconds_length
+
         if sdr_config.stop or not data_source.connected():
             loop_time.clear()
         else:
@@ -567,6 +573,8 @@ def fill_shared_status(shared_status: dict, sdr_config: Sdr, snap_config: Snappe
     shared_status['digitiserDcRemovals'] = ["Average", "Off"]
     shared_status['digitiserDcRemoval'] = sdr_config.dc_removal
     shared_status['digitiserInputLevel'] = sdr_config.input_level
+    shared_status['streamLength'] = sdr_config.seconds_length
+    shared_status['streamCurrent'] = sdr_config.seconds_current
 
     # spectrum stuff
     shared_status['fftSize'] = sdr_config.fft_size
