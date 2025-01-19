@@ -56,7 +56,7 @@ class Input(DataSource.DataSource):
         self._file_time = 0
         self._sleep = True  # may want to read file as fast as possible
         self._file_in_seconds = 0.0  # how long is the file
-        self._percentage_read = 0.0
+        self._file_current_seconds = 0.0
 
         super().__init__(parameters, data_type, sample_rate, centre_frequency, input_bw)
 
@@ -94,6 +94,14 @@ class Input(DataSource.DataSource):
         self._sample_rate_sps = sr
         self.set_file_in_seconds()
 
+    def get_seconds_length(self) -> float:
+        # used for file inputs, length of file in seconds
+        return self._file_in_seconds
+    
+    def get_seconds_current(self) -> float:
+        # used for file inputs, current position in file in seconds
+        return self._file_current_seconds
+    
     def open(self) -> bool:
 
         if self._parameters == "?":
@@ -121,7 +129,7 @@ class Input(DataSource.DataSource):
             self._sample_rate_sps = sps
 
             self.set_file_in_seconds()
-            self._percentage_read = 0.0
+            self._file_current_seconds = 0.0
 
         except ValueError as msg:
             self._error = msg
@@ -157,6 +165,8 @@ class Input(DataSource.DataSource):
             # could reset to create_time but time must always increase
             # otherwise the acks coming back will allow huge tcp buffer storage
             # self._file_time = self._create_time  # start again
+
+            self._file_current_seconds = 0.0
         except OSError as msg:
             msgs = f'Failed {module_type} to rewind {self._parameters}, {msg}'
             self._error = str(msgs)
@@ -187,7 +197,8 @@ class Input(DataSource.DataSource):
                     rx_time = self._file_time  # mark start of buffer as current distance into file
 
                     # update time into the file by the sample rate
-                    self._file_time += (1.0e9 * number_samples / self._sample_rate_sps)
+                    self._file_time += (1.0e9 * number_samples / self._sample_rate_sps)  # nano seconds
+                    self._file_current_seconds +=  number_samples / self._sample_rate_sps  # seconds
 
                     if len(raw_bytes) != total_bytes:
                         raw_bytes = None

@@ -224,7 +224,8 @@ class Digitiser(Resource):
                                        'digitiserBandwidth', 'digitiserPartsPerMillion', 'digitiserGainTypes',
                                        'digitiserGainType', 'digitiserGain',
                                        'digitiserDcRemoval', 'digitiserDcRemovals',
-                                       'digitiserDbmOffset', 'digitiserInputLevel']
+                                       'digitiserDbmOffset', 'digitiserInputLevel',
+                                       'streamLength', 'streamCurrent']
         self._allowed_put_endpoints = ['digitiserFormat', 'digitiserSampleRate', 'digitiserBandwidth',
                                        'digitiserPartsPerMillion', 'digitiserGainType', 'digitiserGain',
                                        'digitiserDcRemoval', 'digitiserDbmOffset',]

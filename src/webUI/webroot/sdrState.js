@@ -194,7 +194,12 @@ sdrState.prototype.getDcRemovals = function() {
 sdrState.prototype.getInputLevel = function() {
     return this.inputLevel;
 }
-
+sdrState.prototype.getStreamLength = function() {
+    return this.streamLength;
+}
+sdrState.prototype.getStreamCurrent = function() {
+    return this.streamCurrent;
+}
 
 sdrState.prototype.setLastDataTime = function(last) {
     this.lastDataTime = last;
@@ -210,6 +215,12 @@ sdrState.prototype.setLoopCpuPc = function(loopCpuPc) {
 }
 sdrState.prototype.setOverflows = function(overflows) {
     this.overflows = overflows;
+}
+sdrState.prototype.setStreamLength = function(length) {
+    this.streamLength = length;
+}
+sdrState.prototype.setStreamCurrent = function(curr) {
+    this.streamCurrent = curr;
 }
 
 sdrState.prototype.setConfigFromJason = function(jsonConfig) {
@@ -321,6 +332,14 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         this.inputLevel = jsonConfig.digitiserInputLevel;
     }
 
+    if (jsonConfig.streamLength != undefined) {
+        this.streamLength = jsonConfig.streamLength;
+    }
+
+    if (jsonConfig.streamCurrent != undefined) {
+        this.streamCurrent = jsonConfig.streamCurrent;
+    }
+
     if (jsonConfig.digitiserDbmOffset != undefined) {
         this.dbmOffset = parseFloat(jsonConfig.digitiserDbmOffset);
     }
@@ -375,6 +394,8 @@ function sdrState() {
     this.dbmOffset = 0.0;
     this.dcRemoval = false;
     this.inputLevel = 0.0;
+    this.streamLength = 0.0;
+    this.streamCurrent = 0.0;
     
     this.fftSize = 0;
     this.fftSizes = [];
