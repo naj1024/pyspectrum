@@ -89,14 +89,17 @@ class Input(DataSource.DataSource):
         self._constant_data_type = "8o"
         if not parameters or parameters == "":
             parameters = "127.0.0.1:1234"  # localhost and default port for rtltcp
-        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
 
-        self._name = module_type
+        # add this classes own variables before calling super() in case we get called back and don't have them
         self._socket = None
-        self._connected = False
         self._tuner_type_str = "Unknown_Tuner"
         self._ip_address = ""
         self._ip_port = 0
+
+        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
+
+        self._name = module_type
+        self._connected = False
         self._gain_modes = ["auto", "manual"]  # would ask, but can't
         super().set_gain_mode(self._gain_modes[0])
         super().set_help(help_string)

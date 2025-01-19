@@ -50,8 +50,9 @@ class SpectrumPicture:
             source.set_sleep(False)
             ok = source.open()
 
-            # can't produce spectrums if we don't know what the file samples are
-            if source.has_meta_data():
+            # Produce spectrum even if we don't know what the file samples are in
+            # Otherwise we will continualy try again
+            if True: #source.has_meta_data():
                 spec = Spectrum.Spectrum(self._fft_size, Spectrum.get_windows()[0])
                 peaks_squared = np.full(self._fft_size, -200)
                 count = 0

@@ -100,12 +100,16 @@ class Input(DataSource.DataSource):
         self._constant_data_type = "16tle"
         if not parameters or parameters == "":
             parameters = "0"  # default
-        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
-        self._name = module_type
-        self._connected = False
+
+        # add this classes own variables before calling super() in case we get called back and don't have them
         self._sdr = None
         self._tuner_type = 0
         self._device_index = 0
+
+        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
+        self._name = module_type
+        self._connected = False
+        
         self._gain_modes = ["auto", "manual"]  # would ask, but can't
         super().set_gain_mode(self._gain_modes[0])
         super().set_help(help_string)

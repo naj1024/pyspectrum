@@ -96,21 +96,24 @@ class Input(DataSource.DataSource):
         self._constant_data_type = "16tle"
         if not parameters or parameters == "":
             parameters = "192.168.2.1"  # default
-        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
-        self._name = module_type
-        self._sdr = None
-        self._connected = False
-        self._gain_modes = ["manual", "fast_attack", "slow_attack", "hybrid"]  # would ask, but can't
-        super().set_gain_mode(self._gain_modes[0])
-        super().set_help(help_string)
-        super().set_web_help(web_help_string)
 
+        # add this classes own variables before calling super() in case we get called back and don't have them
+        # we will read samples from the actual source in a different size from that requested
+        self._sdr = None
         # for supporting read of blocks which we partition out
         self._complex_data = None  # the block store
         self._read_block_size = 32768  # MUST be a power of 2 - AND is the MAX fft size
 
         self._index = self._read_block_size  # force read on first access
         self._block_time = 0
+
+        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
+        self._name = module_type
+        self._connected = False
+        self._gain_modes = ["manual", "fast_attack", "slow_attack", "hybrid"]  # would ask, but can't
+        super().set_gain_mode(self._gain_modes[0])
+        super().set_help(help_string)
+        super().set_web_help(web_help_string)
 
     def open(self) -> bool:
         global import_error_msg
