@@ -4,12 +4,15 @@ A RTLSDR-TCP wrapper based on a socket connection
 This is based on (but without the queue as to benefit properly it should be in a separate process):
      https://gitlab.com/librespacefoundation/satnogs/satnogs-misc/-/tree/master/simple_tcp_receiver
 
-NOTE
-====
-   The rtl_tcp server code allows unlimited backup if the samples are not read from the socket fast enough.
+NOTES
+=====
+1.  There is now a second port that tells you the status of the command just sent
+    The port is one up from the standard port, we don't use it.
+
+2.  The rtl_tcp server code allows unlimited backup if the samples are not read from the socket fast enough.
 This is not very wise. if you see ll+/ll- on the server stdout then you are not reading fast enough across the
 tcp connection to keep up with the digitisation rate.
-   To be safe(r) modify rtl_tcp.c in rtlsdr_callback() to limit the outstanding queue depth to 100 buffers from
+    To be safe(r) modify rtl_tcp.c in rtlsdr_callback() to limit the outstanding queue depth to 100 buffers from
 the device. Each buffer is 128k complex samples (256k bytes):
 
     Replace in rtl_tcp.c rtlsdr_callback():
@@ -100,8 +103,11 @@ class Input(DataSource.DataSource):
 
         self._name = module_type
         self._connected = False
-        self._gain_modes = ["auto", "manual"]  # would ask, but can't
-        super().set_gain_mode(self._gain_modes[0])
+        self._gain_modes = ["auto", "manual"]  # would ask, but can't, 
+                                               # port one up from streaming samples port can do this
+        self._tuner_gain_indexes = 0  # maximum number of indexes to the gain table
+        self._tuner_gain_index = 0
+        super().set_gain_mode("auto")
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 
@@ -157,18 +163,21 @@ class Input(DataSource.DataSource):
             logger.debug(f"Connected to rtltcp {self._ip_address} on port {self._ip_port}")
 
             # recover the type of tuner we have from the server
-            self._tuner_type_str = self.get_tuner_type()
-            self._display_name += f" {self._tuner_type_str}"
+            try:
+                self._tuner_type_str = self.get_tuner_type()
+            except Exception as tt:
+                logger.error("Failed to get tuner_type - using R820T")
+                self._tuner_type_str = allowed_tuner_types[5]  # R820T
+                pass
 
             # say what we want
             self.set_sample_rate_sps(int(self._sample_rate_sps))
             self.set_centre_frequency_hz(int(self._centre_frequency_hz))
-            # not found a description of gain_mode / agc_mode ...
-            self.set_tuner_gain_mode(1)
 
-            # What's the difference between set_tuner_gain_by_index() and set_tuner_gain() ?
-            self.set_tuner_gain_by_index(17)  # ignored unless set_tuner_gain_mode is 1
-            self.set_agc_mode(0)
+            # not found a description of gain_mode / agc_mode ...
+            self.set_gain_mode("auto")
+            self.set_tuner_gain_correction_mode(1)  # enabled
+
         except Exception as msg:
             logger.error(msg)
             raise ValueError(msg)
@@ -181,7 +190,7 @@ class Input(DataSource.DataSource):
 
         The initial bytes contain the dongle_info_t defined in rtl_tcp.c
 
-        magic is 'RTL0'
+        magic is 'RTL0'  - maybe it changes to RTL1 etc if two devices?
 
         typedef struct { /* structure size must be multiple of 2 bytes */
                 char magic[4];
@@ -203,12 +212,15 @@ class Input(DataSource.DataSource):
         :return The tuner type as a string:
         """
         tuner_type_str = ""
-        dongle_info, _ = self.get_bytes(12)  # 12 bytes, 4 chars + 2 unint32
+        dongle_info = self.get_bytes(12)  # 12 bytes, 4 chars + 2 unint32
         # unpack as network order, 4 chars and 2 unsigned integers
         try:
+            # example bytearray(b'RTL0\x00\x00\x00\x05\x00\x00\x00\x1d')
             magic, tuner_type, tuner_gain_count = struct.unpack('!4s2I', dongle_info)
+            logger.info(f"tuner {magic} {tuner_type} {tuner_gain_count}")
             if magic == b"RTL0" and tuner_type < len(allowed_tuner_types):
                 tuner_type_str = allowed_tuner_types[tuner_type]
+                self._tuner_gain_indexes = tuner_gain_count
             else:
                 self._error = f"Unknown RTL tuner {magic} or type {tuner_type}"
                 logger.error(f"Unknown RTL tuner {magic} or type {tuner_type}")
@@ -223,7 +235,7 @@ class Input(DataSource.DataSource):
         Read bytes_to_get bytes from the server
 
         :param bytes_to_get: Number of bytes to get from the server
-        :return: A Tuple of bytearray of the bytes and time the bytes were received
+        :return: Bytearray
         """
         try:
             raw_bytes = bytearray()
@@ -236,7 +248,6 @@ class Input(DataSource.DataSource):
                     raise ValueError('rtltcp connection closed')
                 raw_bytes += got
                 bytes_to_get -= len(got)
-
         except OSError as msg1:
             if self._socket:
                 self._socket.close()
@@ -253,19 +264,23 @@ class Input(DataSource.DataSource):
         super().set_sample_type(self._constant_data_type)
 
     def set_gain(self, gain: float) -> None:
-        self._gain = gain
-        try:
-            self.set_tuner_gain_mode(int(gain))
-        except Exception as msg:
-            self._error = str(msg)
+        if self._gain_mode == "manual":
+            self._gain = gain
+            try:
+                #  Gain in dB seems to not always work, so use index instead
+                # self.set_tuner_gain(int(gain))
+                self.set_tuner_gain_by_index(int(gain))
+                self._gain = self._tuner_gain_index
+            except Exception as msg:
+                self._error = str(msg)
 
     def set_gain_mode(self, mode: str) -> None:
         if mode in self._gain_modes:
             self._gain_mode = mode
-            if mode == "auto":
-                self.set_tuner_gain_mode(0)
-            else:
+            if mode == "manual":
                 self.set_tuner_gain_mode(1)
+            else:
+                self.set_tuner_gain_mode(0)
 
     def read_cplx_samples(self, number_samples: int) -> Tuple[np.array, float]:
         """
@@ -278,7 +293,7 @@ class Input(DataSource.DataSource):
 
         if self._connected:
             total_bytes = self._bytes_per_complex_sample * number_samples
-            raw_bytes, rx_time = self.get_bytes(total_bytes)
+            raw_bytes = self.get_bytes(total_bytes)
             if len(raw_bytes) == total_bytes:
                 rx_time = self.get_time_ns(number_samples)
                 complex_data = self.unpack_data(raw_bytes)
@@ -373,38 +388,55 @@ class Input(DataSource.DataSource):
         logger.info(f"Set sample rate {sample_rate}sps")
         self.send_command(0x02, int(sample_rate))
 
-    def set_tuner_gain_mode(self, value: int) -> int:
-        return self.send_command(0x03, value)
+    def set_tuner_gain_mode(self, mode: int) -> int:
+        # 0 - auto
+        # 1 - manaul
+        return self.send_command(0x03, mode & 0x1)
 
-    def set_tuner_gain(self, value: int) -> int:
-        return self.send_command(0x04, value)
+    def set_tuner_gain(self, gain: int) -> int:
+        return self.send_command(0x04, gain)
 
-    def set_freq_correction(self, value: int) -> int:
-        return self.send_command(0x05, value)
+    def set_freq_correction(self, ppm: int) -> int:
+        return self.send_command(0x05, ppm)
 
-    def set_tuner_if_gain(self, value: int) -> int:
-        return self.send_command(0x06, value)
+    def set_tuner_if_gain(self, gain: int) -> int:
+        return self.send_command(0x06, gain)
 
-    def set_test_mode(self, value: int) -> int:
-        return self.send_command(0x07, value)
+    def set_test_mode(self, test: int) -> int:
+        # 0 - disable
+        # 1 - enable
+        return self.send_command(0x07, test)
 
-    def set_agc_mode(self, value: int) -> int:
-        return self.send_command(0x08, value)
+    def set_tuner_gain_correction_mode(self, corr: int) -> int:
+        # 0 - disable
+        # 1 - enable
+        return self.send_command(0x08, corr & 0x1)
 
-    def set_direct_sampling(self, value: int) -> int:
-        return self.send_command(0x09, value)
+    def set_direct_sampling(self, ds: int) -> int:
+        # 0 - disable
+        # 1 - I 
+        # 2 - Q
+        return self.send_command(0x09, ds & 0x3)
 
-    def set_offset_tuning(self, value: int) -> int:
-        return self.send_command(0x0a, value)
+    def set_offset_tuning(self, enable: int) -> int:
+        # 0 - disable
+        # 1 - enable
+        return self.send_command(0x0a, enable)
 
-    def set_xtal_freq(self, value: int) -> int:
-        return self.send_command(0x0b, value)
+    def set_xtal_freq(self, freq: int) -> int:
+        return self.send_command(0x0b, freq)
 
-    def set_tuner_xtal(self, value: int) -> int:
-        return self.send_command(0x0c, value)
+    def set_tuner_xtal(self, xtal: int) -> int:
+        return self.send_command(0x0c, xtal)
 
-    def set_tuner_gain_by_index(self, value: int) -> int:
-        return self.send_command(0x0d, value)
+    def set_tuner_gain_by_index(self, index: int) -> int:
+        index = abs(index)
+        if index > (self._tuner_gain_indexes - 1):
+            index = self._tuner_gain_indexes - 1
+        self._tuner_gain_index = index
+        return self.send_command(0x0d, index)
 
-    def set_set_bias_tee(self, value: int) -> int:
-        return self.send_command(0x0e, value)
+    def set_set_bias_tee(self, enable: int) -> int:
+        # 0 - disable
+        # 1 - enable
+        return self.send_command(0x0e, enable & 0x1)
