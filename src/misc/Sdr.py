@@ -6,8 +6,6 @@ Used because we seem to need a lot of these in different places during initialis
 Passed to the UI as a jason string every few seconds
 """
 
-import json
-
 
 class Sdr:
     def __init__(self):
@@ -17,8 +15,8 @@ class Sdr:
         self.sdr_centre_frequency_hz = self.centre_frequency_hz - self.conversion_frequency_hz
         self.sample_types = ['8o', '8t', '16tbe', '16tle', '32fle', '32fbe']
         self.sample_type = '16tbe'  # default Format of sample data
-        self.drop = 0 # drops input buffers, e.g. 1 is drop 1 in 1, 2 is drop 1 in 2, 3 is drop 1 in 3
-        self.keep = 1 # keeps input buffers, e.g. 1 is keep every, 2 is keep 1 in 2, 3 is keep 1 in 3
+        self.drop = 0  # drops input buffers, e.g. 1 is drop 1 in 1, 2 is drop 1 in 2, 3 is drop 1 in 3
+        self.keep = 1  # keeps input buffers, e.g. 1 is keep every, 2 is keep 1 in 2, 3 is keep 1 in 3
         self.gain = 0
         self.gain_modes = ['none']
         self.gain_mode = "none"
@@ -26,14 +24,14 @@ class Sdr:
         self.ppm_error = 0.0
         self.dbm_offset = 0.0
         self.dc_removal = "Off"
-        self.dc_error = complex(0,0)
+        self.dc_error = complex(0, 0)
         self.input_level = 0.0
         self.seconds_current = 0.0
         self.seconds_length = 0.0
 
         # input data related
         self.fft_size = 2048  # default, but any integer allowed
-        self.fft_frame_time = 1e6 * (self.fft_size / self.sample_rate) # useconds
+        self.fft_frame_time = 1e6 * (self.fft_size / self.sample_rate)  # useconds
         self.window = ""
         self.window_types = []
 

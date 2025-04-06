@@ -56,6 +56,8 @@ logger = logging.getLogger("spectrum_logger")  # a name we use to find this logg
 
 MAX_TO_UI_QUEUE_DEPTH = 10  # low for low latency
 
+# default logging level
+DEFAULT_LOG_LEVEL = logging.INFO
 
 def signal_handler(sig, __):
     global processing
@@ -421,7 +423,7 @@ def setup_logging(log_filename: str) -> None:
         raise ValueError(f"Failed to create logger for main, {msg}")
 
     logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
-    logger.setLevel(logging.WARN)
+    logger.setLevel(DEFAULT_LOG_LEVEL) 
 
 
 def setup_snap_config() -> Snapper.Snapper:
@@ -456,14 +458,14 @@ def set_thumbs_dir() -> pathlib.PurePath:
 def initialise(sdr_config: Sdr, snap_config: Snapper,
                thumbs_dir: pathlib.PurePath, shared_status: dict, shared_update: dict) \
         -> Tuple[Type[DataSource.DataSource],
-        FlaskInterface.FlaskInterface,
-        WebSocketServer.WebSocketServer,
-        multiprocessing.Queue,
-        ProcessSamples.ProcessSamples,
-        PluginManager.PluginManager,
-        DataSourceFactory.DataSourceFactory,
-        PicGenerator.PicGenerator,
-        dict]:
+            FlaskInterface.FlaskInterface,
+            WebSocketServer.WebSocketServer,
+            multiprocessing.Queue,
+            ProcessSamples.ProcessSamples,
+            PluginManager.PluginManager,
+            DataSourceFactory.DataSourceFactory,
+            PicGenerator.PicGenerator,
+            dict]:
     """
      Initialise everything we need
 
@@ -471,6 +473,7 @@ def initialise(sdr_config: Sdr, snap_config: Snapper,
     :param snap_config: snapshot config options
     :param thumbs_dir: Where the picture generator will store thumbnails
     :param shared_status: dictionary status shared for multi-processing use
+    :param shared_update: dictionary of items that require updating
     :return: Lots
     """
     try:
@@ -730,7 +733,7 @@ def sync_state(sdr_config: Sdr,
         if 'digitiserDcRemoval' in shared_update:
             sdr_config.dc_removal = shared_update['digitiserDcRemoval']
             shared_update.pop('digitiserDcRemoval')
-            sdr_config.dc_error = complex(0,0)
+            sdr_config.dc_error = complex(0, 0)
             config_changed = True
 
         if 'digitiserDbmOffset' in shared_update:
@@ -744,7 +747,7 @@ def sync_state(sdr_config: Sdr,
                 data_source.set_sample_rate_sps(shared_update['digitiserSampleRate'])
                 Sdr.add_to_error(sdr_config, data_source.get_and_reset_error())
                 sdr_config.sample_rate = data_source.get_sample_rate_sps()
-                sdr_config.input_bw_hz = data_source.get_bandwidth_hz() # some sources over-ride the bw when setting sps
+                sdr_config.input_bw_hz = data_source.get_bandwidth_hz()  # some sources over-ride the bw when setting sps
                 sdr_config.input_overflows = 0
                 config_changed = True
             shared_update.pop('digitiserSampleRate')
@@ -985,6 +988,7 @@ def debug_print(sps: float,
 
     :param sps: Digitisation rate
     :param fft_size: The number of samples per cycle
+    :parma loop_time: ?
     :param sample_get_time: How long it took as to receive the digitised samples
     :param process_time: How long we have spent processing the samples
     :param analysis_time: How long we have spent analysing things

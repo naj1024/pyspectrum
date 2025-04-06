@@ -20,7 +20,6 @@ On Linux, debian bullseye ():
 """
 
 import logging
-import selectors
 import time
 from typing import Tuple
 

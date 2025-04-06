@@ -4,8 +4,6 @@ Class to hold all the programmes variables that we need to pass around for snaps
 Passed to the UI as a jason string when required
 """
 
-import json
-
 
 class Snapper:
     def __init__(self):

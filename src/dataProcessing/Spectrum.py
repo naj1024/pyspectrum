@@ -1,9 +1,6 @@
 import logging
-import os
 import time
-from timeit import Timer
 from typing import List
-from typing import Any
 
 import numpy as np
 
@@ -58,7 +55,7 @@ def test_fftw_fft_speed(complex_data: np.array, iterations: int = 500, fftw_thre
             signals_fft = pyfftw.interfaces.numpy_fft.fft(complex_data)
             signals_fft = np.fft.fftshift(signals_fft)
             _ = (signals_fft * signals_fft.conj()).real
-        t2 =  time.perf_counter()
+        t2 = time.perf_counter()
         return (1e6 * (t2 - t1)) / iterations
     return 10e6  # something very big in useconds
 
@@ -233,7 +230,7 @@ class Spectrum:
 
         # normalisation by dividing by fft size not done here, do it when we convert ot dB in get_powers()
         if self._win is not None:
-            complex_samples * self._win
+            complex_samples *= self._win
 
         if self._use_scipy_fft:
             signals_fft = fftpack.fft(complex_samples)
