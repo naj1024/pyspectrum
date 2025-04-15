@@ -3,8 +3,18 @@ FUNcube dongle input wrapper
 
 Copy of the audio input module with a few changes for the FUNcube
 
-Devices FUNcube Dongle V1.0 - funcube pro  0x04d8,0xfb56
-Devices FUNcube Dongle V2.0 - funcube pro+ 0x04d8,0xfb31
+Devices FUNcube Dongle V1.1 - funcube pro  0x04d8,0xfb56
+Devices FUNcube Pro Dongle V2.0 - funcube pro+ 0x04d8,0xfb31
+
+Funcube
+Range 64MHz - 2,500MHz
+Sample rate 96kHz
+BW 80kHz
+
+FUNcube Pro
+Receiver range is now 150kHz to 240MHz and 420MHz to 1.9GHz.
+Sample rate is increased to 192kHz.
+BW 200kHz
 
 Under Linux
 =================
@@ -215,6 +225,8 @@ class Input(DataSource.DataSource):
         self._audio_stream = None
         self._hid_device = None
         self._funcube_type = None
+        self._min_frequency = None
+        self._max_frequency = None
         
         # we will read samples from the actual source in a different size from that requested
         # so that we can divorce one from the other, need index to tell where we are
@@ -249,7 +261,7 @@ class Input(DataSource.DataSource):
             all_sound_devices = sd.query_devices()
             device_number = 0  # count the device index
             for dev in all_sound_devices:
-                if 'FUN' in dev.get('name'):
+                if 'FUNcube Dongle' in dev.get('name'):
                     fun_cubes += f'{device_number} {dev.get("default_samplerate")} {dev.get("name")}\n'
                 device_number = device_number + 1
             if len(fun_cubes) == 0:
@@ -257,6 +269,8 @@ class Input(DataSource.DataSource):
             self._error = fun_cubes
             return False
 
+        # Otherwise open the requested device number
+        logger.info(f"Opening fundCube device number {self._parameters}")
         try:
             self._device_number = int(self._parameters)
         except ValueError:
@@ -266,16 +280,30 @@ class Input(DataSource.DataSource):
 
         try:
             capabilities = sd.query_devices(device=self._device_number)
-            if capabilities['max_input_channels'] != 2:
-                raise ValueError(f"Unsupported number of channels {capabilities['max_input_channels']}")
-            self._sample_rate_sps = capabilities['default_samplerate']  # we must use this rate
-            self._bandwidth_hz = self._sample_rate_sps
+
             # is this funcube pro or pro+
             name = capabilities['name']
-            if 'V2' in name:
-                self._funcube_type = "pro+"
-            elif 'V1' in name:
-                self._funcube_type = "pro"
+            if 'FUNcube Dongle' in name:
+                if capabilities['max_input_channels'] != 2:
+                    raise ValueError(f"Unsupported number of channels {capabilities['max_input_channels']}")
+                self._sample_rate_sps = capabilities['default_samplerate']  # we must use this rate
+                self._bandwidth_hz = self._sample_rate_sps
+                if 'V2' in name:
+                    self._funcube_type = "funcubePro+"
+                    self._bandwidth_hz = 200000
+                    self._min_frequency = 50000000
+                    self._max_frequency = 25000000000
+                elif 'V1' in name:
+                    self._funcube_type = "funcubePro"
+                    self._bandwidth_hz = 80000
+                    # 150kHz to 240MHz and 420MHz to 1.9GHz.
+                    self._min_frequency = 150000
+                    self._max_frequency = 1900000000
+                logger.info(f"{self._funcube_type} dongle SR:{self._sample_rate_sps}sps BW:{self._bandwidth_hz}Hz")
+            else:
+                msgs = f"Device number {self._device_number} is not a funcube dongle"
+                self._error = str(msgs)
+                raise ValueError(msgs)
         except Exception as err_msg:
             msgs = f"{module_type} query error: {err_msg}"
             self._error = str(msgs)
@@ -309,15 +337,15 @@ class Input(DataSource.DataSource):
 
         self._sample_rate_sps = self._audio_stream.samplerate  # actual sample rate
         logger.debug(f"Connected to {module_type} {self._device_number}")
-        logger.info(f"Audio stream started ")
+        logger.info(f"Audio stream started at {self._sample_rate_sps}Hz")
         self._connected = True
 
         # do we have hid support loaded
         if hid:
             try:
-                if self._funcube_type == "pro":
+                if self._funcube_type == "funcubePro":
                     self._hid_device = hid.Device(0x04d8, 0xfb56)
-                elif self._funcube_type == "pro+":
+                elif self._funcube_type == "funcubePro+":
                     self._hid_device = hid.Device(0x04d8, 0xfb31)
                 else:
                     self._hid_device = None
@@ -355,15 +383,24 @@ class Input(DataSource.DataSource):
 
     def set_sample_rate_sps(self, sr: float) -> None:
         self._rx_time = 0
-        self._error = f"{module_type} can't change sample rate from {self._sample_rate_sps}"
+        self._error = f"{module_type} can't change sample rate from {self._sample_rate_sps}sps"
 
     def set_sample_type(self, data_type: str) -> None:
         # we can't set a different sample type on this source
         super().set_sample_type(self._constant_data_type)
 
     def set_centre_frequency_hz(self, cf: float) -> None:
-        self._centre_frequency_hz = cf
+        # Can we change device setting through HID
         if hid and self._hid_device:
+            if (cf < self._min_frequency) | (cf > self._max_frequency):
+                self._error(f"{self._funcube_type} frequency {self._centre_frequency_hz}Hz "
+                            f"is outside min {self._min_frequency}Hz, "
+                            f"max {self._max_frequency}Hz")
+                logger.error(self._error)
+                return
+
+            self._centre_frequency_hz = cf
+
             # same as https://github.com/csete/fcdctl/blob/master/fcdhidcmd.h
             # FCD_CMD_APP_SET_FREQ_KHZ = 100
             FCD_CMD_APP_SET_FREQ_HZ = 101
@@ -384,11 +421,12 @@ class Input(DataSource.DataSource):
                 self._error = f"{module_type} failed to set frequency via usb hid command, {hid_err}"
                 logger.error(self._error)
         else:
-            self._error = f"No support for {module_type} control via hid/usb"
+            self._error = f"No control support using hid/usb for {module_type}" \
+                          f" of type {self._funcube_type} on this platform"
             logger.error(self._error)
 
     def set_bandwidth_hz(self, bw: float) -> None:
-        self._error = f"{module_type} can't change bandwidth"
+        self._error = f"{module_type} can't change bandwidth from {self._bandwidth_hz}Hz"
 
     def _read_source_samples(self, num_samples: int):
         # read a minimum of num_samples from the queue
