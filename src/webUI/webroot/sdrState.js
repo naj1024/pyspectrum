@@ -28,6 +28,9 @@ sdrState.prototype.setSps = function(sps) {
 sdrState.prototype.setFftSize = function(fftSize) {
     this.fftSize = parseInt(fftSize);
 }
+sdrState.prototype.setFftOverlap = function(fftOverlap) {
+    this.fftOverlap = fftOverlap;
+}
 sdrState.prototype.setFftFrameTime = function(fftFrameTime) {
     this.fftFrameTime = parseInt(fftFrameTime);
 }
@@ -109,6 +112,12 @@ sdrState.prototype.getSps = function() {
 }
 sdrState.prototype.getFftSize = function() {
     return this.fftSize;
+}
+sdrState.prototype.getFftOverlaps = function() {
+    return this.fftOverlaps;
+}
+sdrState.prototype.getFftOverlap = function() {
+    return this.fftOverlap;
 }
 sdrState.prototype.getFftFrameTime = function() {
     return this.fftFrameTime;
@@ -224,7 +233,7 @@ sdrState.prototype.setStreamCurrent = function(curr) {
 }
 
 sdrState.prototype.setConfigFromJason = function(jsonConfig) {
-    //console.log(jsonConfig);
+    // console.log(jsonConfig);
 
     // this should only set the offset frequency initially, i.e. set on command line
     if (this.firstTime) {
@@ -261,7 +270,15 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
     }
 
     if (jsonConfig.fftSize != undefined) {
-        this.fftSize = parseInt(jsonConfig.fftSize);
+        this.fftSize = jsonConfig.fftSize;
+    }
+
+    if (jsonConfig.fftOverlaps != undefined) {
+        this.fftOverlaps = jsonConfig.fftOverlaps;
+    }
+
+    if (jsonConfig.fftOverlap != undefined) {
+        this.fftOverlap = jsonConfig.fftOverlap;
     }
 
     if (jsonConfig.fftWindow != undefined) {
@@ -398,6 +415,8 @@ function sdrState() {
     this.streamCurrent = 0.0;
     
     this.fftSize = 0;
+    this.fftOverlap = 0;
+    this.fftOverlaps = [];
     this.fftSizes = [];
     this.fftFrameTime = 0;
     this.window = "";

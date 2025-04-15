@@ -38,7 +38,7 @@
             <!-- 9 colums worth of spectrum display -->
             <div id="specCanvas" class="col-9"></div>
             <!-- 2 colums worth of config data, tabbed -->
-            <div id="metaData" class="col-3"  style="overflow-y:auto;  width="100%";>
+            <div id="metaData" class="col-3" style="overflow-y:auto;  width="100%";>
                 <ul class="nav nav-tabs">
                     <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#sourceTab">Source</a></li>
                     <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#analysisTab">Analysis</a></li>
@@ -233,6 +233,15 @@
                                     </td>
                                     <td>
                                         <div id="newFft"></div>
+                                    </td>
+                                </tr>
+                                <tr title="FFT overlap">
+                                    <td><b>Overlap</b></td>
+                                    <td>
+                                        <div id="currentFftOverlap"></div>
+                                    </td>
+                                    <td>
+                                        <div id="newFftOverlap"></div>
                                     </td>
                                 </tr>
                                 <tr title="FFT bin size">

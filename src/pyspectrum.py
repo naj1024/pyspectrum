@@ -59,6 +59,7 @@ MAX_TO_UI_QUEUE_DEPTH = 10  # low for low latency
 # default logging level
 DEFAULT_LOG_LEVEL = logging.INFO
 
+
 def signal_handler(sig, __):
     global processing
     processing = False
@@ -110,7 +111,7 @@ def main() -> None:
     peak_powers_since_last_display = np.full(sdr_config.fft_size, -200)
     # timing things, averages
     capture_time = Ewma.Ewma(0.001)  # soapy is very blocky so different averaging, doens't seem to impact anything else
-    loop_time = Ewma.Ewma(0.001)
+    loop_time = Ewma.Ewma(0.01)
     process_time = Ewma.Ewma(0.01)
     analysis_time = Ewma.Ewma(0.01)
     reporting_time = Ewma.Ewma(0.01)
@@ -123,10 +124,7 @@ def main() -> None:
     time_start = time.perf_counter()
     time_end = time.perf_counter()
     time_rx_nsec = 0
-
-    # debug on resource constrained platforms
-    drop_count = sdr_config.drop
-    keep_count = sdr_config.keep
+    time_rx_nsec_new = 0
 
     # keep processing until told to stop or an error occurs
     peak_average = Ewma.Ewma(0.1)
@@ -134,6 +132,7 @@ def main() -> None:
     max_peak_count = 0
     config_changed = False
     global processing
+    samples = None
     while processing:
         loop_start = time.perf_counter()
         if not multiprocessing.active_children():
@@ -151,42 +150,37 @@ def main() -> None:
         # Get and process the complex samples we will work on
         ######################
         try:
-            samples = None
+            samples_new = None
 
             if sdr_config.stop or not data_source.connected():
                 time.sleep(sdr_config.fft_size / sdr_config.sample_rate)
             else:
                 # Get some samples
                 time_start = time.perf_counter()
-                samples, time_rx_nsec = data_source.read_cplx_samples(sdr_config.fft_size)
+                if samples is None:
+                    # prefill overlap, always 0 or 50%
+                    samples, time_rx_nsec = data_source.read_cplx_samples(int(sdr_config.fft_size / 2))
+
+                # 2nd half, allows us to do the 50% overlap by resetting samples to be this 2nd lot
+                samples_new, time_rx_nsec_new = data_source.read_cplx_samples(int(sdr_config.fft_size / 2))
                 time_end = time.perf_counter()
-                
+
                 sdr_config.input_overflows = data_source.get_overflows()
                 _ = capture_time.average(time_end - time_start)
 
-                # debug of dropping input buffers for resource constrained hardware
-                if sdr_config.keep > 1:
-                    # keep 1 in N
-                    keep_count -= 1
-                    if keep_count >= 0:
-                        samples = None
-                    else:
-                        keep_count = sdr_config.keep
-                elif sdr_config.drop != 0:
-                    # drop 1 in N
-                    if (drop_count % sdr_config.drop) == 0:
-                        samples = None
-                        drop_count = 0
-                    drop_count += 1
-
             # dc input offset calculation
-            if samples is not None:
+            if samples_new is not None:
                 if sdr_config.dc_removal != "Off":
                     # remove the average value to reduce the dc component
                     # weighted towards newest average quickly with previous error less significant than current
                     sdr_config.dc_error = sdr_config.dc_error * 0.3 \
-                                          + np.average(samples) * 0.7  
-                    samples -= sdr_config.dc_error 
+                                          + np.average(samples_new) * 0.7
+                    samples_new -= sdr_config.dc_error
+
+                ##########################
+                # Create samples for processing
+                #################
+                samples = np.append(samples, samples_new)
 
                 ##########################
                 # Calculate the spectrum
@@ -208,7 +202,11 @@ def main() -> None:
                 # due to pre-trigger we need to always give the samples
                 #################
                 time_start = time.perf_counter()
-                if data_sink.write(snap_config.triggered, samples, time_rx_nsec):
+                if sdr_config.fft_overlap == 50:
+                    x = data_sink.write(snap_config.triggered, samples_new, time_rx_nsec_new)
+                else:
+                    x = data_sink.write(snap_config.triggered, samples, time_rx_nsec)
+                if x:
                     snap_config.triggered = False
                     snap_config.triggerState = "wait"
                     snap_config.directory_list = snapStuff.list_snap_files(global_vars.SNAPSHOT_DIRECTORY)
@@ -312,7 +310,17 @@ def main() -> None:
             loop_time.clear()
         else:
             loop_end = time.perf_counter()
-            _ = loop_time.average(loop_end - loop_start)
+            loop_multiplier = int(100 / (100 - sdr_config.fft_overlap))
+            _ = loop_time.average(loop_multiplier * (loop_end - loop_start))
+
+        ##########################
+        # move samples_new and time
+        #################
+        if sdr_config.fft_overlap == 50:
+            samples = samples_new
+            time_rx_nsec = time_rx_nsec_new
+        else:
+            samples = None
 
     ####################
     #
@@ -423,7 +431,7 @@ def setup_logging(log_filename: str) -> None:
         raise ValueError(f"Failed to create logger for main, {msg}")
 
     logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
-    logger.setLevel(DEFAULT_LOG_LEVEL) 
+    logger.setLevel(DEFAULT_LOG_LEVEL)
 
 
 def setup_snap_config() -> Snapper.Snapper:
@@ -458,14 +466,14 @@ def set_thumbs_dir() -> pathlib.PurePath:
 def initialise(sdr_config: Sdr, snap_config: Snapper,
                thumbs_dir: pathlib.PurePath, shared_status: dict, shared_update: dict) \
         -> Tuple[Type[DataSource.DataSource],
-            FlaskInterface.FlaskInterface,
-            WebSocketServer.WebSocketServer,
-            multiprocessing.Queue,
-            ProcessSamples.ProcessSamples,
-            PluginManager.PluginManager,
-            DataSourceFactory.DataSourceFactory,
-            PicGenerator.PicGenerator,
-            dict]:
+        FlaskInterface.FlaskInterface,
+        WebSocketServer.WebSocketServer,
+        multiprocessing.Queue,
+        ProcessSamples.ProcessSamples,
+        PluginManager.PluginManager,
+        DataSourceFactory.DataSourceFactory,
+        PicGenerator.PicGenerator,
+        dict]:
     """
      Initialise everything we need
 
@@ -581,6 +589,8 @@ def fill_shared_status(shared_status: dict, sdr_config: Sdr, snap_config: Snappe
 
     # spectrum stuff
     shared_status['fftSize'] = sdr_config.fft_size
+    shared_status['fftOverlaps'] = sdr_config.fft_overlaps
+    shared_status['fftOverlap'] = sdr_config.fft_overlap
     sdr_config.fft_frame_time = 1e6 * (sdr_config.fft_size / sdr_config.sample_rate)
     shared_status['fftFrameTime'] = sdr_config.fft_frame_time
     # spectrogram does not work with 32768 points
@@ -661,7 +671,8 @@ def sync_state(sdr_config: Sdr,
                 logger.debug(f"changing source from "
                              f"'{sdr_config.input_source}' '{sdr_config.input_params}' to "
                              f"'{src['source']}' '{src['params']}'")
-                data_source = sdrStuff.change_source(data_source, source_factory, sdr_config, src['source'], src['params'])
+                data_source = sdrStuff.change_source(data_source, source_factory, sdr_config, src['source'],
+                                                     src['params'])
                 if src['source'] == 'file':
                     # May need to configure things from the filename
                     if data_source.has_meta_data():
@@ -779,6 +790,12 @@ def sync_state(sdr_config: Sdr,
                 sdr_config.fft_size = shared_update['fftSize']
                 config_changed = True
             shared_update.pop('fftSize')
+
+        if 'fftOverlap' in shared_update:
+            if shared_update['fftOverlap'] != sdr_config.fft_overlap:
+                sdr_config.fft_overlap = shared_update['fftOverlap']
+                config_changed = True
+            shared_update.pop('fftOverlap')
 
         if 'digitiserGain' in shared_update:
             if shared_update['digitiserGain'] != sdr_config.gain:
@@ -952,6 +969,8 @@ def send_to_ui(sdr_config: Sdr,
                 # configuration.error += err_msg
                 logger.info(err_msg)
             peak_detect = True  # UI can't keep up
+
+    # print(f" update_count {sdr_config.update_count} ,on_in_n {one_in_n}, peak_detect {peak_detect}")
 
     if peak_detect:
         if current_peak_count == 0:
