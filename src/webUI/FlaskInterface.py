@@ -297,8 +297,8 @@ class Spectrum(Resource):
         # set the dictionary we use for updating things
         self._status = kwargs['status']
         self._update = kwargs['update']
-        self._allowed_get_endpoints = ['fftSizes', 'fftSize', 'fftFrameTime', 'fftWindows', 'fftWindow']
-        self._allowed_put_endpoints = ['fftSize', 'fftWindow']
+        self._allowed_get_endpoints = ['fftSizes', 'fftSize', 'fftOverlap', 'fftOverlaps', 'fftFrameTime', 'fftWindows', 'fftWindow']
+        self._allowed_put_endpoints = ['fftSize', 'fftOverlap', 'fftWindow']
 
     def api(self):
         points = {}
@@ -324,6 +324,12 @@ class Spectrum(Resource):
                     size = int(request.json[thing])
                     if size in self._status['fftSizes']:
                         self._update[thing] = size
+                    else:
+                        raise ValueError()
+                elif thing == 'fftOverlap':
+                    ovrlp = int(request.json[thing])
+                    if (ovrlp >= 0) and (ovrlp <= 50):
+                        self._update[thing] = ovrlp
                     else:
                         raise ValueError()
                 elif thing == 'fftWindow':

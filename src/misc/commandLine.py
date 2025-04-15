@@ -67,14 +67,6 @@ def parse_command_line(configuration: Sdr, logger: logging.Logger) -> None:
                            default=configuration.sample_type,
                            choices=DataSource.supported_data_types,
                            required=False)
-    data_opts.add_argument('-K', '--Keep',
-                           help='Keep 1 in N input sample buffers (default: 1)',
-                           default=1,
-                           required=False)
-    data_opts.add_argument('-D', '--Drop',
-                           help='Drop 1 in N input sample buffers(default: 0)',
-                           default=0,
-                           required=False)
 
     ######################
     # Misc options
@@ -119,10 +111,6 @@ def parse_command_line(configuration: Sdr, logger: logging.Logger) -> None:
             configuration.sample_rate = float(args['sampleRate'])
         if args['type'] is not None:
             configuration.sample_type = args['type']
-        if args['Keep'] is not None:
-            configuration.keep = abs(int(args['Keep']))
-        if args['Drop'] is not None:
-            configuration.drop = abs(int(args['Drop']))
 
         if args['fftSize'] is not None:
             configuration.fft_size = abs(int(args['fftSize']))

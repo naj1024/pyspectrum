@@ -143,6 +143,14 @@ function syncCurrent() {
     }).catch(function (error) {
     });
 
+    fetch('./spectrum/fftOverlap').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        sdrState.setConfigFromJason(obj);
+        $('#currentFftOverlap').empty().append(sdrState.getFftOverlap());
+    }).catch(function (error) {
+    });
+
     fetch('./spectrum/fftFrameTime').then(function (response) {
         return response.json();
     }).then(function (obj) {
@@ -233,7 +241,7 @@ function syncCurrentFast() {
         return response.json();
     }).then(function (obj) {
         sdrState.setFps(obj.fps);
-        let maxFps = sdrState.getSps() / sdrState.getFftSize();
+        let maxFps = (sdrState.getSps() * (100.0 /  (100 - sdrState.getFftOverlap()))) / sdrState.getFftSize();
         $('#currentFPS').empty().append(sdrState.getMeasuredFps().toFixed(1), "/", sdrState.getFps().toFixed(0),", max:", maxFps.toFixed(1));
     }).catch(function (error) {
     });
@@ -312,7 +320,9 @@ function syncNew() {
     }
 
     // get all the main stuff
-    let initUris = ['./input/sources', './digitiser/digitiserFormats', './spectrum/fftSizes', './spectrum/fftFrameTime',
+    let initUris = ['./input/sources', './digitiser/digitiserFormats',
+                './spectrum/fftSizes', './spectrum/fftOverlap',
+                './spectrum/fftOverlaps', './spectrum/fftFrameTime',
                 './spectrum/fftWindows', './digitiser/digitiserGainTypes', './control/presetFps',
                 './digitiser/digitiserGain', './digitiser/digitiserSampleRate', './tuning/frequency',
                 './digitiser/digitiserBandwidth', './digitiser/digitiserPartsPerMillion',
@@ -539,6 +549,25 @@ function showNew(jsonConfig) {
                 });
             new_html += '</select></form>';
             $('#newFft').empty().append(new_html);
+        }
+    }
+
+    /////////////
+    // fft overlap
+    ///////
+    if(jsonConfig.fftOverlap != undefined) {
+        let fftOverlaps = sdrState.getFftOverlaps();
+        let fft_overlap = sdrState.getFftOverlap();
+        if (fftOverlaps.length > 0) {
+            new_html = '<form';
+            new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
+            new_html += ' action="javascript:handleFftOverlapChange(fftOverlapInput.value)">';
+            new_html += '<select id="fftOverlapInput" name="fftOverlapInput" onchange="this.form.submit()">';
+            fftOverlaps.forEach(function(mode) {
+                new_html += '<option value="'+mode+'"'+((mode==fft_overlap)?"selected":"")+'>'+mode+'</option>';
+            });
+            new_html += '</select></form>';
+            $('#newFftOverlap').empty().append(new_html);
         }
     }
 
@@ -861,6 +890,21 @@ function handleFftChange(newFft) {
 
     sdrState.setFftSize(newFft);
     // spec.setFftSize(num_floats); // don't do this here as spectrum has to know it changed
+    configFocusOut();
+}
+
+function handleFftOverlapChange(newFftOverlap) {
+    fetch("./spectrum/fftOverlap", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"fftOverlap":(newFftOverlap)})
+    }).then(response => {
+        return response.json();
+    });
+
+    sdrState.setFftOverlap(newFftOverlap);
     configFocusOut();
 }
 
