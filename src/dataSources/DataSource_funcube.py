@@ -3,15 +3,15 @@ FUNcube dongle input wrapper
 
 Copy of the audio input module with a few changes for the FUNcube
 
-Devices FUNcube Dongle V1.1 - funcube pro  0x04d8,0xfb56
-Devices FUNcube Pro Dongle V2.0 - funcube pro+ 0x04d8,0xfb31
+Devices FUNcube Pro  Dongle V1.1 - funcube pro  0x04d8,0xfb56
+Devices FUNcube Pro+ Dongle V2.0 - funcube pro+ 0x04d8,0xfb31
 
-Funcube
+Funcube Pro
 Range 64MHz - 2,500MHz
 Sample rate 96kHz
 BW 80kHz
 
-FUNcube Pro
+FUNcube Pro+
 Receiver range is now 150kHz to 240MHz and 420MHz to 1.9GHz.
 Sample rate is increased to 192kHz.
 BW 200kHz
