@@ -190,7 +190,6 @@ class Input(DataSource.DataSource):
                 pass
         if devices == "":
             devices = f"No rtlsdr devices found, scanned 0 to {max_device - 1}"
-        print(devices)
         return devices
 
     def get_sample_rate_sps(self) -> float:
