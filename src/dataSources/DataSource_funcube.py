@@ -390,6 +390,9 @@ class Input(DataSource.DataSource):
         super().set_sample_type(self._constant_data_type)
 
     def set_centre_frequency_hz(self, cf: float) -> None:
+        # set it anyway so our ui is correct even if we can't actually set it
+        self._centre_frequency_hz = cf
+
         # Can we change device setting through HID
         if hid and self._hid_device:
             if (cf < self._min_frequency) | (cf > self._max_frequency):
@@ -398,8 +401,6 @@ class Input(DataSource.DataSource):
                             f"max {self._max_frequency}Hz")
                 logger.error(self._error)
                 return
-
-            self._centre_frequency_hz = cf
 
             # same as https://github.com/csete/fcdctl/blob/master/fcdhidcmd.h
             # FCD_CMD_APP_SET_FREQ_KHZ = 100
