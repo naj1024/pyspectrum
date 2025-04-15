@@ -667,7 +667,9 @@ def sync_state(sdr_config: Sdr,
     try:
         if 'source' in shared_update:
             src = shared_update['source']
-            if src['source'] != sdr_config.input_source or (src['params'] != sdr_config.input_params):
+            if src['params'] == '?' or \
+                    src['source'] != sdr_config.input_source or \
+                    (src['params'] != sdr_config.input_params):
                 logger.debug(f"changing source from "
                              f"'{sdr_config.input_source}' '{sdr_config.input_params}' to "
                              f"'{src['source']}' '{src['params']}'")
