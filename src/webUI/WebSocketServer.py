@@ -41,6 +41,7 @@ class WebSocketServer(multiprocessing.Process):
         print(f"web socket port {self._port}")
         self._exit_now = False
         self._log_level = log_level
+        self._active_connection = None
 
     def shutdown(self) -> None:
         logger.debug("WebSocketServer Shutting down")
@@ -90,6 +91,7 @@ class WebSocketServer(multiprocessing.Process):
     async def handler(self, web_socket: WebSocketServerProtocol, path: str):
         """
         Handle Tx to the client on the websocket
+        Only one streaming spectrum connectio  allowed at a time.
 
         Tx goes from us (_data_queue) to the web client
 
@@ -97,6 +99,20 @@ class WebSocketServer(multiprocessing.Process):
         :param path: Not used, default is '/'
         :return: None
         """
+
+        # only allow one streamed connection at a time
+        if self._active_connection is not None:
+            # close current connection
+            try:
+                # send text to client to say we are closing this connection
+                await self._active_connection.send("Closing this stream, another client has requested it")
+                await self._active_connection.close()
+                logger.info(f"Closed websocket to {self._active_connection.remote_address[0]}")
+            except Exception as msg:
+                logger.error(f"Exception when closing websocket, {msg}")
+
+        # new connection
+        self._active_connection = web_socket
 
         client = web_socket.remote_address[0]
         logger.info(f"WebSocket serving client {client} {path}")

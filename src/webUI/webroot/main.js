@@ -1205,9 +1205,14 @@ function connectWebSocket(spec) {
         let new_element = '<img src="./icons/led-red.png" alt="no connection title="No connection" ">';
         $("#connection_state").empty();
         $('#connection_state').append(new_element);
-        setTimeout(function() {
-            connectWebSocket(spec);
-        }, 1000);
+
+        // do we wish to attempt reconnection, someone else may be streaming spectrums
+        const retry = confirm("Lost spectrum websocket, try reconnecting?");
+        if (retry) {
+            setTimeout(function() {
+                connectWebSocket(spec);
+            }, 1000);
+        }
     }
 
     websocket.onerror = function(event) {
@@ -1220,18 +1225,25 @@ function connectWebSocket(spec) {
     }
 
     websocket.onmessage = function (event) {
-        if (data_active == false){
-            data_active = true;
-            // Update the status led
-            $("#connection_state").empty();
-            let new_element = '<img src="./icons/led-green.png" alt="data active" title="Data active">';
-            $('#connection_state').append(new_element);
+        if (typeof event.data === "string") {
+            if (event.data.includes("Closing this stream")) {
+                websocket.close();  // Close after receiving rejection message
+            }
         }
+        else {
+            if (data_active == false){
+                data_active = true;
+                // Update the status led
+                $("#connection_state").empty();
+                let new_element = '<img src="./icons/led-green.png" alt="data active" title="Data active">';
+                $('#connection_state').append(new_element);
+            }
 
-        // if we are stopped then ignore this blob
-        if (!stop.value) {
-            if (event.data instanceof Blob) {
-                handleBlob(event.data);
+            // if we are stopped then ignore this blob
+            if (!stop.value) {
+                if (event.data instanceof Blob) {
+                    handleBlob(event.data);
+                }
             }
         }
     }
