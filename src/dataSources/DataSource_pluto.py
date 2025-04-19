@@ -20,6 +20,32 @@ NOTE:
     @xo_correction.setter
     def xo_correction(self, value):
         self._set_iio_dev_attr_str("xo_correction", value)
+
+    # For offset tracking
+    @property
+    def bb_dc_offset_tracking(self):
+        return self._get_iio_attr_str("voltage0", "bb_dc_offset_tracking_en", False)
+
+    @bb_dc_offset_tracking.setter
+    def bb_dc_offset_tracking(self, value):
+        self._set_iio_attr_int("voltage0", "bb_dc_offset_tracking_en", False, value)
+
+    @property
+    def rf_dc_offset_tracking(self):
+        return self._get_iio_attr_str("voltage0", "rf_dc_offset_tracking_en", False)
+
+    @rf_dc_offset_tracking.setter
+    def rf_dc_offset_tracking(self, value):
+        self._set_iio_attr_int("voltage0", "rf_dc_offset_tracking_en", False, value)
+
+    @property
+    def quadrature_tracking(self):
+        return self._get_iio_attr_str("voltage0", "quadrature_tracking_en", False)
+
+    @quadrature_tracking.setter
+    def quadrature_tracking(self, value):
+        self._set_iio_attr_int("voltage0", "quadrature_tracking_en", False, value)
+
 """
 
 import logging
@@ -139,7 +165,7 @@ class Input(DataSource.DataSource):
         logger.debug(f"Connected to {module_type} on {self._parameters}")
 
         self._hw_ppm_compensation = False
-        self.get_ppm()  # will set _hw_ppm_compensation
+        self.get_ppm()  # will set _hw_ppm_compensation type, either inbuilt or emulated
         logger.info(f"Pluto XO-correction {self.get_ppm()}")
 
         # pluto is not consistent in its errors so check ranges here
@@ -182,6 +208,14 @@ class Input(DataSource.DataSource):
             self._error += f"str(msgs),\n"
             logger.error(msgs)
             raise ValueError(msgs)
+
+        # make sure offsets are being compensated. These may not be supported, hence not raising an exception
+        try:
+            self._sdr.bb_dc_offset_tracking = 1
+            self._sdr.rf_dc_offset_tracking = 1
+            self._sdr.quadrature_tracking = 1
+        except AttributeError as mm:
+            logger.info(f"Failed to set offsets tracking on pluto, {mm}")
 
         logger.debug(f"{module_type}: {self._centre_frequency_hz / 1e6:.6}MHz @ {self._sample_rate_sps / 1e6:.3f}Msps")
         self._connected = True
