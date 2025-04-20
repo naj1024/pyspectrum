@@ -53,7 +53,7 @@ def time_spectral(configuration: Sdr):
         iterations = 1000
         time_start = time.perf_counter()
         for loop in range(iterations):
-            processor.process(samples)
+            processor.process(samples, 1.0, False)
         time_end = time.perf_counter()
 
         processing_time = (time_end - time_start) / iterations

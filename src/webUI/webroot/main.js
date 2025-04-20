@@ -151,6 +151,14 @@ function syncCurrent() {
     }).catch(function (error) {
     });
 
+    fetch('./spectrum/psd').then(function (response) {
+        return response.json();
+    }).then(function (obj) {
+        sdrState.setConfigFromJason(obj);
+        $('#currentPsd').empty().append(sdrState.getPsd());
+    }).catch(function (error) {
+    });
+
     fetch('./spectrum/fftFrameTime').then(function (response) {
         return response.json();
     }).then(function (obj) {
@@ -321,7 +329,7 @@ function syncNew() {
 
     // get all the main stuff
     let initUris = ['./input/sources', './digitiser/digitiserFormats',
-                './spectrum/fftSizes', './spectrum/fftOverlap',
+                './spectrum/fftSizes', './spectrum/psd', './spectrum/fftOverlap',
                 './spectrum/fftOverlaps', './spectrum/fftFrameTime',
                 './spectrum/fftWindows', './digitiser/digitiserGainTypes', './control/presetFps',
                 './digitiser/digitiserGain', './digitiser/digitiserSampleRate', './tuning/frequency',
@@ -588,6 +596,23 @@ function showNew(jsonConfig) {
             new_html += '</select></form>';
             $('#newFftWindow').empty().append(new_html);
         }
+    }
+
+    /////////////
+    // PSD
+    ///////
+    if(jsonConfig.psd != undefined){
+        let psd = sdrState.getPsd();
+        let psds = ["On", "Off"];
+        new_html = '<form ';
+        new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
+        new_html += 'action="javascript:handlePsdChange(psdInput.value)">';
+        new_html += '<select id="psdInput" name="psdInput" onchange="this.form.submit()">';
+        psds.forEach(function(ps) {
+                new_html += '<option value="'+ps+'"'+((ps==psd)?"selected":"")+'>'+ps+'</option>';
+            });
+        new_html += '</select></form>';
+        $('#newPsd').empty().append(new_html);
     }
 
     /////////////
@@ -905,6 +930,21 @@ function handleFftOverlapChange(newFftOverlap) {
     });
 
     sdrState.setFftOverlap(newFftOverlap);
+    configFocusOut();
+}
+
+function handlePsdChange(newPsd) {
+    fetch("./spectrum/psd", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"psd":(newPsd)})
+    }).then(response => {
+        return response.json();
+    });
+
+    sdrState.setPsd(newPsd);
     configFocusOut();
 }
 

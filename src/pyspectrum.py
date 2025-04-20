@@ -186,7 +186,7 @@ def main() -> None:
                 # Calculate the spectrum
                 #################
                 time_start = time.perf_counter()
-                processor.process(samples, sdr_config.dbm_offset)
+                processor.process(samples, sdr_config.sample_rate, sdr_config.psd, sdr_config.dbm_offset)
                 time_end = time.perf_counter()
                 process_time.average(time_end - time_start)
 
@@ -591,6 +591,7 @@ def fill_shared_status(shared_status: dict, sdr_config: Sdr, snap_config: Snappe
     shared_status['fftSize'] = sdr_config.fft_size
     shared_status['fftOverlaps'] = sdr_config.fft_overlaps
     shared_status['fftOverlap'] = sdr_config.fft_overlap
+    shared_status['psd'] = sdr_config.psd
     sdr_config.fft_frame_time = 1e6 * (sdr_config.fft_size / sdr_config.sample_rate)
     shared_status['fftFrameTime'] = sdr_config.fft_frame_time
     # spectrogram does not work with 32768 points
@@ -798,6 +799,12 @@ def sync_state(sdr_config: Sdr,
                 sdr_config.fft_overlap = shared_update['fftOverlap']
                 config_changed = True
             shared_update.pop('fftOverlap')
+
+        if 'psd' in shared_update:
+            if shared_update['psd'] != sdr_config.psd:
+                sdr_config.psd = shared_update['psd']
+                config_changed = True
+            shared_update.pop('psd')
 
         if 'digitiserGain' in shared_update:
             if shared_update['digitiserGain'] != sdr_config.gain:

@@ -12,6 +12,6 @@ def test_magnitude():
     complex_samples.imag = raw_samples[1::2]
     # Hanning window and length is in complex samples
     spectrum = Spectrum.Spectrum(complex_samples.size, Spectrum.get_windows()[0])
-    powers = spectrum.mag_spectrum(complex_samples)
+    powers = spectrum.mag_spectrum(complex_samples, 1.0, False)
     expected = [0.38014976, 0.98838938, 0.68426957, 0.07602995]
     assert allclose(powers, expected)

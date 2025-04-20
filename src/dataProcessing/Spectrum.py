@@ -214,11 +214,13 @@ class Spectrum:
             logger.debug(" - Using fftw for fft")
 
     # @profile
-    def mag_spectrum(self, complex_samples: np.array, reorder: bool = True) -> np.ndarray:
+    def mag_spectrum(self, complex_samples: np.array, sps: float, psd: bool, reorder: bool = True) -> np.ndarray:
         """Perform an fft of the samples with windowing applied and return the magnitudes
         Note that the returned magnitudes have been reordered
 
         :param complex_samples: The complex samples to use
+        :param sps: The sample rate in Hz
+        :param psd: True is output is to be psd, db/Hz
         :param reorder: Re-order the result so that array is -ve to +ve with zero in the middle
         :return: The magnitude of the fft, NOT normalised to fft size
             """
@@ -250,5 +252,9 @@ class Spectrum:
         # magnitudes = abs(signals_fft)  # note this updates signals_fft as well
 
         magnitudes_squared = (signals_fft * signals_fft.conj()).real
+
+        # PSD energy per Hz
+        if psd:
+            magnitudes_squared /= (sps * self._fft_size)
 
         return magnitudes_squared

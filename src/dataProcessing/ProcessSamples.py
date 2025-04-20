@@ -45,15 +45,17 @@ class ProcessSamples:
         np.seterr(divide='ignore')
 
     # @profile
-    def process(self, samples: np.ndarray, dbm_offset: float) -> None:
+    def process(self, samples: np.ndarray, sps: float, psd: bool, dbm_offset: float) -> None:
         """Process digitised samples to detect signals in the frequency domain
 
         :param samples: An numpy array of complex samples - which is ALWAYS the FFT size
+        :param sps: Sample rate in Hz
+        :param psd: PSD in dB/Hz to be returned
         :param dbm_offset:
         :return: None
         """
         time_spec = time.perf_counter()
-        magnitudes_squared = self._spec.mag_spectrum(samples, False)
+        magnitudes_squared = self._spec.mag_spectrum(samples, sps, psd, False)
         time_spec = (time.perf_counter() - time_spec)*1e6
 
         time_powers = time.perf_counter()

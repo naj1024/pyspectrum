@@ -61,11 +61,15 @@ try:
         mm = f"rtlsdr.dll search path was: {environ['PATH']}"
         logger.error(mm)
     if found:
-        from rtlsdr import RtlSdr
+        logger.info(f"Found rtlsdr library on path at {found}")
+        try:
+            from rtlsdr import RtlSdr
+        except Exception as tt:
+            print(f"problem when importing rtlsdr library, {tt}")
     else:
         mm = f"rtlsdr library search path was: {environ['PATH']}"
         logger.error(mm)
-        mm = f"Can't find library {lib}"
+        mm = f"Can't find a rtlsdr library"
         raise ValueError(mm)
 
 except (ImportError, ValueError) as msg:
@@ -290,7 +294,6 @@ class Input(DataSource.DataSource):
                     self._centre_frequency_hz = frequency_to_use
                     self._sdr.center_freq = self.get_ppm_corrected(frequency_to_use)
                     # print(f"freq {frequency_to_use} ppm {self._ppm} -> {frequency_to_use + (self._ppm * frequency_to_use / 1e6)}")
-                logger.info(f"Set frequency {frequency_to_use / 1e6:0.6f}MHz")
             except Exception as err:
                 self._error = str(err)
 
@@ -360,6 +363,7 @@ class Input(DataSource.DataSource):
                 rx_time = self.get_time_ns(number_samples)
                 complex_data = np.array(complex_data, dtype=np.complex64)  # (?) we need all values to be 32bit floats
             except Exception as err:
+                print(f"read_cplx_samples() exception, {err}, {len(complex_data)}")
                 self._connected = False
                 self._error = str(err)
                 logger.error(self._error)

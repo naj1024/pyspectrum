@@ -407,7 +407,7 @@ Spectrum.prototype.refDown = function() {
 }
 
 Spectrum.prototype.rangeIncrease = function() {
-    if( (this.max_db - this.min_db) <= 100)
+    if( (this.max_db - this.min_db) <= 170)
         // keep max same, i.e. reference level
         this.setRange(this.min_db - 5, this.max_db);
 }

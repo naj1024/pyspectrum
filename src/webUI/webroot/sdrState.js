@@ -31,6 +31,9 @@ sdrState.prototype.setFftSize = function(fftSize) {
 sdrState.prototype.setFftOverlap = function(fftOverlap) {
     this.fftOverlap = fftOverlap;
 }
+sdrState.prototype.setPsd = function(psd) {
+    this.psd = psd;
+}
 sdrState.prototype.setFftFrameTime = function(fftFrameTime) {
     this.fftFrameTime = parseInt(fftFrameTime);
 }
@@ -118,6 +121,9 @@ sdrState.prototype.getFftOverlaps = function() {
 }
 sdrState.prototype.getFftOverlap = function() {
     return this.fftOverlap;
+}
+sdrState.prototype.getPsd = function() {
+    return this.psd;
 }
 sdrState.prototype.getFftFrameTime = function() {
     return this.fftFrameTime;
@@ -281,6 +287,15 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         this.fftOverlap = jsonConfig.fftOverlap;
     }
 
+    if (jsonConfig.psd != undefined) {
+        if (jsonConfig.psd == false) {
+            this.psd = "Off";
+        }
+        else{
+            this.psd = "On";
+        }
+    }
+
     if (jsonConfig.fftWindow != undefined) {
         this.window = jsonConfig.fftWindow;
     }
@@ -415,6 +430,7 @@ function sdrState() {
     this.streamCurrent = 0.0;
     
     this.fftSize = 0;
+    this.psd = "";
     this.fftOverlap = 0;
     this.fftOverlaps = [];
     this.fftSizes = [];
