@@ -478,6 +478,14 @@ Spectrum.prototype.getSps = function() {
     return this.sps;
 }
 
+Spectrum.prototype.setPsd = function(psd) {
+    this.psd = psd;
+}
+
+Spectrum.prototype.getPsd = function() {
+    return this.psd;
+}
+
 Spectrum.prototype.getFftSize = function() {
     return this.fftSize;
 }
@@ -1111,7 +1119,7 @@ Spectrum.prototype.drawLiveMarker = function() {
     let marker_value = this.getValuesAtCanvasPosition(canvasX, canvasY);
     if (marker_value != null) {
         let marker_text = " " + this.convertFrequencyForDisplay(marker_value.freqHz, 6);
-        marker_text += " " + marker_value.power.toFixed(1) + "dB ";
+        marker_text += " " + marker_value.power.toFixed(1) + ((this.getPsd()=="On")?"dB/Hz ":"dB ");
         if(this.inSpectrum(canvasY)) {
             marker_text += " " + marker_value.absTime.toFixed(3) + "s ";
         } else {
@@ -1574,6 +1582,7 @@ function Spectrum(id, options) {
 
     // useful values
     this.sps = 0;
+    this.psd = "Off"
     this.fftSize = 0;
     this.updatedAveraging = false;
 

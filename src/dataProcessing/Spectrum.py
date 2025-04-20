@@ -256,5 +256,7 @@ class Spectrum:
         # PSD energy per Hz
         if psd:
             magnitudes_squared /= (sps * self._fft_size)
+        else:
+            magnitudes_squared /= self._fft_size
 
         return magnitudes_squared

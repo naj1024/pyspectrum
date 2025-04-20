@@ -945,6 +945,7 @@ function handlePsdChange(newPsd) {
     });
 
     sdrState.setPsd(newPsd);
+    spectrum.setPsd(newPsd);
     configFocusOut();
 }
 

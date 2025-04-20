@@ -320,7 +320,6 @@ class Spectrum(Resource):
 
     def put(self, thing):
         if thing in self._allowed_put_endpoints:
-            print(thing, request.json[thing])
             try:
                 if thing == 'fftSize':
                     size = int(request.json[thing])
