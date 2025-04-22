@@ -353,10 +353,13 @@ class Input(DataSource.DataSource):
 
         if self._connected and self._sdr:
             # do we need to read in the next big block
-            if self._index >= self._read_block_size:
+            # if self._index >= self._read_block_size:
+            if self._index + number_samples > self._read_block_size:
                 try:
                     # we don't append to the end
-                    self._complex_data = self._sdr.rx()  # the samples here are complex128 i.e. full double                
+                    # self._complex_data = self._sdr.rx()  # the samples here are complex128 i.e. full double
+                    raw_data = self._sdr.rx()  # Returns complex128
+                    self._complex_data = np.array(raw_data, dtype=np.complex64) / 4096.0
                     try:
                         self._block_time = time.time_ns()
                     except AttributeError:
@@ -369,8 +372,12 @@ class Input(DataSource.DataSource):
                     raise ValueError(err)
 
             last_sample = self._index + number_samples
-            complex_data = np.array(self._complex_data[self._index:last_sample], dtype=np.complex64)
-            complex_data /= 4096.0  # 12bit
+            if last_sample > len(self._complex_data):
+                raise ValueError("Requested more samples than are available in current buffer")
+
+            # complex_data = np.array(self._complex_data[self._index:last_sample], dtype=np.complex64)
+            # complex_data /= 4096.0  # 12bit
+            complex_data = self._complex_data[self._index:last_sample]
 
             # work out the time of these samples from the beginning of the block
             rx_time = self._block_time + ((1e9 * self._index) / self._sample_rate_sps)

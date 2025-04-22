@@ -123,6 +123,7 @@ def main() -> None:
     global processing
     samples = None
     samples_new = None
+    fetcher = DynamicSampleFetcher(data_source, sdr_config)
 
     # keep processing until told to stop or an error occurs
     while processing:
@@ -137,6 +138,8 @@ def main() -> None:
                 sync_state(sdr_config, snap_config,
                            data_source, source_factory, data_sink,
                            thumbs_dir, processor, shared_status, shared_update)
+            if config_changed:
+                fetcher = DynamicSampleFetcher(data_source, sdr_config)
 
         ###########################################
         # Get complex samples we will work on
@@ -145,25 +148,12 @@ def main() -> None:
             time.sleep(sdr_config.fft_size / sdr_config.sample_rate)
         else:
             try:
-                if sdr_config.fft_overlap == 50:
-                    num_samples = int(sdr_config.fft_size / 2)
-                    if samples is None:
-                        samples, time_rx_nsec = get_samples(data_source, num_samples, times_and_averages)
-                    if samples is None:
-                        print("still none")
-                    else:
-                        time_rx_nsec = time_rx_nsec_new
-                        samples_new, time_rx_nsec_new = get_samples(data_source, num_samples, times_and_averages)
-                        if samples_new is None:
-                            print("bad new read")
-                            samples = None
-                        else:
-                            samples = np.concatenate((samples[-num_samples:], samples_new))
-                            if samples.size != sdr_config.fft_size:
-                                print(f"bad sample size {samples.size} is not {sdr_config.fft_size}")
-                else:
-                    samples, time_rx_nsec = get_samples(data_source, sdr_config.fft_size, times_and_averages)
+                # samples, time_rx_nsec = fetcher.get_next_block()
+                samples, time_rx_nsec = get_samples(data_source, sdr_config.fft_size, times_and_averages)
+                if samples is None:
+                    print("Failed to fetch samples.")
 
+                print(time_rx_nsec)
                 sdr_config.input_overflows = data_source.get_overflows()
 
             except ValueError as mm:
@@ -173,6 +163,7 @@ def main() -> None:
                     err_msg = f"Problem with source: {sdr_config.input_source}, {mm}"
                     sdr_config.input_source = "null"
                     data_source = sdrStuff.update_source(sdr_config, source_factory)
+                    fetcher = DynamicSampleFetcher(data_source, sdr_config)
                     Sdr.add_to_error(sdr_config, err_msg)
                     logger.error(sdr_config.error)
 
@@ -183,14 +174,14 @@ def main() -> None:
             ##########################
             # save the samples for snapshots
             ##########################
-            if sdr_config.fft_overlap == 50:
-                if samples_new is not None:
-                    _ = save_samples(data_sink, samples_new, snap_config, time_rx_nsec_new, times_and_averages)
-            else:
-                _ = save_samples(data_sink, samples, snap_config, time_rx_nsec, times_and_averages)
-            # update our snap state
-            snap_config.currentSizeMbytes = data_sink.get_current_size_mbytes()
-            snap_config.expectedSizeMbytes = data_sink.get_size_mbytes()
+            # if sdr_config.fft_overlap == 50:
+            #     if samples_new is not None:
+            #         _ = save_samples(data_sink, samples_new, snap_config, time_rx_nsec_new, times_and_averages)
+            # else:
+            #     _ = save_samples(data_sink, samples, snap_config, time_rx_nsec, times_and_averages)
+            # # update our snap state
+            # snap_config.currentSizeMbytes = data_sink.get_current_size_mbytes()
+            # snap_config.expectedSizeMbytes = data_sink.get_size_mbytes()
 
             ##########################
             # dc input offset calculation
@@ -349,6 +340,83 @@ def get_samples(data_source, number_samples, times_and_averages):
     _ = times_and_averages.capture_time.average(time_end - time_start)
 
     return samples, time_rx_nsec
+
+
+class OverlapSampleFetcher:
+    def __init__(self, data_source, fft_size, overlap_ratio=0.5):
+        if not (0 < overlap_ratio < 1):
+            raise ValueError("overlap_ratio must be between 0 and 1 (non-inclusive)")
+        self.data_source = data_source
+        self.fft_size = fft_size
+        self.hop_size = int(fft_size * (1 - overlap_ratio))
+        self.buffer = np.array([], dtype=np.complex64)
+        self.last_rx_time = None
+        self.overlap = overlap_ratio
+
+    def get_next_block(self):
+        while len(self.buffer) < self.fft_size:
+            new_samples, rx_time = self.data_source.read_cplx_samples(self.hop_size)
+            if new_samples is None or new_samples.size == 0:
+                return None, None
+            if self.buffer.size == 0:
+                self.last_rx_time = rx_time
+            self.buffer = np.concatenate((self.buffer, new_samples))
+
+        fft_block = self.buffer[:self.fft_size]
+        self.buffer = self.buffer[self.hop_size:]  # Leave overlap
+        return fft_block, self.last_rx_time
+
+
+class BlockSampleFetcher:
+    def __init__(self, data_source, fft_size):
+        self.data_source = data_source
+        self.fft_size = fft_size
+
+    def get_next_block(self):
+        print(f"block getting {self.fft_size} samples")
+        samples, rx_time = self.data_source.read_cplx_samples(self.fft_size)
+        print(f"block got {self.fft_size}")
+        if samples is None or samples.size != self.fft_size:
+            return None, None
+        return samples, rx_time
+
+
+def create_sample_fetcher(data_source, sdr_config):
+    fft_size = sdr_config.fft_size
+    overlap_percent = getattr(sdr_config, "fft_overlap", 0)
+    print(f"create_sample_fetcher {overlap_percent}")
+
+    if overlap_percent == 0:
+        print(f"create_sample_fetcher block {fft_size}")
+        return BlockSampleFetcher(data_source, fft_size)
+    elif 0 < overlap_percent < 100:
+        overlap_ratio = overlap_percent / 100.0
+        print(f"create_sample_fetcher {fft_size} overlap {overlap_ratio}")
+        return OverlapSampleFetcher(data_source, fft_size, overlap_ratio)
+    else:
+        raise ValueError(f"Unsupported FFT overlap: {overlap_percent}")
+
+
+class DynamicSampleFetcher:
+    def __init__(self, data_source, sdr_config):
+        self.data_source = data_source
+        self.sdr_config = sdr_config
+        self.fetcher = None
+        self.last_fft_size = None
+        self.last_overlap = None
+
+    def _check_config(self):
+        fft_size = self.sdr_config.fft_size
+        overlap = self.sdr_config.fft_overlap
+
+        if fft_size != self.last_fft_size or overlap != self.last_overlap:
+            self.fetcher = create_sample_fetcher(self.data_source, self.sdr_config)
+            self.last_fft_size = fft_size
+            self.last_overlap = overlap
+
+    def get_next_block(self):
+        self._check_config()
+        return self.fetcher.get_next_block()
 
 
 def save_samples(data_sink, samples_new, snap_config, time_rx_nsec_new, times_and_averages):
@@ -613,7 +681,7 @@ def fill_shared_status(shared_status: dict, sdr_config: Sdr, snap_config: Snappe
     shared_status['fftFrameTime'] = sdr_config.fft_frame_time
     # spectrogram does not work with 32768 points
     # 256 points never keeps up due to overheads
-    shared_status['fftSizes'] = [512, 1024, 2048, 4096, 8192, 16384]
+    shared_status['fftSizes'] = [256, 512, 1024, 2048, 4096, 8192, 16384]
     shared_status['fftWindows'] = sdr_config.window_types
     shared_status['fftWindow'] = sdr_config.window
 
