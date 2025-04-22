@@ -37,6 +37,7 @@ from dataSink import DataSink_file
 from dataSources import DataSource
 from dataSources import DataSourceFactory
 from misc import Ewma
+from misc import TimesAndAverages
 from misc import PicGenerator
 from misc import PluginManager
 from misc import Sdr
@@ -58,6 +59,8 @@ MAX_TO_UI_QUEUE_DEPTH = 10  # low for low latency
 
 # default logging level
 DEFAULT_LOG_LEVEL = logging.INFO
+
+bad_count = 0
 
 
 def signal_handler(sig, __):
@@ -84,7 +87,7 @@ def main() -> None:
 
     # configuration shared across all processes
     manager = multiprocessing.Manager()
-    shared_status = manager.dict()
+    shared_status = manager.dict()  # contains updates to the UI
     shared_update = manager.dict()  # contains updates from the UI, reset each entry when we have actioned the entry
 
     # initialise our things
@@ -109,30 +112,19 @@ def main() -> None:
 
     # Default things before the main loop
     peak_powers_since_last_display = np.full(sdr_config.fft_size, -200)
-    # timing things, averages
-    capture_time = Ewma.Ewma(0.001)  # soapy is very blocky so different averaging, doens't seem to impact anything else
-    loop_time = Ewma.Ewma(0.01)
-    process_time = Ewma.Ewma(0.01)
-    analysis_time = Ewma.Ewma(0.01)
-    reporting_time = Ewma.Ewma(0.01)
-    snap_time = Ewma.Ewma(0.01)
-    ui_time = Ewma.Ewma(0.01)
-    debug_time = 0
-    config_time = 0  # when we will send our config to the UI
-    fps_update_time = 0
 
-    time_start = time.perf_counter()
-    time_end = time.perf_counter()
+    # timing things, averages
+    times_and_averages = TimesAndAverages.TimesAndAverages()
+
     time_rx_nsec = 0
     time_rx_nsec_new = 0
-
-    # keep processing until told to stop or an error occurs
-    peak_average = Ewma.Ewma(0.1)
     current_peak_count = 0
     max_peak_count = 0
-    config_changed = False
     global processing
     samples = None
+    samples_new = None
+
+    # keep processing until told to stop or an error occurs
     while processing:
         loop_start = time.perf_counter()
         if not multiprocessing.active_children():
@@ -147,184 +139,133 @@ def main() -> None:
                            thumbs_dir, processor, shared_status, shared_update)
 
         ###########################################
-        # Get and process the complex samples we will work on
+        # Get complex samples we will work on
         ######################
-        try:
-            samples_new = None
-
-            if sdr_config.stop or not data_source.connected():
-                time.sleep(sdr_config.fft_size / sdr_config.sample_rate)
-            else:
-                # Get some samples
-                time_start = time.perf_counter()
-                if samples is None:
-                    # prefill overlap, always 0 or 50%
-                    samples, time_rx_nsec = data_source.read_cplx_samples(int(sdr_config.fft_size / 2))
-
-                # 2nd half, allows us to do the 50% overlap by resetting samples to be this 2nd lot
-                samples_new, time_rx_nsec_new = data_source.read_cplx_samples(int(sdr_config.fft_size / 2))
-                time_end = time.perf_counter()
+        if sdr_config.stop or not data_source.connected():
+            time.sleep(sdr_config.fft_size / sdr_config.sample_rate)
+        else:
+            try:
+                if sdr_config.fft_overlap == 50:
+                    num_samples = int(sdr_config.fft_size / 2)
+                    if samples is None:
+                        samples, time_rx_nsec = get_samples(data_source, num_samples, times_and_averages)
+                    if samples is None:
+                        print("still none")
+                    else:
+                        time_rx_nsec = time_rx_nsec_new
+                        samples_new, time_rx_nsec_new = get_samples(data_source, num_samples, times_and_averages)
+                        if samples_new is None:
+                            print("bad new read")
+                            samples = None
+                        else:
+                            samples = np.concatenate((samples[-num_samples:], samples_new))
+                            if samples.size != sdr_config.fft_size:
+                                print(f"bad sample size {samples.size} is not {sdr_config.fft_size}")
+                else:
+                    samples, time_rx_nsec = get_samples(data_source, sdr_config.fft_size, times_and_averages)
 
                 sdr_config.input_overflows = data_source.get_overflows()
-                _ = capture_time.average(time_end - time_start)
 
+            except ValueError as mm:
+                # incorrect number of samples, probably because something closed
+                if processing:
+                    data_source.close()
+                    err_msg = f"Problem with source: {sdr_config.input_source}, {mm}"
+                    sdr_config.input_source = "null"
+                    data_source = sdrStuff.update_source(sdr_config, source_factory)
+                    Sdr.add_to_error(sdr_config, err_msg)
+                    logger.error(sdr_config.error)
+
+        ###########################################
+        # Get and process the complex samples we will work on
+        ######################
+        if samples is not None:
+            ##########################
+            # save the samples for snapshots
+            ##########################
+            if sdr_config.fft_overlap == 50:
+                if samples_new is not None:
+                    _ = save_samples(data_sink, samples_new, snap_config, time_rx_nsec_new, times_and_averages)
+            else:
+                _ = save_samples(data_sink, samples, snap_config, time_rx_nsec, times_and_averages)
+            # update our snap state
+            snap_config.currentSizeMbytes = data_sink.get_current_size_mbytes()
+            snap_config.expectedSizeMbytes = data_sink.get_size_mbytes()
+
+            ##########################
             # dc input offset calculation
-            if samples_new is not None:
-                if sdr_config.dc_removal != "Off":
-                    # remove the average value to reduce the dc component
-                    # weighted towards newest average quickly with previous error less significant than current
-                    sdr_config.dc_error = sdr_config.dc_error * 0.3 \
-                                          + np.average(samples_new) * 0.7
-                    samples_new -= sdr_config.dc_error
+            ##########################
+            if sdr_config.dc_removal != "Off":
+                # remove the average value to reduce the dc component
+                # weighted towards newest average quickly with previous error less significant than current
+                sdr_config.dc_error = sdr_config.dc_error * 0.3 \
+                                      + np.average(samples) * 0.7
+                samples -= sdr_config.dc_error
 
-                ##########################
-                # Create samples for processing
-                #################
-                samples = np.append(samples, samples_new)
+            ##########################
+            # Calculate the spectrum
+            #################
+            time_start = time.perf_counter()
+            processor.process(samples, sdr_config.sample_rate, sdr_config.psd, sdr_config.dbm_offset)
+            time_end = time.perf_counter()
+            times_and_averages.process_time.average(time_end - time_start)
 
-                ##########################
-                # Calculate the spectrum
-                #################
-                time_start = time.perf_counter()
-                processor.process(samples, sdr_config.sample_rate, sdr_config.psd, sdr_config.dbm_offset)
-                time_end = time.perf_counter()
-                process_time.average(time_end - time_start)
+            ##########################
+            # plugins
+            #################
+            call_plugins(plugin_manager, processor, times_and_averages.analysis_time,
+                         times_and_averages.reporting_time,
+                         sdr_config.sample_rate, sdr_config.fft_size, time_rx_nsec)
 
-                ##########################
-                # plugins
-                #################
-                call_plugins(plugin_manager, processor, analysis_time, reporting_time,
-                             sdr_config.sample_rate, sdr_config.fft_size, time_rx_nsec)
+            ##########################
+            # the snap may of changed
+            #################
+            snap_config_changed, data_sink = check_on_snap_config(data_sink, sdr_config, snap_config)
 
-                ##########################
-                # Handle snapshots
-                # -- this may alter sample values
-                # due to pre-trigger we need to always give the samples
-                #################
-                time_start = time.perf_counter()
-                if sdr_config.fft_overlap == 50:
-                    x = data_sink.write(snap_config.triggered, samples_new, time_rx_nsec_new)
-                else:
-                    x = data_sink.write(snap_config.triggered, samples, time_rx_nsec)
-                if x:
-                    snap_config.triggered = False
-                    snap_config.triggerState = "wait"
-                    snap_config.directory_list = snapStuff.list_snap_files(global_vars.SNAPSHOT_DIRECTORY)
-                    config_changed = True
-                time_end = time.perf_counter()
-                snap_time.average(time_end - time_start)
-                # update our snap state
-                snap_config.currentSizeMbytes = data_sink.get_current_size_mbytes()
-                snap_config.expectedSizeMbytes = data_sink.get_size_mbytes()
+            # Has source or snap changed
+            if config_changed or snap_config_changed:
+                fill_shared_status(shared_status, sdr_config, snap_config)
+                config_changed = False
 
-                # has underlying sps or cf changed for the snap
-                if snap_config.cf != sdr_config.sdr_centre_frequency_hz or \
-                        snap_config.sps != sdr_config.sample_rate:
-                    snap_config.cf = sdr_config.sdr_centre_frequency_hz
-                    snap_config.sps = sdr_config.sample_rate
-                    snap_config.triggered = False
-                    snap_config.triggerState = "wait"
-                    data_sink = DataSink_file.FileOutput(snap_config, global_vars.SNAPSHOT_DIRECTORY)
-                    snap_config.currentSizeMbytes = 0
-                    snap_config.expectedSizeMbytes = data_sink.get_size_mbytes()
-                    config_changed = True
+            ################################
+            # Update the UI spectral data
+            ###################
+            time_start = time.perf_counter()
+            peak_powers_since_last_display, current_peak_count, max_peak_count = \
+                send_to_ui(sdr_config,
+                           to_ui_queue,
+                           processor.get_powers(False),
+                           peak_powers_since_last_display,
+                           current_peak_count,
+                           max_peak_count,
+                           time_rx_nsec)
+            time_end = time.perf_counter()
+            times_and_averages.ui_time.average(time_end - time_start)
 
-                if config_changed:
-                    fill_shared_status(shared_status, sdr_config, snap_config)
-                    config_changed = False
-
-                ################################
-                # Update the UI spectral data
-                ###################
-                time_start = time.perf_counter()
-                peak_powers_since_last_display, current_peak_count, max_peak_count = \
-                    send_to_ui(sdr_config,
-                               to_ui_queue,
-                               processor.get_powers(False),
-                               peak_powers_since_last_display,
-                               current_peak_count,
-                               max_peak_count,
-                               time_rx_nsec)
-                time_end = time.perf_counter()
-                ui_time.average(time_end - time_start)
-
-                # average of number of count of spectrums between UI updates
-                peak_average.average(max_peak_count)
-
-        except ValueError:
-            # incorrect number of samples, probably because something closed
-            if processing:
-                data_source.close()
-                err_msg = f"Problem with source: {sdr_config.input_source}"
-                sdr_config.input_source = "null"
-                data_source = sdrStuff.update_source(sdr_config, source_factory)
-                Sdr.add_to_error(sdr_config, err_msg)
-                logger.error(sdr_config.error)
+            # average of number of count of spectrums between UI updates
+            times_and_averages.peak_average.average(max_peak_count)
 
         now = time.time()
 
-        # update fps occasionally
-        if now > fps_update_time:
-            if (now - sdr_config.time_measure_fps) > 0:
-                sdr_config.measured_fps = round(sdr_config.sent_count / (now - sdr_config.time_measure_fps), 1)
-            fps_update_time = now + 1
-            sdr_config.time_measure_fps = now
-            sdr_config.sent_count = 0
+        if update_fps(now, sdr_config, times_and_averages):
             fill_status_fast(shared_status, sdr_config, snap_config)
 
-        # Occasional debug prints
-        if now > debug_time:
-            debug_print(sdr_config.sample_rate,
-                        sdr_config.fft_size,
-                        loop_time,
-                        capture_time,
-                        process_time,
-                        analysis_time,
-                        reporting_time,
-                        snap_time,
-                        ui_time,
-                        peak_average.get_ewma(),
-                        sdr_config.fps,
-                        sdr_config.measured_fps)
-            debug_time = now + 60
+        if now > times_and_averages.debug_time:
+            debug_print(sdr_config, times_and_averages)
+            times_and_averages.debug_time = now + 60
 
-        # Occasionally check on the source, maybe the gain changed etc
-        if now > config_time:
-            sdrStuff.update_source_state(sdr_config, data_source)
-            config_time = now + 1
-            data_time = (sdr_config.fft_size / sdr_config.sample_rate)
-            sdr_config.loop_cpu_pc = 100.0 * (loop_time.get_ewma() / data_time)
-
-            # update the input level
-            if samples is not None:
-                sdr_config.input_level = 100.0 * np.max(np.absolute(samples))
-                shared_status['digitiserInputLevel'] = sdr_config.input_level
-
-            # for file inputs, show where we are
-            sdr_config.seconds_current = data_source.get_seconds_current()
-            shared_status['streamCurrent'] = sdr_config.seconds_current
-            sdr_config.seconds_length = data_source.get_seconds_length()
-            shared_status['streamLength'] = sdr_config.seconds_length
+        update_source_stats(data_source, now, samples, sdr_config, shared_status, times_and_averages)
 
         if sdr_config.stop or not data_source.connected():
-            loop_time.clear()
+            times_and_averages.loop_time.clear()
         else:
             loop_end = time.perf_counter()
             loop_multiplier = int(100 / (100 - sdr_config.fft_overlap))
-            _ = loop_time.average(loop_multiplier * (loop_end - loop_start))
-
-        ##########################
-        # move samples_new and time
-        #################
-        if sdr_config.fft_overlap == 50:
-            samples = samples_new
-            time_rx_nsec = time_rx_nsec_new
-        else:
-            samples = None
+            _ = times_and_averages.loop_time.average(loop_multiplier * (loop_end - loop_start))
 
     ####################
     #
-    # clean up
+    # Exit: clean up
     #
     #############
     if data_source:
@@ -350,6 +291,82 @@ def main() -> None:
         logger.debug("SpectrumAnalyser to_ui_queue empty")
 
     logger.error("SpectrumAnalyser exit")
+
+
+def check_on_snap_config(data_sink, sdr_config, snap_config):
+    # has underlying sps or cf changed for the snap
+    changed = False
+    if snap_config.cf != sdr_config.sdr_centre_frequency_hz or \
+            snap_config.sps != sdr_config.sample_rate:
+        snap_config.cf = sdr_config.sdr_centre_frequency_hz
+        snap_config.sps = sdr_config.sample_rate
+        snap_config.triggered = False
+        snap_config.triggerState = "wait"
+        data_sink = DataSink_file.FileOutput(snap_config, global_vars.SNAPSHOT_DIRECTORY)
+        snap_config.currentSizeMbytes = 0
+        snap_config.expectedSizeMbytes = data_sink.get_size_mbytes()
+        changed = True
+    return changed, data_sink
+
+
+def update_source_stats(data_source, now, samples, sdr_config, shared_status, times_and_averages):
+    # Occasionally check on the source, maybe the gain changed etc
+    if now > times_and_averages.config_time:
+        sdrStuff.update_source_state(sdr_config, data_source)
+        times_and_averages.config_time = now + 1
+        data_time = (sdr_config.fft_size / sdr_config.sample_rate)
+        sdr_config.loop_cpu_pc = 100.0 * (times_and_averages.loop_time.get_ewma() / data_time)
+
+        # update the input level
+        if samples is not None:
+            sdr_config.input_level = 100.0 * np.max(np.absolute(samples))
+            shared_status['digitiserInputLevel'] = sdr_config.input_level
+
+        # for file inputs, show where we are
+        sdr_config.seconds_current = data_source.get_seconds_current()
+        shared_status['streamCurrent'] = sdr_config.seconds_current
+        sdr_config.seconds_length = data_source.get_seconds_length()
+        shared_status['streamLength'] = sdr_config.seconds_length
+
+
+def update_fps(now, sdr_config, times_and_averages) -> bool:
+    # update fps occasionally
+    if now > times_and_averages.fps_update_time:
+        if (now - sdr_config.time_measure_fps) > 0:
+            sdr_config.measured_fps = round(sdr_config.sent_count / (now - sdr_config.time_measure_fps), 1)
+        times_and_averages.fps_update_time = now + 1
+        sdr_config.time_measure_fps = now
+        sdr_config.sent_count = 0
+        return True
+    return False
+
+
+def get_samples(data_source, number_samples, times_and_averages):
+    # Get some samples
+    time_start = time.perf_counter()
+    samples, time_rx_nsec = data_source.read_cplx_samples(number_samples)
+    time_end = time.perf_counter()
+    _ = times_and_averages.capture_time.average(time_end - time_start)
+
+    return samples, time_rx_nsec
+
+
+def save_samples(data_sink, samples_new, snap_config, time_rx_nsec_new, times_and_averages):
+    ##########################
+    # Handle snapshots, due to pre-trigger we need to always give the samples
+    #################
+    time_start = time.perf_counter()
+    finished = data_sink.write(snap_config.triggered, samples_new, time_rx_nsec_new)
+
+    if finished:
+        snap_config.triggered = False
+        snap_config.triggerState = "wait"
+        snap_config.directory_list = snapStuff.list_snap_files(global_vars.SNAPSHOT_DIRECTORY)
+
+    time_end = time.perf_counter()
+    times_and_averages.snap_time.average(time_end - time_start)
+
+    return finished
 
 
 def call_plugins(plugin_manager, processor, analysis_time, reporting_time, sample_rate, fft_size, time_rx_nsec):
@@ -999,60 +1016,36 @@ def send_to_ui(sdr_config: Sdr,
     return peak_powers_since_last_display, current_peak_count, max_peak_count
 
 
-def debug_print(sps: float,
-                fft_size: int,
-                loop_time: Ewma,
-                sample_get_time: Ewma,
-                process_time: Ewma,
-                analysis_time: Ewma,
-                reporting_time: Ewma,
-                snap_time: Ewma,
-                ui_time: Ewma,
-                peak_count: float,
-                fps: int,
-                mfps: float) -> None:
+def debug_print(sdr_config: Sdr, times_and_averages: TimesAndAverages) -> None:
     """
     Various useful profiling prints
 
-    :param sps: Digitisation rate
-    :param fft_size: The number of samples per cycle
-    :parma loop_time: ?
-    :param sample_get_time: How long it took as to receive the digitised samples
-    :param process_time: How long we have spent processing the samples
-    :param analysis_time: How long we have spent analysing things
-    :param reporting_time: How long we have spent reporting things
-    :param snap_time: How long we have spent saving snaps
-    :param ui_time: How long we have spent telling the ui
-    :param peak_count: Count of how many spectrums we are peak detecting on for the UI
-    :param fps: requested fps
-    :param mfps: measured fps
-
     :return: None
     """
-    data_time = (fft_size / sps)
-    loop_cpu_pc = 100.0 * (loop_time.get_ewma() / data_time)
+    data_time = (sdr_config.fft_size / sdr_config.sample_rate)
+    loop_cpu_pc = 100.0 * (times_and_averages.loop_time.get_ewma() / data_time)
 
-    total = process_time.get_ewma()
-    total += analysis_time.get_ewma()
-    total += reporting_time.get_ewma()
-    total += reporting_time.get_ewma()
-    total += snap_time.get_ewma()
-    total += ui_time.get_ewma()
+    total = times_and_averages.process_time.get_ewma()
+    total += times_and_averages.analysis_time.get_ewma()
+    total += times_and_averages.reporting_time.get_ewma()
+    total += times_and_averages.reporting_time.get_ewma()
+    total += times_and_averages.snap_time.get_ewma()
+    total += times_and_averages.ui_time.get_ewma()
 
-    logger.debug(f'SPS:{sps:.0f}, '
-                 f'FFT:{fft_size} '
+    logger.debug(f'SPS:{sdr_config.sample_rate:.0f}, '
+                 f'FFT:{sdr_config.fft_size} '
                  f'{1e6 * data_time:.0f}usec, '
                  f'loop:{loop_cpu_pc:.0f}%, '
-                 f'read:{1e6 * sample_get_time.get_ewma():.0f}us, '
+                 f'read:{1e6 * times_and_averages.capture_time.get_ewma():.0f}us, '
                  f'total:{1e6 * total:.0f}us '
-                 f'[proc:{1e6 * process_time.get_ewma():.0f}us, '
-                 f'analy:{1e6 * analysis_time.get_ewma():.0f}us, '
-                 f'report:{1e6 * reporting_time.get_ewma():.0f}us, '
-                 f'snap:{1e6 * snap_time.get_ewma():.0f}us, '
-                 f'ui:{1e6 * ui_time.get_ewma():.0f}us], '
-                 f'pk:{peak_count:0.1f}, '
-                 f'fps:{fps}, '
-                 f'mfps:{mfps}, ')
+                 f'[proc:{1e6 * times_and_averages.process_time.get_ewma():.0f}us, '
+                 f'analy:{1e6 * times_and_averages.analysis_time.get_ewma():.0f}us, '
+                 f'report:{1e6 * times_and_averages.reporting_time.get_ewma():.0f}us, '
+                 f'snap:{1e6 * times_and_averages.snap_time.get_ewma():.0f}us, '
+                 f'ui:{1e6 * times_and_averages.ui_time.get_ewma():.0f}us], '
+                 f'pk:{times_and_averages.peak_average.get_ewma():0.1f}, '
+                 f'fps:{sdr_config.fps}, '
+                 f'mfps:{sdr_config.measured_fps}, ')
 
 
 if __name__ == '__main__':

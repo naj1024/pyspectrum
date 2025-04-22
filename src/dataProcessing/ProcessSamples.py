@@ -48,18 +48,18 @@ class ProcessSamples:
     def process(self, samples: np.ndarray, sps: float, psd: bool, dbm_offset: float) -> None:
         """Process digitised samples to detect signals in the frequency domain
 
-        :param samples: An numpy array of complex samples - which is ALWAYS the FFT size
+        :param samples: numpy array of complex samples - which is ALWAYS the FFT size
         :param sps: Sample rate in Hz
         :param psd: PSD in dB/Hz to be returned
         :param dbm_offset:
         :return: None
         """
         time_spec = time.perf_counter()
-        magnitudes_squared = self._spec.mag_spectrum(samples, sps, psd, False)
+        magnitudes_squared = self._spec.mag_spectrum(samples, False)
         time_spec = (time.perf_counter() - time_spec)*1e6
 
         time_powers = time.perf_counter()
-        self._powers = Spectrum.get_powers(magnitudes_squared, dbm_offset)
+        self._powers = Spectrum.get_powers(magnitudes_squared, sps, psd, dbm_offset)
         time_powers = (time.perf_counter() - time_powers)*1e6
 
         # check that the size of the arrays have not changed, i.e. FFT size changed
