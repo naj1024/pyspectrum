@@ -147,7 +147,7 @@ function syncCurrent() {
         return response.json();
     }).then(function (obj) {
         sdrState.setConfigFromJason(obj);
-        $('#currentFftOverlap').empty().append(sdrState.getFftOverlap());
+        $('#currentFftOverlap').empty().append(sdrState.getFftOverlap() + " %");
     }).catch(function (error) {
     });
 

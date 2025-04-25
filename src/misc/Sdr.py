@@ -29,7 +29,7 @@ class Sdr:
         # input data related
         self.fft_size = 2048  # default, but any integer allowed
         self.psd = False
-        self.fft_overlaps = [0, 50]  # 25 and 50 seem to give problems with reading sources - not quick enough?
+        self.fft_overlaps = [0, 25, 50, 75]  # 25 and 75 seem to give problems with reading sources - not quick enough?
         self.fft_overlap = 0
         self.fft_frame_time = 1e6 * (self.fft_size / self.sample_rate)  # useconds
         self.window = ""
