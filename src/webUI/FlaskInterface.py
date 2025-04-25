@@ -329,7 +329,7 @@ class Spectrum(Resource):
                         raise ValueError()
                 elif thing == 'fftOverlap':
                     ovrlp = int(request.json[thing])
-                    if (ovrlp >= 0) and (ovrlp <= 50):
+                    if (ovrlp >= 0) and (ovrlp <= 100):
                         self._update[thing] = ovrlp
                     else:
                         raise ValueError()

@@ -273,8 +273,8 @@ class Input(DataSource.DataSource):
             if freq_ok:
                 freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 308e6, 438e6)
         elif self._tuner_type == 5 or self._tuner_type == 6:
-            # R820T or R828D
-            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 24e6, 1766e6)
+            # R820T or R828D, may tune down lower than 24MHz, rtl-sdr-v4
+            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 0, 1766e6)
         else:
             self._error = f"Unknown tuner type {self._tuner_type}, frequency range checking impossible"
             logger.error(self._error)

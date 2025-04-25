@@ -117,12 +117,9 @@ def main() -> None:
     times_and_averages = TimesAndAverages.TimesAndAverages()
 
     time_rx_nsec = 0
-    time_rx_nsec_new = 0
-    current_peak_count = 0
-    max_peak_count = 0
+    hop = 0
     global processing
     samples = None
-    samples_new = None
     fetcher = DynamicSampleFetcher(data_source, sdr_config)
 
     # keep processing until told to stop or an error occurs
@@ -148,12 +145,11 @@ def main() -> None:
             time.sleep(sdr_config.fft_size / sdr_config.sample_rate)
         else:
             try:
-                # samples, time_rx_nsec = fetcher.get_next_block()
-                samples, time_rx_nsec = get_samples(data_source, sdr_config.fft_size, times_and_averages)
+                samples, time_rx_nsec, hop = fetcher.get_next_block()
+                # samples, time_rx_nsec = get_samples(data_source, sdr_config.fft_size, times_and_averages)
                 if samples is None:
-                    print("Failed to fetch samples.")
+                    print(f"Failed to fetch samples, {time.time()}")
 
-                print(time_rx_nsec)
                 sdr_config.input_overflows = data_source.get_overflows()
 
             except ValueError as mm:
@@ -174,14 +170,10 @@ def main() -> None:
             ##########################
             # save the samples for snapshots
             ##########################
-            # if sdr_config.fft_overlap == 50:
-            #     if samples_new is not None:
-            #         _ = save_samples(data_sink, samples_new, snap_config, time_rx_nsec_new, times_and_averages)
-            # else:
-            #     _ = save_samples(data_sink, samples, snap_config, time_rx_nsec, times_and_averages)
-            # # update our snap state
-            # snap_config.currentSizeMbytes = data_sink.get_current_size_mbytes()
-            # snap_config.expectedSizeMbytes = data_sink.get_size_mbytes()
+            patched_rx_time_nsec = time_rx_nsec + int((hop * 1e9) / sdr_config.sample_rate)
+            _ = save_samples(data_sink, samples[-hop:], snap_config, patched_rx_time_nsec, times_and_averages)
+            snap_config.currentSizeMbytes = data_sink.get_current_size_mbytes()
+            snap_config.expectedSizeMbytes = data_sink.get_size_mbytes()
 
             ##########################
             # dc input offset calculation
@@ -222,19 +214,13 @@ def main() -> None:
             # Update the UI spectral data
             ###################
             time_start = time.perf_counter()
-            peak_powers_since_last_display, current_peak_count, max_peak_count = \
-                send_to_ui(sdr_config,
-                           to_ui_queue,
-                           processor.get_powers(False),
-                           peak_powers_since_last_display,
-                           current_peak_count,
-                           max_peak_count,
-                           time_rx_nsec)
+            peak_powers_since_last_display = send_to_ui(sdr_config,
+                                                        to_ui_queue,
+                                                        processor.get_powers(False),
+                                                        peak_powers_since_last_display,
+                                                        time_rx_nsec)
             time_end = time.perf_counter()
             times_and_averages.ui_time.average(time_end - time_start)
-
-            # average of number of count of spectrums between UI updates
-            times_and_averages.peak_average.average(max_peak_count)
 
         now = time.time()
 
@@ -343,28 +329,41 @@ def get_samples(data_source, number_samples, times_and_averages):
 
 
 class OverlapSampleFetcher:
-    def __init__(self, data_source, fft_size, overlap_ratio=0.5):
+    def __init__(self, data_source, fft_size, sample_rate, overlap_ratio=0.5):
         if not (0 < overlap_ratio < 1):
-            raise ValueError("overlap_ratio must be between 0 and 1 (non-inclusive)")
+            raise ValueError("Overlap_ratio must be between 0 and 1 (non-inclusive)")
         self.data_source = data_source
         self.fft_size = fft_size
         self.hop_size = int(fft_size * (1 - overlap_ratio))
         self.buffer = np.array([], dtype=np.complex64)
         self.last_rx_time = None
         self.overlap = overlap_ratio
+        self.sample_rate = sample_rate
 
     def get_next_block(self):
         while len(self.buffer) < self.fft_size:
             new_samples, rx_time = self.data_source.read_cplx_samples(self.hop_size)
             if new_samples is None or new_samples.size == 0:
                 return None, None
+
             if self.buffer.size == 0:
+                # This is the time of the first sample going into the buffer
                 self.last_rx_time = rx_time
+
             self.buffer = np.concatenate((self.buffer, new_samples))
 
+        # Calculate timestamp of the first sample in this fft_block
+        block_time = self.last_rx_time
         fft_block = self.buffer[:self.fft_size]
-        self.buffer = self.buffer[self.hop_size:]  # Leave overlap
-        return fft_block, self.last_rx_time
+
+        # Drop hop_size samples from buffer (preserving overlap)
+        self.buffer = self.buffer[self.hop_size:]
+
+        # Advance the base time by hop duration for next block
+        hop_duration_nsec = int((self.hop_size * 1e9) / self.sample_rate)
+        self.last_rx_time += hop_duration_nsec
+
+        return fft_block, block_time, self.hop_size
 
 
 class BlockSampleFetcher:
@@ -373,28 +372,20 @@ class BlockSampleFetcher:
         self.fft_size = fft_size
 
     def get_next_block(self):
-        print(f"block getting {self.fft_size} samples")
         samples, rx_time = self.data_source.read_cplx_samples(self.fft_size)
-        print(f"block got {self.fft_size}")
         if samples is None or samples.size != self.fft_size:
-            return None, None
-        return samples, rx_time
+            return None, None, 0
+        return samples, rx_time, self.fft_size
 
 
 def create_sample_fetcher(data_source, sdr_config):
-    fft_size = sdr_config.fft_size
-    overlap_percent = getattr(sdr_config, "fft_overlap", 0)
-    print(f"create_sample_fetcher {overlap_percent}")
-
-    if overlap_percent == 0:
-        print(f"create_sample_fetcher block {fft_size}")
-        return BlockSampleFetcher(data_source, fft_size)
-    elif 0 < overlap_percent < 100:
-        overlap_ratio = overlap_percent / 100.0
-        print(f"create_sample_fetcher {fft_size} overlap {overlap_ratio}")
-        return OverlapSampleFetcher(data_source, fft_size, overlap_ratio)
+    if sdr_config.fft_overlap == 0:
+        return BlockSampleFetcher(data_source, sdr_config.fft_size)
+    elif 0 < sdr_config.fft_overlap < 100:
+        overlap_ratio = sdr_config.fft_overlap / 100.0
+        return OverlapSampleFetcher(data_source, sdr_config.fft_size, sdr_config.sample_rate, overlap_ratio)
     else:
-        raise ValueError(f"Unsupported FFT overlap: {overlap_percent}")
+        raise ValueError(f"Unsupported FFT overlap: {sdr_config.overlap_percent}")
 
 
 class DynamicSampleFetcher:
@@ -416,15 +407,18 @@ class DynamicSampleFetcher:
 
     def get_next_block(self):
         self._check_config()
-        return self.fetcher.get_next_block()
+        if self.fetcher:
+            return self.fetcher.get_next_block()
+        else:
+            return None, None, 0
 
 
-def save_samples(data_sink, samples_new, snap_config, time_rx_nsec_new, times_and_averages):
+def save_samples(data_sink, samples, snap_config, time_rx_nsec, times_and_averages):
     ##########################
     # Handle snapshots, due to pre-trigger we need to always give the samples
     #################
     time_start = time.perf_counter()
-    finished = data_sink.write(snap_config.triggered, samples_new, time_rx_nsec_new)
+    finished = data_sink.write(snap_config.triggered, samples, time_rx_nsec)
 
     if finished:
         snap_config.triggered = False
@@ -543,7 +537,6 @@ def set_thumbs_dir() -> pathlib.PurePath:
         except FileExistsError:
             pass
         except Exception as msg:
-            print()
             raise ValueError(f"Failed to create web thumbnails directory, {msg}")
     return thumbs_dir
 
@@ -681,14 +674,14 @@ def fill_shared_status(shared_status: dict, sdr_config: Sdr, snap_config: Snappe
     shared_status['fftFrameTime'] = sdr_config.fft_frame_time
     # spectrogram does not work with 32768 points
     # 256 points never keeps up due to overheads
-    shared_status['fftSizes'] = [256, 512, 1024, 2048, 4096, 8192, 16384]
+    shared_status['fftSizes'] = [512, 1024, 2048, 4096, 8192, 16384]
     shared_status['fftWindows'] = sdr_config.window_types
     shared_status['fftWindow'] = sdr_config.window
 
     # control stuff
     shared_status['fps'] = ({'set': sdr_config.fps,
                              'measured': sdr_config.measured_fps})
-    shared_status['presetFps'] = [1, 5, 10, 20, 40, 80, 160, 320, 640, 10000, 100000]
+    shared_status['presetFps'] = [1, 5, 10, 20, 40, 80]
     shared_status['stop'] = sdr_config.stop
     shared_status['fpsMeasured'] = 0
     shared_status['delay'] = sdr_config.ui_delay
@@ -779,20 +772,14 @@ def sync_state(sdr_config: Sdr,
                 snap_changed = True
             shared_update.pop('source')
 
-        # if we have to override the fps as the UI is not keeping up then don't update the fps value
-        if not sdr_config.fps_override:
-            if 'fps' in shared_update:
-                if shared_update['fps']['set'] != sdr_config.fps:
-                    sdr_config.fps = shared_update['fps']['set']
-                shared_update.pop('fps')
-        else:
-            shared_status['fps']['set'] = sdr_config.fps
-            if sdr_config.measured_fps <= sdr_config.fps:
-                # but if we are now keeping up then go back to normal
-                sdr_config.fps_override = False
+        if 'fps' in shared_update:
+            if shared_update['fps']['set'] != sdr_config.fps:
+                sdr_config.fps = shared_update['fps']['set']
+                sdr_config.one_in_n = int(sdr_config.sample_rate / (sdr_config.fps * sdr_config.fft_size))
+            shared_update.pop('fps')
 
         if 'ackTime' in shared_update:
-            if shared_status['ackTime'] != sdr_config.ackTime:
+            if shared_update['ackTime'] != sdr_config.ackTime:
                 sdr_config.ackTime = shared_update['ackTime']
             shared_update.pop('ackTime')
 
@@ -848,6 +835,7 @@ def sync_state(sdr_config: Sdr,
                 sdr_config.sample_rate = data_source.get_sample_rate_sps()
                 sdr_config.input_bw_hz = data_source.get_bandwidth_hz()  # some sources over-ride the bw when setting sps
                 sdr_config.input_overflows = 0
+                sdr_config.one_in_n = int(sdr_config.sample_rate / (sdr_config.fps * sdr_config.fft_size))
                 config_changed = True
             shared_update.pop('digitiserSampleRate')
 
@@ -876,6 +864,7 @@ def sync_state(sdr_config: Sdr,
         if 'fftSize' in shared_update:
             if shared_update['fftSize'] != sdr_config.fft_size:
                 sdr_config.fft_size = shared_update['fftSize']
+                sdr_config.one_in_n = int(sdr_config.sample_rate / (sdr_config.fps * sdr_config.fft_size))
                 config_changed = True
             shared_update.pop('fftSize')
 
@@ -920,6 +909,7 @@ def sync_state(sdr_config: Sdr,
                 snapStuff.delete_file(shared_update['snapDelete'], thumb_dir)
                 shared_status['snapDelete'] = ""
                 snap_config.directory_list = snapStuff.list_snap_files(global_vars.SNAPSHOT_DIRECTORY)
+                sdr_config.one_in_n = int(sdr_config.sample_rate / (sdr_config.fps * sdr_config.fft_size))
                 config_changed = True
             shared_update.pop('snapDelete')
 
@@ -968,6 +958,7 @@ def sync_state(sdr_config: Sdr,
         if snap_changed:
             snap_config.sps = data_source.get_sample_rate_sps()
             data_sink = DataSink_file.FileOutput(snap_config, global_vars.SNAPSHOT_DIRECTORY)
+            sdr_config.one_in_n = int(sdr_config.sample_rate / (sdr_config.fps * sdr_config.fft_size))
 
             # following may of been changed by the sink on creation
             if data_sink.get_post_trigger_milli_seconds() != snap_config.postTriggerMilliSec or \
@@ -989,9 +980,7 @@ def send_to_ui(sdr_config: Sdr,
                to_ui_queue: multiprocessing.Queue,
                powers: np.ndarray,
                peak_powers_since_last_display: np.ndarray,
-               current_peak_count: int,
-               max_peak_count: int,
-               time_spectrum: float) -> Tuple[np.ndarray, int, int]:
+               time_spectrum: float) -> np.ndarray:
     """
     Send data to the queue used for talking to the ui processes
 
@@ -999,8 +988,6 @@ def send_to_ui(sdr_config: Sdr,
     :param to_ui_queue: The queue used for talking to the UI process
     :param powers: The powers of the spectrum bins
     :param peak_powers_since_last_display: The powers since we last updated the UI
-    :param current_peak_count: count of spectrums we have peak held on
-    :param max_peak_count: maximum since last time it was reset
     :param time_spectrum: Time of this spectrum in nanoseconds
     :return: array of updated peak powers
     """
@@ -1010,78 +997,64 @@ def send_to_ui(sdr_config: Sdr,
         # drop things on the floor if we are told to stop
         sdr_config.measured_fps = 0  # not doing anything yet
         sdr_config.update_count = 0
-        current_peak_count = 0
     else:
-        sdr_config.update_count += 1
-        one_in_n = int(sdr_config.sample_rate / (sdr_config.fps * sdr_config.fft_size))
-        sdr_config.one_in_n = one_in_n
         if sdr_config.one_in_n < 1:
             sdr_config.one_in_n = 1
 
         # should we try and add to the ui queue
-        if sdr_config.update_count >= one_in_n:
-            if current_peak_count == 0:
-                sdr_config.time_first_spectrum = time_spectrum
-                peak_powers_since_last_display = powers
+        if sdr_config.update_count >= sdr_config.one_in_n:
+            # Is the UI keeping up with how fast we are sending things
+            # rather a lot of data may get buffered by the OS or network stack
+            seconds = sdr_config.time_first_spectrum / 1e9
+            ack = sdr_config.ackTime  # should be the last spectrum shown
+            if ack != 0:
+                sdr_config.ui_delay = round((seconds - ack), 2)
+                if sdr_config.ui_delay > 2:
+                    # Maybe stuck ack time as the UI is not getting any spectrums
+                    if sdr_config.update_count < (2 * sdr_config.one_in_n):
+                        peak_detect = True  # UI can't keep up
+                    else:
+                        sdr_config.time_first_spectrum = time_spectrum
+                        peak_powers_since_last_display = powers
+                        sdr_config.update_count = 1
 
-            # order the spectral magnitudes, zero in the middle
-            display_peaks = np.fft.fftshift(peak_powers_since_last_display)
+            if not peak_detect:
+                # order the spectral magnitudes, zero in the middle
+                display_peaks = np.fft.fftshift(peak_powers_since_last_display)
 
-            # data into the UI queue
-            try:
-                to_ui_queue.put((sdr_config.sample_rate, sdr_config.centre_frequency_hz,
-                                 display_peaks, sdr_config.time_first_spectrum, time_spectrum), block=False)
+                # data into the UI queue
+                try:
+                    to_ui_queue.put((sdr_config.sample_rate, sdr_config.centre_frequency_hz,
+                                     display_peaks, sdr_config.time_first_spectrum, time_spectrum+1), block=False)
 
-                # peak since last time is the current powers
-                max_peak_count = current_peak_count
-                current_peak_count = 0
-                sdr_config.sent_count += 1
-                sdr_config.update_count = 0  # success on putting into queue
-            except queue.Full:
-                peak_detect = True  # UI can't keep up
+                    # peak since last time is the current powers
+                    sdr_config.sent_count += 1
+                    sdr_config.update_count = 0  # success on putting into queue
+
+                except queue.Full:
+                    peak_detect = True  # UI can't keep up
         else:
             # nope, so peak detect the fft result instead
             peak_detect = True
 
-        # Is the UI keeping up with how fast we are sending things
-        # rather a lot of data may get buffered by the OS or network stack
-        seconds = time_spectrum / 1e9
-        ack = sdr_config.ackTime
-        if ack == 0:
-            ack = seconds
-        sdr_config.ui_delay = round((seconds - ack), 2)
-
-        # if we are more than N seconds behind then reset the fps
-        # NOTE on say the pluto which silently drops samples you may have a large gap between samples
-        # that gives a low fps as data is not arriving at the correct rate
-        if (sdr_config.ui_delay > 5) and (sdr_config.measured_fps > 10):
-            if sdr_config.fps != 10:
-                sdr_config.fps_override = True
-                sdr_config.fps = 10  # something safe and sensible
-                err_msg = f"UI behind by {sdr_config.ui_delay}seconds. Defaulting to 10fps"
-                # don't give error to the UI as this stops it updating and you end up in a loop
-                # configuration.error += err_msg
-                logger.info(err_msg)
-            peak_detect = True  # UI can't keep up
-
-    # print(f" update_count {sdr_config.update_count} ,on_in_n {one_in_n}, peak_detect {peak_detect}")
-
     if peak_detect:
-        if current_peak_count == 0:
+        if sdr_config.update_count == 0:
             sdr_config.time_first_spectrum = time_spectrum
-        if powers.shape == peak_powers_since_last_display.shape:
-            # Record the maximum for each bin, so that ui can show things between display updates
-            peak_powers_since_last_display = np.maximum.reduce([powers, peak_powers_since_last_display])
-            current_peak_count += 1
-        else:
             peak_powers_since_last_display = powers
-            current_peak_count = 1
-            sdr_config.time_first_spectrum = time_spectrum
-            sdr_config.update_count = 0
-    else:
-        peak_powers_since_last_display = np.full(sdr_config.fft_size, -200)
+        else:
+            if powers.shape == peak_powers_since_last_display.shape:
+                # Record the maximum (peak) for each bin
+                peak_powers_since_last_display = np.maximum.reduce([powers, peak_powers_since_last_display])
+            else:
+                peak_powers_since_last_display = powers
+                sdr_config.time_first_spectrum = time_spectrum
+                sdr_config.update_count = 0
+        sdr_config.update_count += 1
+    # else:
+    #     print(f"set peak array as -200 {sdr_config.update_count}")
+    #     peak_powers_since_last_display = np.full(sdr_config.fft_size, -200)
 
-    return peak_powers_since_last_display, current_peak_count, max_peak_count
+    return peak_powers_since_last_display
 
 
 def debug_print(sdr_config: Sdr, times_and_averages: TimesAndAverages) -> None:
@@ -1103,7 +1076,9 @@ def debug_print(sdr_config: Sdr, times_and_averages: TimesAndAverages) -> None:
     logger.debug(f'SPS:{sdr_config.sample_rate:.0f}, '
                  f'FFT:{sdr_config.fft_size} '
                  f'{1e6 * data_time:.0f}usec, '
-                 f'loop:{loop_cpu_pc:.0f}%, '
+                 f'overlap: {sdr_config.fft_overlap}%, '
+                 f'loop:{(times_and_averages.loop_time.get_ewma() * 1000000):.0f}usec '
+                 f'{loop_cpu_pc:.0f}%, '
                  f'read:{1e6 * times_and_averages.capture_time.get_ewma():.0f}us, '
                  f'total:{1e6 * total:.0f}us '
                  f'[proc:{1e6 * times_and_averages.process_time.get_ewma():.0f}us, '
@@ -1111,7 +1086,6 @@ def debug_print(sdr_config: Sdr, times_and_averages: TimesAndAverages) -> None:
                  f'report:{1e6 * times_and_averages.reporting_time.get_ewma():.0f}us, '
                  f'snap:{1e6 * times_and_averages.snap_time.get_ewma():.0f}us, '
                  f'ui:{1e6 * times_and_averages.ui_time.get_ewma():.0f}us], '
-                 f'pk:{times_and_averages.peak_average.get_ewma():0.1f}, '
                  f'fps:{sdr_config.fps}, '
                  f'mfps:{sdr_config.measured_fps}, ')
 

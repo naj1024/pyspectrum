@@ -10,7 +10,6 @@ class TimesAndAverages:
         self.analysis_time = Ewma.Ewma(0.01)
         self.capture_time = Ewma.Ewma(0.001)  # soapy is very blocky so different averaging for all
         self.loop_time = Ewma.Ewma(0.01)
-        self.peak_average = Ewma.Ewma(0.1)
         self.process_time = Ewma.Ewma(0.01)
         self.reporting_time = Ewma.Ewma(0.01)
         self.snap_time = Ewma.Ewma(0.01)

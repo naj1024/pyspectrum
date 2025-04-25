@@ -90,7 +90,7 @@ class Input(DataSource.DataSource):
 
     def set_sample_rate_sps(self, sr: float) -> None:
         if sr <= 0:
-            sr = 10000.0  # small default, but not too small
+            sr = 1000000.0  # realistic default
         self._sample_rate_sps = sr
         self.set_file_in_seconds()
 
@@ -209,9 +209,9 @@ class Input(DataSource.DataSource):
 
                     if self._sleep:
                         sleep_time = number_samples / self._sample_rate_sps
-                        if sleep_time > 0.001:
-                            # wait how long these samples should of taken to arrive
-                            time.sleep(sleep_time)
+                        if sleep_time > 0.0001:
+                            # wait how long these samples would of taken to arrive
+                            time.sleep(sleep_time * 0.7)  # bodge to allow for time it took to get here
 
                 except OSError as msg:
                     msgs = f'OSError, {msg}'
