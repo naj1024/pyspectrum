@@ -6,6 +6,7 @@ Used because we seem to need a lot of these in different places during initialis
 Passed to the UI as a jason string every few seconds
 """
 
+
 class Sdr:
     def __init__(self):
         self.sample_rate = 1e6  # default

@@ -9,10 +9,9 @@ import queue
 import struct
 import time
 from builtins import Exception
-from functools import partial
 
 import websockets
-from websockets import WebSocketServerProtocol
+# from websockets import WebSocketServerProtocol
 
 from misc import global_vars
 
@@ -58,7 +57,6 @@ class WebSocketServer(multiprocessing.Process):
         logger.info(f"WebSocket starting on port {self._port}")
 
         # Explicitly create and set the event loop
-        import threading
         import functools
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -79,7 +77,7 @@ class WebSocketServer(multiprocessing.Process):
             loop.close()
             logger.info("WebSocket loop closed")
 
-    async def handler(self, web_socket: WebSocketServerProtocol):
+    async def handler(self, web_socket):
         # path = web_socket.path
 
         if self._active_connection is not None:
@@ -103,7 +101,7 @@ class WebSocketServer(multiprocessing.Process):
             task.cancel()
         logger.info(f"WebSocket exited serving client {client}")
 
-    async def tx_handler(self, web_socket: WebSocketServerProtocol):
+    async def tx_handler(self, web_socket):
         client = web_socket.remote_address[0]
         logger.info(f"web socket Tx for client {client}")
 

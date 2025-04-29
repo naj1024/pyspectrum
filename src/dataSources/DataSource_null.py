@@ -46,7 +46,7 @@ class Input(DataSource.DataSource):
         super().__init__(parameters, data_type, sample_rate, centre_frequency, input_bw)
 
         self._name = module_type
-        self._connected = False
+        self._connected = True
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 
@@ -54,6 +54,7 @@ class Input(DataSource.DataSource):
         self._error = ""
         return True
 
+    # noinspection PyMethodMayBeStatic
     def read_cplx_samples(self, number_samples: int) -> Tuple[np.array, float]:
         """
             Always no samples

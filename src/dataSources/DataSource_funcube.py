@@ -396,20 +396,20 @@ class Input(DataSource.DataSource):
         # Can we change device setting through HID
         if hid and self._hid_device:
             if (cf < self._min_frequency) | (cf > self._max_frequency):
-                self._error(f"{self._funcube_type} frequency {self._centre_frequency_hz}Hz "
-                            f"is outside min {self._min_frequency}Hz, "
-                            f"max {self._max_frequency}Hz")
+                self._error = f"{self._funcube_type} frequency {self._centre_frequency_hz}Hz " \
+                              f"is outside min {self._min_frequency}Hz, " \
+                              f"max {self._max_frequency}Hz"
                 logger.error(self._error)
                 return
 
             # same as https://github.com/csete/fcdctl/blob/master/fcdhidcmd.h
             # FCD_CMD_APP_SET_FREQ_KHZ = 100
-            FCD_CMD_APP_SET_FREQ_HZ = 101
+            fcd_cmd_app_set_freq_hz = 101
             # FCD_CMD_APP_GET_FREQ_HZ = 102
 
             command = bytearray(65)  # 65bytes always
             command[0] = 0
-            command[1] = FCD_CMD_APP_SET_FREQ_HZ
+            command[1] = fcd_cmd_app_set_freq_hz
             cfi = int(cf)
             # frequency in little endian byte order
             command[2] = (cfi & 0xff)

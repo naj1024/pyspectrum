@@ -214,8 +214,8 @@ class Input(DataSource.DataSource):
             self._sdr.bb_dc_offset_tracking = 1
             self._sdr.rf_dc_offset_tracking = 1
             self._sdr.quadrature_tracking = 1
-        except AttributeError as mm:
-            logger.info(f"Failed to set offsets tracking on pluto, {mm}")
+        except AttributeError as err_msg:
+            logger.info(f"Failed to set offsets tracking on pluto, {err_msg}")
 
         logger.debug(f"{module_type}: {self._centre_frequency_hz / 1e6:.6}MHz @ {self._sample_rate_sps / 1e6:.3f}Msps")
         self._connected = True

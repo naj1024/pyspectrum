@@ -19,6 +19,7 @@ from misc import global_vars
 # for logging
 logger = logging.getLogger(__name__)
 
+
 class PicGenerator(multiprocessing.Process):
 
     def __init__(self, snap_dir: pathlib.PurePath, web_thumb_dir: pathlib.PurePath, log_level: int):

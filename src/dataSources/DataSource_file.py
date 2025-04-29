@@ -198,7 +198,7 @@ class Input(DataSource.DataSource):
 
                     # update time into the file by the sample rate
                     self._file_time += (1.0e9 * number_samples / self._sample_rate_sps)  # nano seconds
-                    self._file_current_seconds +=  number_samples / self._sample_rate_sps  # seconds
+                    self._file_current_seconds += number_samples / self._sample_rate_sps  # seconds
 
                     if len(raw_bytes) != total_bytes:
                         raw_bytes = None

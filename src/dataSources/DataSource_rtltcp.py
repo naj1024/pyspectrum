@@ -103,8 +103,7 @@ class Input(DataSource.DataSource):
 
         self._name = module_type
         self._connected = False
-        self._gain_modes = ["auto", "manual"]  # would ask, but can't, 
-                                               # port one up from streaming samples port can do this
+        self._gain_modes = ["auto", "manual"]  # would ask, but can't,
         self._tuner_gain_indexes = 0  # maximum number of indexes to the gain table
         self._tuner_gain_index = 0
         super().set_gain_mode("auto")

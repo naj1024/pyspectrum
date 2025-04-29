@@ -1,10 +1,13 @@
 import os
 import pathlib
+import logging
 
 from pyspectrum import setup_logging
 from pyspectrum import setup_snap_config
 from pyspectrum import set_thumbs_dir
 from misc import global_vars
+
+logger = logging.getLogger("spectrum_logger")  # a name we use to find this logger
 
 
 def test_logging_dir():

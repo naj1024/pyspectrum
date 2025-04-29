@@ -293,7 +293,6 @@ class Input(DataSource.DataSource):
                 else:
                     self._centre_frequency_hz = frequency_to_use
                     self._sdr.center_freq = self.get_ppm_corrected(frequency_to_use)
-                    # print(f"freq {frequency_to_use} ppm {self._ppm} -> {frequency_to_use + (self._ppm * frequency_to_use / 1e6)}")
             except Exception as err:
                 self._error = str(err)
 

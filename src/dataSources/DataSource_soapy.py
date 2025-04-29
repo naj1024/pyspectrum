@@ -70,7 +70,7 @@ class Input(DataSource.DataSource):
 
         # add this classes own variables before calling super() in case we get called back and don't have them
         self._sdr = None
-        self._overflows = 0 # interface that actually returns overflows
+        self._overflows = 0  # interface that actually returns overflows
         self._channel = 0  # we will use channel zero for now
         # soapy has quite large read blocks, so read a complete block at a time
         self._complex_data = None
