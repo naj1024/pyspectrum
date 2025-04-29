@@ -9,14 +9,17 @@ import queue
 import struct
 import time
 from builtins import Exception
+from packaging import version
 
 import websockets
-# from websockets import WebSocketServerProtocol
 
 from misc import global_vars
 
 logger = logging.getLogger(__name__)
 
+# check the websockets version, upgraded to use 15.0.1 
+if version.parse(websockets.__version__) < version.parse("15.0.1"):
+    raise ValueError(f"websockets version must be >= 15.0.1, got {websockets.__version__}")
 
 class WebSocketServer(multiprocessing.Process):
     def __init__(self,

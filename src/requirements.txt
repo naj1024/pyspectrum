@@ -5,8 +5,9 @@
 
 # websockets, required
 websockets>=15.0.1
+packaging>=23.0
 
-# flask, required
+# flask, requireds
 Flask>=2.2.3
 flask_restful>=0.3.9
 
