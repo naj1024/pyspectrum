@@ -243,6 +243,11 @@ def main() -> None:
             loop_multiplier = int(100 / (100 - sdr_config.fft_overlap))
             _ = times_and_averages.loop_time.average(loop_multiplier * (loop_end - loop_start))
 
+        # don't spin
+        if samples is None:
+            sdr_config.loop_cpu_pc = 0
+            time.sleep(0.1)
+
     ####################
     #
     # Exit: clean up
