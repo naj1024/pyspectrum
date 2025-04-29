@@ -111,6 +111,7 @@ def update_source(configuration: Sdr, source_factory) -> DataSource:
                      f"{configuration.fft_size}")
         Sdr.add_to_error(configuration, str(msg))
         configuration.input_source = "null"
+        configuration.input_params = ""
         data_source = create_source(configuration, source_factory)
         open_source(configuration, data_source)
 

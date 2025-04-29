@@ -28,7 +28,7 @@ class OverlapSampleFetch:
         while len(self.buffer) < self.fft_size:
             new_samples, rx_time = self.data_source.read_cplx_samples(self.hop_size)
             if new_samples is None or new_samples.size == 0:
-                return None, None
+                return None, None, self.hop_size
 
             if self.buffer.size == 0:
                 # This is the time of the first sample going into the buffer

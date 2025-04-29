@@ -156,17 +156,18 @@ def main() -> None:
             except ValueError as mm:
                 # incorrect number of samples, probably because something closed
                 if processing:
-                    data_source.close()
                     err_msg = f"Problem with source: {sdr_config.input_source}, {mm}"
+                    Sdr.add_to_error(sdr_config, err_msg)
+                    logger.error(sdr_config.error)
+
+                    data_source.close()
                     sdr_config.input_source = "null"
                     sdr_config.input_params = ""
                     data_source = sdrStuff.update_source(sdr_config, source_factory)
                     fetcher = create_sample_fetch(data_source, sdr_config)
-                    samples = None
                     fill_shared_status_to_ui(shared_status, sdr_config, snap_config)
+                    samples = None
 
-                    Sdr.add_to_error(sdr_config, err_msg)
-                    logger.error(sdr_config.error)
 
         ###########################################
         # Get and process the complex samples we will work on
