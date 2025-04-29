@@ -30,7 +30,7 @@ class Sdr:
         # input data related
         self.fft_size = 2048  # default, but any integer allowed
         self.psd = False
-        self.fft_overlaps = [0, 50]
+        self.fft_overlaps = [0, 25, 50, 75]  # 25 and 75 seem to give problems with reading sources - not quick enough?
         self.fft_overlap = 0
         self.fft_frame_time = 1e6 * (self.fft_size / self.sample_rate)  # useconds
         self.window = ""
@@ -40,16 +40,17 @@ class Sdr:
 
         # display
         self.fps = 20
-        self.fps_override = False
         self.update_count = 0
         self.measured_fps = 20
         self.time_measure_fps = 0
         self.sent_count = 0
         self.stop = False
         self.web_port = 8080
+
+        # for interface to UI
         self.ackTime = 0  # time in seconds of the last data displayed by the UI, updated by UI
         self.ui_delay = 0  # measured difference between now and ack from ui
-        self.one_in_n = 0
+        self.one_in_n = int(self.sample_rate / (self.fps * self.fft_size))
 
         # where the data comes from
         self.input_source = "null"  # the source type e.g. file, socket, pluto, soapy, rtlsdr, audio ....

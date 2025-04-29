@@ -60,7 +60,7 @@ class SpectrumPicture:
                     try:
                         samples, _ = source.read_cplx_samples(self._fft_size)
                         count += 1
-                        mags_squared = spec.mag_spectrum(samples, 1.0, False, True)
+                        mags_squared = spec.mag_spectrum(samples, True)
                         peaks_squared = np.maximum.reduce([mags_squared, peaks_squared])
                     except ValueError:
                         ok = False  # end of file
@@ -68,7 +68,7 @@ class SpectrumPicture:
                         ok = False  # end of file
 
                 if count > 0:
-                    powers = Spectrum.get_powers(peaks_squared, 0)
+                    powers = Spectrum.get_powers(peaks_squared, 0, False, 0)
                     average = np.average(powers)
                     maximum = np.max(powers)
                     # set everything below average to the average

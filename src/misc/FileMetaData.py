@@ -237,7 +237,7 @@ class FileMetaData:
                     # don't set ok as these values were not recovered
                     # by not setting ok they can be overridden
                     cf = 0.0  # default
-                    sps = 10000.0  # default
+                    sps = 1000000.0  # default
                     data_type = "16tle"  # default
                     self._has_meta_data = False  # say we don't know what this file is
                     # don't log these as the picture generator will keep trying

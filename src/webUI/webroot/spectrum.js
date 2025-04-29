@@ -871,10 +871,12 @@ Spectrum.prototype.displayConfigOnSpectrum = function() {
     context.font = this.spectrumLiveMarkerFont;
     context.fillStyle = this.liveMarkerColour;
     context.textAlign = "left";
-    let config_text = "CF: " + this.convertFrequencyForDisplay(this.getZoomCfHz(), 6);
-    config_text += ", BW: " + this.convertFrequencyForDisplay(this.getZoomSpanHz(), 0);
-    config_text += ", RBW: " + this.convertFrequencyForDisplay(this.getRbw(), 0);
-    context.fillText(config_text, 40, 20);
+    let config_text = "CF:     " + this.convertFrequencyForDisplay(this.getZoomCfHz(), 6);
+    context.fillText(config_text, 1420, 60);
+    config_text = "SPAN: " + this.convertFrequencyForDisplay(this.getZoomSpanHz(), 3);
+    context.fillText(config_text, 1420, 75);
+    config_text = "RBW:  " + this.convertFrequencyForDisplay(this.getRbw(), 0);
+    context.fillText(config_text, 1420, 90);
 }
 
 Spectrum.prototype.getMarkerValuesForAveraging = function() {
@@ -1403,13 +1405,13 @@ Spectrum.prototype.convertFrequencyForDisplay = function(freqHz, decimalPoints) 
     let dec = parseInt(decimalPoints);
     let modFreq = Math.abs(freqHz);
     if (modFreq < 1.0e3){
-        displayValue = freqHz.toFixed(dec)+" Hz ";
+        displayValue = freqHz.toFixed(dec)+"Hz ";
     }else if (modFreq < 1.0e6){
-        displayValue = (freqHz / 1e3).toFixed(dec)+" kHz ";
+        displayValue = (freqHz / 1e3).toFixed(dec)+"kHz ";
     }else if (modFreq < 1.0e9){
-        displayValue = (freqHz / 1e6).toFixed(dec)+" MHz ";
+        displayValue = (freqHz / 1e6).toFixed(dec)+"MHz ";
     }else {
-        displayValue = (freqHz / 1e9).toFixed(dec)+" GHz ";
+        displayValue = (freqHz / 1e9).toFixed(dec)+"GHz ";
     }
 
     return displayValue;
@@ -1433,7 +1435,7 @@ Spectrum.prototype.getZoomCfHz = function() {
 }
 
 Spectrum.prototype.getZoomSpanHz = function() {
-    return this.spanHz / this.zoom;;
+    return this.spanHz / this.zoom;
 }
 
 Spectrum.prototype.getValuesAtCanvasPosition = function(xpos, ypos) {
@@ -1567,6 +1569,10 @@ Spectrum.prototype.getMaxFps = function() {
         maxFps = parseInt(parseInt(this.sps)/parseInt(this.fftSize));
     }
     return maxFps;
+}
+
+Spectrum.prototype.getCurrentTime = function() {
+    return this.currentTime;
 }
 
 function Spectrum(id, options) {

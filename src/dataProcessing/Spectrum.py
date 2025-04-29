@@ -88,16 +88,22 @@ def convert_to_frequencies(bins: List[int], sample_rate: float, fft_size: int) -
     return freqs
 
 
-def get_powers(mag_squared: np.ndarray, offset: float) -> np.ndarray:
+def get_powers(mag_squared: np.ndarray, sps: float, psd: bool, offset: float) -> np.ndarray:
     """
     Return the dB powers of a magnitude squared fft output
 
     :param mag_squared:
+    :param sps: The sample rate in Hz
+    :param psd: True is output is to be psd, db/Hz
     :param offset: dbm offset
     :return: dB array of the magnitudes squared
     """
-    # convert to dB,
+    # convert to dB and normalise,
+
     scale = 10 * np.log10(mag_squared.size) - offset
+    if psd:
+        scale += 10 * np.log10(sps)
+
     # should be 5 not 10 on the power as we have mag^2 not mag so 1/2 of 10
     # but that doesn't tie up with real spec analyser or other sdr ones
     powers = 10 * np.log10(mag_squared) - scale  # dB and normalisation by fft size
@@ -214,25 +220,26 @@ class Spectrum:
             logger.debug(" - Using fftw for fft")
 
     # @profile
-    def mag_spectrum(self, complex_samples: np.array, sps: float, psd: bool, reorder: bool = True) -> np.ndarray:
-        """Perform an fft of the samples with windowing applied and return the magnitudes
+    def mag_spectrum(self, complex_samples_in: np.array, reorder: bool = True) -> np.ndarray:
+        """Perform the fft on the samples with windowing applied and return the magnitudes
         Note that the returned magnitudes have been reordered
 
-        :param complex_samples: The complex samples to use
-        :param sps: The sample rate in Hz
-        :param psd: True is output is to be psd, db/Hz
+        :param complex_samples_in: The complex samples to use
         :param reorder: Re-order the result so that array is -ve to +ve with zero in the middle
         :return: The magnitude of the fft, NOT normalised to fft size
             """
 
         # check that the fft size has not changed
-        if complex_samples.size != self._fft_size:
-            self._fft_size = complex_samples.size
+        if complex_samples_in.size != self._fft_size:
+            self._fft_size = complex_samples_in.size
             self.set_fft()
 
-        # normalisation by dividing by fft size not done here, do it when we convert ot dB in get_powers()
+        # normalisation by dividing by fft size not done here,
+        # do it when we convert to dB in get_powers()
         if self._win is not None:
-            complex_samples *= self._win
+            complex_samples = complex_samples_in * self._win
+        else:
+            complex_samples = complex_samples_in.copy()
 
         if self._use_scipy_fft:
             signals_fft = fftpack.fft(complex_samples)
@@ -251,12 +258,7 @@ class Spectrum:
         # magnitudes = abs(np.fft.fftshift(signals_fft))  # note this updates signals_fft as well
         # magnitudes = abs(signals_fft)  # note this updates signals_fft as well
 
+        # normalisation in get_powers()
         magnitudes_squared = (signals_fft * signals_fft.conj()).real
-
-        # PSD energy per Hz
-        if psd:
-            magnitudes_squared /= (sps * self._fft_size)
-        else:
-            magnitudes_squared /= self._fft_size
 
         return magnitudes_squared

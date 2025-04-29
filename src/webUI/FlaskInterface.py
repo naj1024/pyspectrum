@@ -50,12 +50,12 @@ class FlaskInterface(multiprocessing.Process):
         self._shutdown = False
 
         # dictionary linking api names to Classes for the main endpoints
-        self._endpoints ={'input': Input,
-                          'digitiser': Digitiser,
-                          'spectrum': Spectrum,
-                          'control': Control,
-                          'snapshot': Snapshot,
-                          'tuning': Tuning}
+        self._endpoints = {'input': Input,
+                           'digitiser': Digitiser,
+                           'spectrum': Spectrum,
+                           'control': Control,
+                           'snapshot': Snapshot,
+                           'tuning': Tuning}
 
     def shutdown(self):
         logger.debug("FlaskServer Shutting down")
@@ -228,7 +228,7 @@ class Digitiser(Resource):
                                        'streamLength', 'streamCurrent']
         self._allowed_put_endpoints = ['digitiserFormat', 'digitiserSampleRate', 'digitiserBandwidth',
                                        'digitiserPartsPerMillion', 'digitiserGainType', 'digitiserGain',
-                                       'digitiserDcRemoval', 'digitiserDbmOffset',]
+                                       'digitiserDcRemoval', 'digitiserDbmOffset']
 
     def api(self):
         points = {}
@@ -329,7 +329,7 @@ class Spectrum(Resource):
                         raise ValueError()
                 elif thing == 'fftOverlap':
                     ovrlp = int(request.json[thing])
-                    if (ovrlp >= 0) and (ovrlp <= 50):
+                    if (ovrlp >= 0) and (ovrlp <= 100):
                         self._update[thing] = ovrlp
                     else:
                         raise ValueError()

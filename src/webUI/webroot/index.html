@@ -38,7 +38,7 @@
             <!-- 9 colums worth of spectrum display -->
             <div id="specCanvas" class="col-9"></div>
             <!-- 2 colums worth of config data, tabbed -->
-            <div id="metaData" class="col-3" style="overflow-y:auto;  width="100%";>
+            <div id="metaData" class="col-3" style="overflow-y:auto"> <!--width=100%"> -->
                 <ul class="nav nav-tabs">
                     <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#sourceTab">Source</a></li>
                     <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#analysisTab">Analysis</a></li>
@@ -81,7 +81,7 @@
                                 <td>
                                     <div id="currentSdrCentre"></div>
                                 </td>
-                                <td/>
+                                <td></td>
                             </tr>
                             <tr title="Real tuned frequency, takes conversion into account">
                                 <td><b>Frequency</b></td>
@@ -181,35 +181,35 @@
                                 <td>
                                     <div id="currentOverflows"></div>
                                 </td>
-                                <td/>
+                                <td></td>
                             </tr>
-                            <tr title="Approximate delay from front end to UI">
+                            <tr title="Approximate delay from front end to UI, limited to 2seconds">
                                 <td><b>UI delay</b></td>
                                 <td>
                                     <div id="currentDelay"></div>
                                 </td>
-                                <td/>
+                                <td></td>
                             </tr>
                             <tr title="Percentage of FFT frame time being used. Should be close to 100%, >100% may indicate problem with keeping up. The percentage includes all processing and time to get samples">
                                 <td><b>Loop %</b></td>
                                 <td>
                                     <div id="currentLoopCpuPc"></div>
                                 </td>
-                                <td/>
+                                <td></td>
                             </tr>
                             <tr title="Length of file input stream in seconds">
                                 <td><b>Stream Length</b></td>
                                 <td>
                                     <div id="streamLength"></div>
                                 </td>
-                                <td/>
+                                <td></td>
                             </tr>
                             <tr title="Current seconds of file input streams">
                                 <td><b>Stream current</b></td>
                                 <td>
                                     <div id="streamCurrent"></div>
                                 </td>
-                                <td/>
+                                <td></td>
                             </tr>
                             </tbody>
                         </table>
@@ -261,14 +261,14 @@
                                     <td>
                                         <div id="newRBW"></div>
                                     </td>
-                                    <td/>
+                                    <td></td>
                                 </tr>
                                 <tr title="Period covered by one FFt frame">
                                     <td><b>FFT frame</b></td>
                                     <td>
                                         <div id="fftFrameTime">us</div>
                                     </td>
-                                    <td/>
+                                    <td></td>
                                 </tr>
                                 <tr title="Window applied to samples">
                                     <td><b>Window</b></td>
@@ -287,14 +287,14 @@
                                     <td>
                                         <div id="newZoom"></div>
                                     </td>
-                                    <td/>
+                                    <td></td>
                                 </tr>
                                 <tr title="Span of the display, with zoom">
                                     <td><b>Span</b></td>
                                     <td>
                                         <div id="currentSpan"></div>
                                     </td>
-                                    <td/>
+                                    <td></td>
                                 </tr>
                                 <tr class="blank_row">
                                     <td bgcolor="#000" colspan="3">&nbsp;</td>
@@ -313,7 +313,14 @@
                                     <td>
                                         <div id="currentOneInN"></div>
                                     </td>
-                                    <td/>
+                                    <td></td>
+                                </tr>
+                                <tr title="Approximate delay from front end to UI, limited to 2seconds">
+                                    <td><b>UI delay</b></td>
+                                    <td>
+                                        <div id="currentDelay2"></div>
+                                    </td>
+                                    <td></td>
                                 </tr>
                                 </tbody>
                             </table>

@@ -271,7 +271,7 @@ class FileOutput:
         :param trigger: Boolean that indicates we have to start writing to file
         :param data: To write, complex floating point values
         :param time_rx_nsec: time of this data block
-        :return: None
+        :return end: Boolean to say we have captured all that was configured to capture
         """
         end = False
         if not self._triggered:

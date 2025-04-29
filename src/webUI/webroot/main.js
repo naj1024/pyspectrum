@@ -147,7 +147,7 @@ function syncCurrent() {
         return response.json();
     }).then(function (obj) {
         sdrState.setConfigFromJason(obj);
-        $('#currentFftOverlap').empty().append(sdrState.getFftOverlap());
+        $('#currentFftOverlap').empty().append(sdrState.getFftOverlap() + " %");
     }).catch(function (error) {
     });
 
@@ -226,6 +226,7 @@ function syncCurrentFast() {
     }).then(function (obj) {
         sdrState.setUiDelay(obj.delay);
         $('#currentDelay').empty().append(sdrState.getUiDelay().toFixed(2));
+        $('#currentDelay2').empty().append(sdrState.getUiDelay().toFixed(2));
     }).catch(function (error) {
     });
 
@@ -234,6 +235,11 @@ function syncCurrentFast() {
     }).then(function (obj) {
         sdrState.setLoopCpuPc(obj.loopCpuPc);
         $('#currentLoopCpuPc').empty().append(sdrState.getLoopCpuPc().toFixed(1) +'%');
+        if (sdrState.getLoopCpuPc().toFixed(1) > 110) {
+            $('#currentLoopCpuPc').closest("td").css("background-color", "#ff0000");
+        } else {
+            $('#currentLoopCpuPc').closest("td").css("background-color", "#00ee00");
+        }
     }).catch(function (error) {
     });
 
@@ -257,7 +263,7 @@ function syncCurrentFast() {
     fetch('./control/oneInN').then(function (response) {
         return response.json();
     }).then(function (obj) {
-        $('#currentOneInN').empty().append(obj.oneInN.toFixed(1)+" traces");
+        $('#currentOneInN').empty().append(obj.oneInN.toFixed(0)+" traces");
     }).catch(function (error) {
     });
 
@@ -721,8 +727,6 @@ async function handleBlob(binary_blob_data) {
                 index += 4;
             }
 
-            sdrState.setLastDataTime(start_time_sec);
-
             // tell the spectrum how this data is configured, which could change
             if ( (sdrState.getSps() != spsHz) ||
                     (sdrState.getFrequencyHz() != parseInt(cfMHz*1e6)) ||
@@ -742,6 +746,9 @@ async function handleBlob(binary_blob_data) {
                 spectrum.updateAxes();
             }
             spectrum.addData(peaks, start_time_sec, start_time_nsec, end_time_sec, end_time_nsec);
+
+            // sdrState.setLastDataTime(start_time_sec);
+            sdrState.setLastDataTime(spectrum.getCurrentTime());
         }
     }
     catch (e)
@@ -810,13 +817,13 @@ function zoomedToCf() {
     spectrum.resetZoom();
 }
 
-function ack() {
+function ack(ackTime) {
     fetch("./control/ackTime", {
         method: "PUT",
         headers: {
             "Content-Type": "application/json",
         },
-        body: JSON.stringify({"ackTime":sdrState.getLastDataTime()})
+        body: JSON.stringify({"ackTime":ackTime})
     }).then(response => {
         return response.json();
     });
@@ -1492,7 +1499,7 @@ function Main() {
     // fast update stuff
     setInterval(function() {
         syncCurrentFast();
-        ack();
+        ack(sdrState.getLastDataTime());
     }, 500);
 }
 
