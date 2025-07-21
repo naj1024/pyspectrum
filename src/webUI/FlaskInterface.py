@@ -195,7 +195,10 @@ class Input(Resource):
                 if thing in self._status.keys():
                     tmp = self._status[thing]
                     self._status[thing] = ""
-                return jsonify({thing: tmp})
+                try:
+                    return jsonify({thing: tmp})
+                except Exception as e:
+                    logger.error(f"Failed to jsonify for {thing} {type(tmp)}")
             else:
                 return jsonify({thing: self._status[thing]})
         return f"Endpoint {thing} not supported", 403
@@ -245,7 +248,10 @@ class Digitiser(Resource):
 
         # Check for allowed endpoints at this point
         if thing in self._allowed_get_endpoints:
-            return jsonify({thing: self._status[thing]})
+            try:
+                return jsonify({thing: self._status[thing]})
+            except Exception as e:
+                logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
         return f"Endpoint {thing} not supported", 403
 
     def put(self, thing):
@@ -315,7 +321,10 @@ class Spectrum(Resource):
             return jsonify({"spectrum": self.api()})
 
         if thing in self._allowed_get_endpoints:
-            return jsonify({thing: self._status[thing]})
+            try:
+                return jsonify({thing: self._status[thing]})
+            except Exception as e:
+                logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
         return f"Endpoint {thing} not supported", 403
 
     def put(self, thing):
@@ -376,7 +385,10 @@ class Control(Resource):
             return jsonify({"control": self.api()})
 
         if thing in self._allowed_get_endpoints:
-            return jsonify({thing: self._status[thing]})
+            try:
+                return jsonify({thing: self._status[thing]})
+            except Exception as e:
+                logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
         return f"Endpoint {thing} not supported", 403
 
     def put(self, thing):
@@ -424,7 +436,10 @@ class Snapshot(Resource):
             return jsonify({"snapshot": self.api()})
 
         if thing in self._allowed_get_endpoints:
-            return jsonify({thing: self._status[thing]})
+            try:
+                return jsonify({thing: self._status[thing]})
+            except Exception as e:
+                logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
         return f"Endpoint {thing} not supported", 403
 
     def put(self, thing):
@@ -492,7 +507,10 @@ class Tuning(Resource):
             return jsonify({"tuning": self.api()})
 
         if thing in self._allowed_get_endpoints:
-            return jsonify({thing: self._status[thing]})
+            try:
+                return jsonify({thing: self._status[thing]})
+            except Exception as e:
+                logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
         return f"Endpoint {thing} not supported", 403
 
     def put(self, thing):

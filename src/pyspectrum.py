@@ -177,7 +177,7 @@ def main() -> None:
             # save the samples for snapshots
             ##########################
             patched_rx_time_nsec = time_rx_nsec + int((hop * 1e9) / sdr_config.sample_rate)
-            _ = save_samples(data_sink, samples[-hop:], snap_config, patched_rx_time_nsec, times_and_averages)
+            snap_finished = save_samples(data_sink, samples[-hop:], snap_config, patched_rx_time_nsec, times_and_averages)
             snap_config.currentSizeMbytes = data_sink.get_current_size_mbytes()
             snap_config.expectedSizeMbytes = data_sink.get_size_mbytes()
 
@@ -210,7 +210,7 @@ def main() -> None:
             snap_config_changed, data_sink = check_on_snap_config(data_sink, sdr_config, snap_config)
 
             # Has source or snap changed
-            if config_changed or snap_config_changed:
+            if config_changed or snap_config_changed or snap_finished:
                 fill_shared_status_to_ui(shared_status, sdr_config, snap_config)
                 config_changed = False
 
@@ -307,7 +307,7 @@ def update_source_stats(data_source: DataSource, now: float, samples: np.ndarray
         # update the input level
         if samples is not None:
             sdr_config.input_level = 100.0 * np.max(np.absolute(samples))
-            shared_status['digitiserInputLevel'] = sdr_config.input_level
+            shared_status['digitiserInputLevel'] = float(sdr_config.input_level)
 
         # for file inputs, show where we are
         sdr_config.seconds_current = data_source.get_seconds_current()
@@ -579,7 +579,7 @@ def fill_shared_status_to_ui(shared_status: dict, sdr_config: Sdr, snap_config: 
     shared_status['digitiserGain'] = sdr_config.gain
     shared_status['digitiserDcRemovals'] = ["Average", "Off"]
     shared_status['digitiserDcRemoval'] = sdr_config.dc_removal
-    shared_status['digitiserInputLevel'] = sdr_config.input_level
+    shared_status['digitiserInputLevel'] = float(sdr_config.input_level)
     shared_status['streamLength'] = sdr_config.seconds_length
     shared_status['streamCurrent'] = sdr_config.seconds_current
 
