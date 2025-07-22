@@ -9,12 +9,9 @@
 'use strict';
 
 Spectrum.prototype.squeeze = function(value, out_min, out_max) {
-    if (value <= this.min_db)
-        return out_min;
-    else if (value >= this.max_db)
-        return out_max;
-    else
-        return Math.round((value - this.min_db) / (this.max_db - this.min_db) * out_max);
+    const clamped = Math.max(this.min_db, Math.min(this.max_db, value));
+    const norm = (clamped - this.min_db) / (this.max_db - this.min_db);
+    return Math.round(norm * (out_max - out_min) + out_min);
 }
 
 Spectrum.prototype.rowToImageData = function(bins) {
@@ -50,29 +47,45 @@ Spectrum.prototype.rowToImageData = function(bins) {
 }
 
 Spectrum.prototype.drawWaterfall = function() {
-    // redraw the current waterfall
     var width = this.ctx.canvas.width;
     var height = this.ctx.canvas.height;
 
     // Copy scaled FFT canvas to screen. Only copy the number of rows that will
     // fit in waterfall area to avoid vertical scaling.
-    this.ctx.imageSmoothingEnabled  = false;
+    this.ctx.imageSmoothingEnabled = false;
     var rows = Math.min(this.wf_rows, height - this.spectrumHeight);
-    this.ctx.drawImage(this.ctx_wf.canvas,
+    this.ctx.drawImage(this.wf,
         0, 0, this.wf_size, rows,
         0, this.spectrumHeight, width, height - this.spectrumHeight);
 }
 
 Spectrum.prototype.addWaterfallRow = function(bins) {
-    // Shift waterfall 1 row down
-    this.ctx_wf.drawImage(this.ctx_wf.canvas,
+    // Using two canvasses helps firefox, saving around 10% on windows-11
+    //  cpu 40-50% -> 30-40%
+    //  gpu 30-40% -> 20-30%
+    // Edge there was no difference
+    //  cpu 20-30%
+    //  gpu 10-20%
+
+    // Copy existing rows down by one using temporary canvas
+    this.ctx_wf_tmp.clearRect(0, 0, this.wf_size, this.wf_rows);
+    this.ctx_wf_tmp.drawImage(this.wf,
         0, 0, this.wf_size, this.wf_rows - 1,
         0, 1, this.wf_size, this.wf_rows - 1);
 
-    // Draw new line on waterfall canvas
+    // Draw new row at top of back buffer
     this.rowToImageData(bins);
-    this.ctx_wf.putImageData(this.imagedata, 0, 0);
+    this.ctx_wf_tmp.putImageData(this.imagedata, 0, 0);
 
+    // Swap canvas references (double buffering)
+    var tmpCanvas = this.wf;
+    var tmpCtx = this.ctx_wf;
+    this.wf = this.canvas_wf_tmp;
+    this.ctx_wf = this.ctx_wf_tmp;
+    this.canvas_wf_tmp = tmpCanvas;
+    this.ctx_wf_tmp = tmpCtx;
+
+    // Draw waterfall to main display
     this.drawWaterfall();
 }
 
@@ -292,6 +305,7 @@ Spectrum.prototype.addData = function(magnitudes, start_sec, start_nsec, end_sec
             this.wf_size = magnitudes.length;
             this.fftSize = magnitudes.length;
             this.ctx_wf.canvas.width = magnitudes.length;
+            this.ctx_wf_tmp.canvas.width = magnitudes.length;
             this.imagedata = this.ctx_wf.createImageData(magnitudes.length, 1);
         }
         this.drawSpectrum(magnitudes);
@@ -1678,7 +1692,14 @@ function Spectrum(id, options) {
     this.wf = document.createElement("canvas");
     this.wf.height = this.wf_rows;
     this.wf.width = this.wf_size;
-    this.ctx_wf = this.wf.getContext("2d");
+    this.ctx_wf = this.wf.getContext("2d", { willReadFrequently: true });
+
+    // backing canvas for swapping, saves around 10% cpu and gpu on firefox
+    // EDGE/Chrome is much lower cpu/gpu overhead than firefox
+    this.canvas_wf_tmp = document.createElement("canvas");
+    this.canvas_wf_tmp.height = this.wf_rows;
+    this.canvas_wf_tmp.width = this.wf_size;
+    this.ctx_wf_tmp = this.canvas_wf_tmp.getContext("2d", { willReadFrequently: true });
 
     // retrieve session values
     let markers = sessionStorage.getItem("markers");
