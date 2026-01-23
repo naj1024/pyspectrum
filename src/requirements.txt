@@ -25,6 +25,7 @@ pylibiio>=0.21
 
 # rtl devices, optional
 pyrtlsdr>=0.2.93
+setuptools<81
 
 # soapy devices, optional
 # Not supported by pip install
