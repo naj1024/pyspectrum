@@ -259,6 +259,6 @@ class Spectrum:
         # magnitudes = abs(signals_fft)  # note this updates signals_fft as well
 
         # normalisation in get_powers()
-        magnitudes_squared = (signals_fft * signals_fft.conj()).real
+        magnitudes_squared = signals_fft.real**2 + signals_fft.imag**2
 
         return magnitudes_squared
