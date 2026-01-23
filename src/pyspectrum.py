@@ -189,7 +189,12 @@ def main() -> None:
                 # weighted towards newest average quickly with previous error less significant than current
                 sdr_config.dc_error = sdr_config.dc_error * 0.3 \
                                       + np.average(samples) * 0.7
-                samples -= sdr_config.dc_error
+                # check we can write to the array
+                if samples.flags.writeable:
+                    samples -= sdr_config.dc_error
+                else:
+                    # copy it
+                    samples = samples - sdr_config.dc_error
 
             ##########################
             # Calculate the spectrum
