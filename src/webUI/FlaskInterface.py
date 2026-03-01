@@ -27,19 +27,19 @@ class FlaskInterface(multiprocessing.Process):
                  to_ui_queue: multiprocessing.Queue,
                  log_level: int,
                  shared_status: dict,
-                 shared_update: dict):
+                 update_queue: multiprocessing.Queue):
         """
         Initialise the server
 
         :param to_ui_queue: we pass it to a web socket server
         :param log_level: The logging level we wish to use
         :param shared_status: A dictionary with current status
-        :param shared_update: A dictionary with the updates from the UI, will only contain updates
+        :param update_queue: A queue with the updates from the UI, will only contain updates
         """
         multiprocessing.Process.__init__(self)
 
         self._status = shared_status
-        self._update = shared_update
+        self._updateQ = update_queue
 
         # queues are for the web socket, not used in the web server
         self._to_ui_queue = to_ui_queue
@@ -107,7 +107,7 @@ class FlaskInterface(multiprocessing.Process):
             uri = f"/{entry}/<string:thing>"
             rest_api.add_resource(c,
                                   uri,
-                                  resource_class_kwargs={'status': self._status, 'update': self._update})
+                                  resource_class_kwargs={'status': self._status, 'updateQ': self._updateQ})
 
         # api endpoint is different from all the other ones
         rest_api.add_resource(Api,
@@ -171,7 +171,7 @@ class Input(Resource):
     def __init__(self, **kwargs):
         # set the dictionary we use for updating things
         self._status = kwargs['status']
-        self._update = kwargs['update']
+        self._updateQ = kwargs['updateQ']
         self._allowed_get_endpoints = ['sources', 'source', 'errors']
         self._allowed_put_endpoints = ['source']
 
@@ -209,7 +209,12 @@ class Input(Resource):
                 try:
                     s = request.json['source']
                     p = request.json['params']
-                    self._update[thing] = {'source': s, 'params': p, 'connected': False}
+                    self._updateQ.put({
+                        "type": thing,
+                        "set": s,
+                        "params": p,
+                        "connected": "false",
+                    })
                 except Exception as err:
                     return f"Failed to parse {thing} endpoint", 400
                 return "ok"
@@ -221,7 +226,7 @@ class Digitiser(Resource):
     def __init__(self, **kwargs):
         # set the dictionary we use for updating things
         self._status = kwargs['status']
-        self._update = kwargs['update']
+        self._updateQ = kwargs['updateQ']
         self._allowed_get_endpoints = ['digitiserFrequency', 'digitiserFormats', 'digitiserFormat',
                                        'digitiserSampleRate',
                                        'digitiserBandwidth', 'digitiserPartsPerMillion', 'digitiserGainTypes',
@@ -260,37 +265,61 @@ class Digitiser(Resource):
                 if thing == 'digitiserFormat':
                     fmt = request.json[thing]
                     if fmt in self._status['digitiserFormats']:
-                        self._update[thing] = fmt
+                        self._updateQ.put({
+                            "type": thing,
+                            "set": fmt,
+                        })
                     else:
                         raise ValueError()
                 elif thing == 'digitiserSampleRate':
                     # request.form for non json put
                     sps = abs(int(request.json[thing]))
-                    self._update[thing] = sps
+                    self._updateQ.put({
+                        "type": thing,
+                        "set": sps,
+                    })
                 elif thing == 'digitiserBandwidth':
                     bw = abs(int(request.json[thing]))
-                    self._update[thing] = bw
+                    self._updateQ.put({
+                        "type": thing,
+                        "set": bw,
+                    })
                 elif thing == 'digitiserPartsPerMillion':
                     ppm = float(request.json[thing])
-                    self._update[thing] = ppm
+                    self._updateQ.put({
+                        "type": thing,
+                        "set": ppm,
+                    })
                 elif thing == 'digitiserDbmOffset':
                     offset = float(request.json[thing])
-                    self._update[thing] = offset
+                    self._updateQ.put({
+                        "type": thing,
+                        "set": offset,
+                    })
                 elif thing == 'digitiserGainType':
                     gt = request.json[thing]
                     if gt in self._status['digitiserGainTypes']:
-                        self._update[thing] = gt
+                        self._updateQ.put({
+                            "type": thing,
+                            "set": gt,
+                        })
                     else:
                         raise ValueError()
                 elif thing == 'digitiserDcRemoval':
                     dc = request.json[thing]
                     if dc in self._status['digitiserDcRemovals']:
-                        self._update[thing] = dc
+                        self._updateQ.put({
+                            "type": thing,
+                            "set": dc,
+                        })
                     else:
                         raise ValueError()
                 elif thing == 'digitiserGain':
                     gn = int(request.json[thing])
-                    self._update[thing] = gn
+                    self._updateQ.put({
+                            "type": thing,
+                            "set": gn,
+                    })
                 return "ok"
             except Exception:
                 return "Failed to parse {thing} endpoint", 400
@@ -302,7 +331,7 @@ class Spectrum(Resource):
     def __init__(self, **kwargs):
         # set the dictionary we use for updating things
         self._status = kwargs['status']
-        self._update = kwargs['update']
+        self._updateQ = kwargs['updateQ']
         self._allowed_get_endpoints = ['fftSizes', 'fftSize', 'psd', 'fftOverlap', 'fftOverlaps',
                                        'fftFrameTime', 'fftWindows', 'fftWindow']
         self._allowed_put_endpoints = ['fftSize', 'fftOverlap', 'psd', 'fftWindow']
@@ -333,25 +362,34 @@ class Spectrum(Resource):
                 if thing == 'fftSize':
                     size = int(request.json[thing])
                     if size in self._status['fftSizes']:
-                        self._update[thing] = size
+                        self._updateQ.put({
+                            "type": thing,
+                            "set": size,
+                        })
                     else:
                         raise ValueError()
                 elif thing == 'fftOverlap':
-                    ovrlp = int(request.json[thing])
-                    if (ovrlp >= 0) and (ovrlp <= 100):
-                        self._update[thing] = ovrlp
+                    overlap = int(request.json[thing])
+                    if (overlap >= 0) and (overlap <= 100):
+                        self._updateQ.put({
+                            "type": thing,
+                            "set": overlap,
+                        })
                     else:
                         raise ValueError()
                 elif thing == 'psd':
                     psd = request.json[thing]
-                    if psd == "Off":
-                        self._update[thing] = False
-                    else:
-                        self._update[thing] = True
+                    self._updateQ.put({
+                        "type": thing,
+                        "set": psd,
+                    })
                 elif thing == 'fftWindow':
                     wnd = request.json[thing]
                     if wnd in self._status['fftWindows']:
-                        self._update[thing] = wnd
+                        self._updateQ.put({
+                            "type": thing,
+                            "set": wnd,
+                        })
                     else:
                         raise ValueError()
                 return "ok"
@@ -366,7 +404,7 @@ class Control(Resource):
     def __init__(self, **kwargs):
         # set the dictionary we use for updating things
         self._status = kwargs['status']
-        self._update = kwargs['update']
+        self._updateQ = kwargs['updateQ']
         self._allowed_get_endpoints = ['presetFps', 'fps', 'stop', 'fpsMeasured', 'delay', 'loopCpuPc',
                                        'overflows', 'oneInN']
         self._allowed_put_endpoints = ['ackTime', 'fps', 'stop']
@@ -395,13 +433,23 @@ class Control(Resource):
         if thing in self._allowed_put_endpoints:
             try:
                 if thing == 'ackTime':
-                    self._update[thing] = request.json[thing]
+                    self._updateQ.put({
+                        "type": thing,
+                        "set": request.json[thing],
+                    })
                 elif thing == 'fps':
                     set_fps = abs(int(request.json[thing]['set']))
                     measured = self._status['fps']['measured']
-                    self._update[thing] = {'set': set_fps, 'measured': measured}
+                    self._updateQ.put({
+                        "type": thing,
+                        "set": set_fps,
+                        "measured": measured,
+                    })
                 elif thing == 'stop':
-                    self._update[thing] = request.json[thing]
+                    self._updateQ.put({
+                        "type": thing,
+                        "set": "true",
+                    })
                 return "ok"
             except Exception:
                 return "Failed to parse {thing} command", 400
@@ -414,7 +462,7 @@ class Snapshot(Resource):
     def __init__(self, **kwargs):
         # set the dictionary we use for updating things
         self._status = kwargs['status']
-        self._update = kwargs['update']
+        self._updateQ = kwargs['updateQ']
         self._allowed_get_endpoints = ['snapTriggerSources', 'snapTriggerSource', 'snapTriggerState',
                                        'snapName', 'snapFormats', 'snapFormat', 'snapPreTrigger', 'snapPostTrigger',
                                        'snapSize', 'snaps']
@@ -446,31 +494,49 @@ class Snapshot(Resource):
         if thing in self._allowed_put_endpoints:
             try:
                 if thing == 'snapTrigger':
-                    self._update[thing] = request.json[thing]
+                    self._updateQ.put({
+                        "type": thing,
+                        "set": "true",
+                    })
                 elif thing == 'snapTriggerSource':
                     src = request.json[thing]
                     if src in self._status['snapTriggerSources']:
-                        self._update[thing] = src
+                        self._updateQ.put({
+                            "type": thing,
+                            "set": src,
+                        })
                     else:
                         raise ValueError()
                 elif thing == 'snapName':
                     nme = request.json[thing]
                     if len(nme) > 0:
-                        self._update[thing] = nme
+                        self._updateQ.put({
+                            "type": thing,
+                            "set": nme,
+                        })
                     else:
                         raise ValueError()
                 elif thing == 'snapFormat':
                     frm = request.json[thing]
                     if frm in self._status['snapFormats']:
-                        self._update[thing] = frm
+                        self._updateQ.put({
+                            "type": thing,
+                            "set": frm,
+                        })
                     else:
                         raise ValueError()
                 elif thing == 'snapPreTrigger':
                     pre = abs(int(request.json[thing]))
-                    self._update[thing] = pre
+                    self._updateQ.put({
+                        "type": thing,
+                        "set": pre,
+                    })
                 elif thing == 'snapPostTrigger':
                     pos = abs(int(request.json[thing]))
-                    self._update[thing] = pos
+                    self._updateQ.put({
+                        "type": thing,
+                        "set": pos,
+                    })
                 return "ok"
             except Exception:
                 return "Failed to parse {thing} command", 400
@@ -479,7 +545,10 @@ class Snapshot(Resource):
     def delete(self, thing):
         if thing in self._allowed_delete_endpoints:
             if thing == 'snapDelete':
-                self._update[thing] = request.json[thing]
+                self._updateQ.put({
+                    "type": thing,
+                    "set": request.json[thing],
+                })
             return f"deleting {request.json[thing]}"
         return f"Endpoint {thing} not supported", 403
 
@@ -489,7 +558,7 @@ class Tuning(Resource):
     def __init__(self, **kwargs):
         # set the dictionary we use for updating things
         self._status = kwargs['status']
-        self._update = kwargs['update']
+        self._updateQ = kwargs['updateQ']
         self._allowed_get_endpoints = ['frequency']
         self._allowed_put_endpoints = ['frequency']
 
@@ -519,7 +588,11 @@ class Tuning(Resource):
                 if thing == 'frequency':
                     f = abs(int(request.json['value']))
                     c = int(request.json['conversion'])
-                    self._update[thing] = {'value': f, 'conversion': c}
+                    self._updateQ.put({
+                        "type": thing,
+                        "set": f,
+                        "conversion": c,
+                    })
                 return "ok"
             except Exception as err:
                 return f"Failed to parse {thing} command", 400
