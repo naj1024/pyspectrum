@@ -152,11 +152,9 @@ class Input(DataSource.DataSource):
             total_bytes = self._bytes_per_complex_sample * number_samples
             raw_bytes = bytearray()
             try:
-                sock = None
+                sock = self._served_connection
                 if self._client:
                     sock = self._socket
-                else:
-                    sock = self._served_connection
 
                 if sock:
                     while sock and (total_bytes > 0):

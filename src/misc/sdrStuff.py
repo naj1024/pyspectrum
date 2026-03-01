@@ -1,3 +1,4 @@
+
 import logging
 
 from dataSources import DataSource
@@ -6,7 +7,7 @@ from misc import Sdr
 logger = logging.getLogger('spectrum_logger')
 
 
-def change_source(data_source, source_factory, configuration: Sdr, source, params):
+def change_source(data_source, source_factory, configuration: Sdr.Sdr, source, params):
     if source != "":
         configuration.input_source = source
         configuration.input_params = params
@@ -21,7 +22,7 @@ def change_source(data_source, source_factory, configuration: Sdr, source, param
     return data_source
 
 
-def create_source(configuration: Sdr, factory) -> DataSource:
+def create_source(configuration: Sdr.Sdr, factory) -> DataSource.DataSource:
     """
     Create the source of samples, cannot exception or fail. Does not open the source.
 
@@ -38,7 +39,7 @@ def create_source(configuration: Sdr, factory) -> DataSource:
     return data_source
 
 
-def open_source(config: Sdr, data_source: DataSource) -> None:
+def open_source(config: Sdr.Sdr, data_source: DataSource.DataSource) -> None:
     """
     Open the source, just creating a source will not open it as the creation cannot fail but the open can
 
@@ -72,7 +73,7 @@ def open_source(config: Sdr, data_source: DataSource) -> None:
     Sdr.add_to_error(config, data_source.get_and_reset_error())
 
 
-def update_source_state(configuration: Sdr, data_source: DataSource) -> None:
+def update_source_state(configuration: Sdr.Sdr, data_source: DataSource.DataSource) -> None:
     """
     Things that the source may change on it's own that we need to be aware of for the UI etc
 
@@ -86,7 +87,7 @@ def update_source_state(configuration: Sdr, data_source: DataSource) -> None:
         configuration.sdr_centre_frequency_hz = data_source.get_centre_frequency_hz()  # front end resolution
 
 
-def update_source(configuration: Sdr, source_factory) -> DataSource:
+def update_source(configuration: Sdr.Sdr, source_factory) -> DataSource.DataSource:
     """
     Changing the source
 

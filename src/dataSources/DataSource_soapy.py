@@ -51,7 +51,7 @@ class Input(DataSource.DataSource):
 
     def __init__(self,
                  parameters: str,
-                 data_type: str,
+                 _data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
                  input_bw: float):

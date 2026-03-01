@@ -47,7 +47,7 @@ def is_available() -> Tuple[str, str]:
 audio_q = queue.Queue(4)
 
 
-def audio_callback(incoming_samples: np.ndarray, frames: int, time_1, status) -> None:
+def audio_callback(incoming_samples: np.ndarray, frames: int, _time_1, status) -> None:
     if status:
         if status.input_overflow:
             DataSource.write_overflow(1)
@@ -79,7 +79,7 @@ class Input(DataSource.DataSource):
 
     def __init__(self,
                  parameters: str,
-                 data_type: str,
+                 _data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
                  input_bw: float
@@ -88,7 +88,7 @@ class Input(DataSource.DataSource):
         The audio input source
 
         :param parameters: Number of the device to use, or 'L' for a list
-        :param data_type: Not used
+        :param _data_type: Not used
         :param sample_rate: The sample rate we will set the source to
         :param centre_frequency: Not used
         :param input_bw: The filtering of the input, may not be configurable

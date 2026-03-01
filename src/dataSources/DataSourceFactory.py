@@ -2,6 +2,7 @@ import importlib
 import logging
 import os
 import sys
+from typing import Any
 
 from dataSources import DataSource
 
@@ -48,21 +49,21 @@ class DataSourceFactory:
                 self._data_helps[name] = getattr(module, "help_string")
                 self._data_web_helps[name] = getattr(module, "web_help_string")
 
-    def sources(self) -> [str]:
+    def sources(self) -> list[str]:
         """
         Return a list of names of source that we have registered for creation
         :return: A list of names as strings
         """
         return list(self._data_sources.keys())
 
-    def help_strings(self) -> {str: str}:
+    def help_strings(self) -> dict[Any, Any]:
         """
-        Return a list of help strings from the the supported input sources
+        Return a list of help strings from the supported input sources
         :return: A dictionary of help strings for the input sources
         """
         return self._data_helps
 
-    def web_help_strings(self) -> {str: str}:
+    def web_help_strings(self) -> dict[Any, Any]:
         """
         Return a list of web help strings from the the supported input sources
         :return: A dictionary of help strings for the input sources
@@ -76,7 +77,7 @@ class DataSourceFactory:
                sample_rate: float,
                centre_frequency: float,
                input_bw: float
-               ) -> DataSource:
+               ) -> DataSource.DataSource:
         """
         Create a new data source
 

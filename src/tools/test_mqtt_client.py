@@ -3,14 +3,14 @@ import time
 import paho.mqtt.client as mqtt  # import the client1
 
 
-def on_message(client, user_data, message):
+def on_message(_client, _user_data, message):
     print(message.topic, str(message.payload.decode("utf-8")))
 
 
 broker_address = "power"
 root_topic = "spectrum"
 
-mqtt_client = mqtt.Client("P1")  # create new instance
+mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, "P1")  # create new instance
 mqtt_client.on_message = on_message  # attach function to callback
 print("connecting to broker", broker_address)
 try:

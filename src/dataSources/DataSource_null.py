@@ -55,7 +55,7 @@ class Input(DataSource.DataSource):
         return True
 
     # noinspection PyMethodMayBeStatic
-    def read_cplx_samples(self, number_samples: int) -> Tuple[np.array, float]:
+    def read_cplx_samples(self, _number_samples: int) -> Tuple[np.array, float]:
         """
             Always no samples
         """

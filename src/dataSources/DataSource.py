@@ -267,9 +267,9 @@ class DataSource:
         # used for file inputs, current position in file in seconds
         return 0.0
     
-    def get_time_ns(self, number_samples: int) -> float:
+    def get_time_ns(self, _number_samples: int) -> float:
         # TODO: work out why counting samples for time does not work
-        # if we add the time fo the previous samples to the previous time
+        # if we add the time of the previous samples to the previous time
         # we should agree on time. But if we do this then the times are not
         # correct, e.g. a signal every 6seconds may show as every 4.5seconds
 

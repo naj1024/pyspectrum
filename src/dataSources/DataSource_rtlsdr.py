@@ -87,7 +87,7 @@ class Input(DataSource.DataSource):
 
     def __init__(self,
                  parameters: str,
-                 data_type: str,
+                 _data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
                  input_bw: float):
@@ -95,7 +95,7 @@ class Input(DataSource.DataSource):
         The rtlsdr input source
 
         :param parameters: The device number, normally zero
-        :param data_type: The data type the rtlsdr is providing, we will convert this
+        :param _data_type: The data type the rtlsdr is providing, we will convert this
         :param sample_rate: The sample rate we will set the source to, note true sps is set from the device
         :param centre_frequency: The centre frequency the source will be set to
         :param input_bw: The filtering of the input, may not be configurable
@@ -278,7 +278,6 @@ class Input(DataSource.DataSource):
         else:
             self._error = f"Unknown tuner type {self._tuner_type}, frequency range checking impossible"
             logger.error(self._error)
-            ok = False
 
         if not freq_ok:
             self._error = f"{allowed_tuner_types[self._tuner_type]} invalid frequency {frequency}Hz, " \

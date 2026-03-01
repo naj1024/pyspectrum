@@ -41,7 +41,7 @@ class PicGenerator(multiprocessing.Process):
         logger.debug("PicGenerator Shutting down")
         self._shutdown = True
 
-    def signal_handler(self, sig, __):
+    def signal_handler(self, _sig, __):
         self.shutdown()
 
     def run(self):

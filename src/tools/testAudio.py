@@ -8,7 +8,7 @@ deviceA = 0
 audio_q = queue.Queue(3)
 
 
-def callback_s(samples, frames, time_1, status):
+def callback_s(samples, frames, _time_1, status):
     if status:
         if status.input_overflow:
             print("audio input overflow")

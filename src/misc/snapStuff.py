@@ -2,6 +2,7 @@ import datetime
 import logging
 import os
 import pathlib
+from datetime import datetime, timezone
 
 from misc import global_vars
 
@@ -36,7 +37,7 @@ def delete_file(filename: str, thumb_dir: pathlib.PurePath) -> None:
             logger.error(err)
 
 
-def list_snap_files(directory: pathlib.PurePath) -> []:
+def list_snap_files(directory: pathlib.PurePath) -> list[str]:
     """
     List the data sample files in the provided directory
     Exclude png, hidden and metadata files
@@ -56,7 +57,7 @@ def list_snap_files(directory: pathlib.PurePath) -> []:
                 # We will not match the time in the filename as it is recording the trigger time
                 # getctime() may also return the last modification time not creation time (dependent on OS)
                 timestamp = int(os.path.getctime(path))
-                date_time = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d_%H-%M-%S')
+                date_time = datetime.fromtimestamp(timestamp, timezone.utc).strftime('%Y-%m-%d_%H-%M-%S')
                 directory_list.append((path.name, str(round(os.path.getsize(path) / (1024 * 1024), 3)), date_time))
     # sort so that most recent is first
     directory_list.sort(reverse=True, key=lambda a: a[2])

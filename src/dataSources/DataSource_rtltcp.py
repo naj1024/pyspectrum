@@ -76,7 +76,7 @@ class Input(DataSource.DataSource):
 
     def __init__(self,
                  parameters: str,
-                 data_type: str,
+                 _data_type: str,
                  sample_rate: float,
                  centre_frequency: float,
                  input_bw: float):
@@ -84,7 +84,7 @@ class Input(DataSource.DataSource):
         The rtltcp input source
 
         :param parameters: Ip and port as a string, e.g. 127.0.0.1:1234
-        :param data_type: ignored, we will be getting 8bit offset binary, '8o'
+        :param _data_type: ignored, we will be getting 8bit offset binary, '8o'
         :param sample_rate: The sample rate we will set the source to, note true sps is set from the device
         :param centre_frequency: The centre frequency the source will be set to
         :param input_bw: The filtering of the input, may not be configurable
@@ -164,7 +164,7 @@ class Input(DataSource.DataSource):
             # recover the type of tuner we have from the server
             try:
                 self._tuner_type_str = self.get_tuner_type()
-            except Exception as tt:
+            except Exception:
                 logger.error("Failed to get tuner_type - using R820T")
                 self._tuner_type_str = allowed_tuner_types[5]  # R820T
                 pass

@@ -356,7 +356,7 @@ class Wave_read:
         warnings._deprecated("Wave_read.getmarkers", remove=(3, 15))
         return None
 
-    def getmark(self, id):
+    def getmark(self, _id):
         import warnings
         warnings._deprecated("Wave_read.getmark", remove=(3, 15))
         raise Error('no marks')
@@ -407,7 +407,8 @@ class Wave_read:
             raise EOFError from None
         if self._wFormatTag == WAVE_FORMAT_EXTENSIBLE:
             try:
-                cbSize, wValidBitsPerSample, dwChannelMask = struct.unpack_from('<HHL', chunk.read(8))
+                # cbSize, wValidBitsPerSample, dwChannelMask = struct.unpack_from('<HHL', chunk.read(8))
+                _, _, _ = struct.unpack_from('<HHL', chunk.read(8))
                 # Read the entire UUID from the chunk
                 SubFormat = chunk.read(16)
                 if len(SubFormat) < 16:
@@ -540,10 +541,10 @@ class Wave_write:
     def getnframes(self):
         return self._nframeswritten
 
-    def setwformat(self, format):
-        if format != WAVE_FORMAT_PCM and format != WAVE_FORMAT_IEEE_FLOAT:
+    def setwformat(self, frmt):
+        if frmt != WAVE_FORMAT_PCM and frmt != WAVE_FORMAT_IEEE_FLOAT:
             raise Error('unsupported wave file format')
-        self._wFormatTag = format
+        self._wFormatTag = frmt
 
     def getwformat(self):
         return self._wFormatTag
@@ -578,12 +579,12 @@ class Wave_write:
         return _wave_params(self._nchannels, self._sampwidth, self._framerate,
               self._nframes, self._comptype, self._compname)
 
-    def setmark(self, id, pos, name):
+    def setmark(self, _id, _pos, _name):
         import warnings
         warnings._deprecated("Wave_write.setmark", remove=(3, 15))
         raise Error('setmark() not supported')
 
-    def getmark(self, id):
+    def getmark(self, _id):
         import warnings
         warnings._deprecated("Wave_write.getmark", remove=(3, 15))
         raise Error('no marks')

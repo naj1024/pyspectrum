@@ -64,7 +64,7 @@ class BlockSampleFetch:
 
 
 class DynamicSampleFetch:
-    def __init__(self, data_source: DataSource.DataSource, sdr_config: Sdr):
+    def __init__(self, data_source: DataSource.DataSource, sdr_config: Sdr.Sdr):
         self.data_source = data_source
         self.sdr_config = sdr_config
         self.fetcher = None
@@ -88,7 +88,7 @@ class DynamicSampleFetch:
             return None, None, 0
 
 
-def create_sample_fetch(data_source: DataSource.DataSource, sdr_config: Sdr):
+def create_sample_fetch(data_source: DataSource.DataSource, sdr_config: Sdr.Sdr):
     if sdr_config.fft_overlap == 0:
         # simple non-overlapping samples required
         return BlockSampleFetch(data_source, sdr_config.fft_size)

@@ -10,8 +10,10 @@ We save the raw float data to file:
 import datetime
 import logging
 import pathlib
+from datetime import datetime, timezone
 
 import numpy as np
+import numpy.typing as npt
 
 from misc import Snapper
 from misc import wave_b as wave
@@ -36,7 +38,7 @@ class FileOutput:
     Simple wrapper class for writing binary data to file
     """
 
-    def __init__(self, config: Snapper, snap_dir: pathlib.PurePath):
+    def __init__(self, config: Snapper.Snapper, snap_dir: pathlib.PurePath):
         """
         Configure the snapshot
 
@@ -138,7 +140,7 @@ class FileOutput:
     def _filename(self, sigmf_type: str = 'data') -> str:
         then = int(self._start_time_nsec / 1e9)
         fractional_sec = (self._start_time_nsec / 1e9) - then
-        date_time = datetime.datetime.utcfromtimestamp(then).strftime('%Y-%m-%d_%H-%M-%S')
+        date_time = datetime.fromtimestamp(then, timezone.utc).strftime('%Y-%m-%d_%H-%M-%S')
         fractional_sec = str(round(fractional_sec, 3)).lstrip('0')
         filename = self._base_filename + f".{date_time}{fractional_sec}" \
                                          f".cf{self._centre_freq_hz / 1e6:.6f}" \
@@ -263,7 +265,7 @@ class FileOutput:
             self._pre_data_samples -= self._complex_pre_data[0].shape[0]
             del self._complex_pre_data[0]
 
-    def write(self, trigger: bool, data: np.array, time_rx_nsec: float) -> bool:
+    def write(self, trigger: bool, data: npt.NDArray[np.complex64], time_rx_nsec: float) -> bool:
         """
         Write the data for the snapshot.
         Keep a record of samples we will write to file at the end

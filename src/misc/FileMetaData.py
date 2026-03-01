@@ -191,7 +191,6 @@ class FileMetaData:
                     bool indicating a wav file
                     data_type, sps, centre_frequency
         """
-        cf = 0.0  # default
         wav_file = False
         try:
             # first off, is this a wav file ?

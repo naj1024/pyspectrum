@@ -8,7 +8,7 @@ from dataSources import DataSource
 from misc import Sdr
 
 
-def time_spectral(configuration: Sdr):
+def time_spectral(configuration: Sdr.Sdr):
     """
     Time how long it takes to compute various things and show results
 

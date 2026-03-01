@@ -3,6 +3,7 @@ import time
 from typing import List
 
 import numpy as np
+import numpy.typing as npt
 
 # import line_profiler
 
@@ -27,15 +28,14 @@ except ImportError:
     logger.info("Warning: No fftw support in environment")
 
 
-def create_test_data(size: int) -> np.array:
-    # create some test data
+def create_test_data(size: int) -> npt.NDArray[np.complex64]:
     rnd = np.random.rand(size * 2)
     complex_data = np.array(rnd[0::2], dtype=np.complex64)
     complex_data.imag = rnd[1::2]
     return complex_data
 
 
-def test_numpy_fft_speed(complex_data: np.array, iterations: int = 500) -> float:
+def test_numpy_fft_speed(complex_data: npt.NDArray[np.complex64], iterations: int = 500) -> float:
     t1 = time.perf_counter()
     for i in range(iterations):
         signals_fft = np.fft.fft(complex_data)
@@ -45,7 +45,7 @@ def test_numpy_fft_speed(complex_data: np.array, iterations: int = 500) -> float
     return (1e6 * (t2 - t1)) / iterations
 
 
-def test_fftw_fft_speed(complex_data: np.array, iterations: int = 500, fftw_threads: int = 1) -> float:
+def test_fftw_fft_speed(complex_data: npt.NDArray[np.complex64], iterations: int = 500, _fftw_threads: int = 1) -> float:
     if pyfftw:
         pyfftw.interfaces.cache.enable()
         pyfftw.interfaces.cache.set_keepalive_time(10)
@@ -60,7 +60,7 @@ def test_fftw_fft_speed(complex_data: np.array, iterations: int = 500, fftw_thre
     return 10e6  # something very big in useconds
 
 
-def test_scipy_fft_speed(complex_data: np.array, iterations: int = 500) -> float:
+def test_scipy_fft_speed(complex_data: npt.NDArray[np.complex64], iterations: int = 500) -> float:
     if fftpack:
         t1 = time.perf_counter()
         for i in range(iterations):
@@ -110,7 +110,7 @@ def get_powers(mag_squared: np.ndarray, sps: float, psd: bool, offset: float) ->
     return powers
 
 
-def get_windows() -> []:
+def get_windows() -> list[str]:
     if fftpack:
         return ['Hanning', 'Hamming', 'Blackman', 'Bartlett', 'Kaiser_16', 'rectangular', 'flattop']
     else:
@@ -220,7 +220,7 @@ class Spectrum:
             logger.debug(" - Using fftw for fft")
 
     # @profile
-    def mag_spectrum(self, complex_samples_in: np.array, reorder: bool = True) -> np.ndarray:
+    def mag_spectrum(self, complex_samples_in: npt.NDArray[np.complex64], reorder: bool = True) -> np.ndarray:
         """Perform the fft on the samples with windowing applied and return the magnitudes
         Note that the returned magnitudes have been reordered
 

@@ -8,6 +8,7 @@ The png filename will be the input filename with .png appended
 """
 import os
 import pathlib
+from matplotlib import image
 
 import numpy as np
 
@@ -84,7 +85,7 @@ class SpectrumPicture:
                     fig.savefig(pic_name)
                     # create a thumbnail for the web
                     thumb_name = pathlib.PurePath(self._thumbnail_dir, os.path.basename(filename) + ".png")
-                    matplotlib.image.thumbnail(str(pic_name), str(thumb_name), scale=0.10)  # unix won't take pathlib
+                    image.thumbnail(str(pic_name), str(thumb_name), scale=0.10)  # unix won't take pathlib
 
             source.close()
 

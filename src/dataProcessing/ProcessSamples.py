@@ -1,6 +1,5 @@
 import logging
 from typing import List
-import time
 
 import numpy as np
 
@@ -23,13 +22,13 @@ def convert_to_frequencies(bins: List[int], sample_rate: float, fft_size: int) -
     return Spectrum.convert_to_frequencies(bins, sample_rate, fft_size)
 
 
-def get_windows() -> []:
+def get_windows() -> list[str]:
     return Spectrum.get_windows()
 
 
 class ProcessSamples:
 
-    def __init__(self, configuration: Sdr):
+    def __init__(self, configuration: Sdr.Sdr):
         """
         The main processor for digitised samples
         :param configuration: The configuration we want
@@ -54,32 +53,19 @@ class ProcessSamples:
         :param dbm_offset:
         :return: None
         """
-        time_spec = time.perf_counter()
         magnitudes_squared = self._spec.mag_spectrum(samples, False)
-        time_spec = (time.perf_counter() - time_spec)*1e6
-
-        time_powers = time.perf_counter()
         self._powers = Spectrum.get_powers(magnitudes_squared, sps, psd, dbm_offset)
-        time_powers = (time.perf_counter() - time_powers)*1e6
 
         # check that the size of the arrays have not changed, i.e. FFT size changed
         if samples.size != self._long_average.size:
             self._long_average = np.zeros(samples.size)
             self._powers = np.zeros(samples.size)
 
-        time_average = time.perf_counter()
         # Update a noise riding average
         # long term average on each bin to give a per bin noise floor
         # new = alpha * new_sample + (1-alpha) * old
         self._long_average *= (1 - self._alpha_for_ewma)
         self._long_average += (self._powers * self._alpha_for_ewma)
-        time_average = (time.perf_counter() - time_average)*1e6
-
-        # debug of extra timing prints
-        # self._count += 1
-        # if (self._count % 400) == 0:
-        #     logger.debug(f"fft {time_spec:.0f}us, powers {time_powers:.0f}us, average {time_average:.0f}us")
-        #     self._count = 0
 
     def get_long_average(self, reorder: bool = False) -> np.ndarray:
         """

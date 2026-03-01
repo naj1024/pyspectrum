@@ -10,7 +10,7 @@ from misc import Sdr
 from misc import timeSpectral
 
 
-def parse_command_line(configuration: Sdr, logger: logging.Logger) -> None:
+def parse_command_line(configuration: Sdr.Sdr, logger: logging.Logger) -> None:
     """
     Parse all the command line options
 

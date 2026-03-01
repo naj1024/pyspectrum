@@ -143,7 +143,6 @@ def main() -> None:
                                                                                                  shared_status,
                                                                                                  update_queue)
             if config_changed:
-                print("config changed")
                 fetcher = create_sample_fetch(data_source, sdr_config)
         time_end = time.perf_counter()
         times_and_averages.sync_from_ui.average(time_end - time_start)
@@ -308,7 +307,7 @@ def main() -> None:
     logger.error("SpectrumAnalyser exit")
 
 
-def check_on_snap_config(data_sink: DataSink_file, sdr_config: Sdr, snap_config: Snapper):
+def check_on_snap_config(data_sink: DataSink_file.FileOutput, sdr_config: Sdr.Sdr, snap_config: Snapper.Snapper):
     # has underlying sps or cf changed for the snap
     changed = False
     if snap_config.cf != sdr_config.sdr_centre_frequency_hz or \
@@ -324,8 +323,8 @@ def check_on_snap_config(data_sink: DataSink_file, sdr_config: Sdr, snap_config:
     return changed, data_sink
 
 
-def update_source_stats(data_source: DataSource, now: float, samples: np.ndarray, sdr_config: Sdr,
-                        shared_status: dict, times_and_averages: TimesAndAverages):
+def update_source_stats(data_source: DataSource.DataSource, now: float, samples: np.ndarray, sdr_config: Sdr.Sdr,
+                        shared_status: dict, times_and_averages: TimesAndAverages.TimesAndAverages):
     # Occasionally check on the source, maybe the gain changed etc
     if now > times_and_averages.config_time:
         sdrStuff.update_source_state(sdr_config, data_source)
@@ -345,7 +344,7 @@ def update_source_stats(data_source: DataSource, now: float, samples: np.ndarray
         shared_status['streamLength'] = sdr_config.seconds_length
 
 
-def update_fps(now: float, sdr_config: Sdr, times_and_averages: TimesAndAverages) -> bool:
+def update_fps(now: float, sdr_config: Sdr.Sdr, times_and_averages: TimesAndAverages.TimesAndAverages) -> bool:
     # update fps occasionally
     if now > times_and_averages.fps_update_time:
         if (now - sdr_config.time_measure_fps) > 0:
@@ -357,8 +356,8 @@ def update_fps(now: float, sdr_config: Sdr, times_and_averages: TimesAndAverages
     return False
 
 
-def save_samples(data_sink: DataSink_file, samples: np.ndarray, snap_config: Sdr,
-                 time_rx_nsec: float, times_and_averages: TimesAndAverages) -> bool:
+def save_samples(data_sink: DataSink_file.FileOutput, samples: np.ndarray, snap_config: Sdr.Sdr,
+                 time_rx_nsec: float, times_and_averages: TimesAndAverages.TimesAndAverages) -> bool:
     ##########################
     # Handle snapshots, due to pre-trigger we need to always give the samples
     #################
@@ -376,13 +375,12 @@ def save_samples(data_sink: DataSink_file, samples: np.ndarray, snap_config: Sdr
     return finished
 
 
-def call_plugins(plugin_manager, processor: ProcessSamples, sdr_config: Sdr,
-                 times_and_averages: TimesAndAverages, time_rx_nsec: float) -> None:
+def call_plugins(plugin_manager, processor: ProcessSamples.ProcessSamples, sdr_config: Sdr.Sdr,
+                 times_and_averages: TimesAndAverages.TimesAndAverages, time_rx_nsec: float) -> None:
     ###########################
     # analysis of the spectrum
     #################
     time_start = time.perf_counter()
-    results = None
     results = plugin_manager.call_plugin_method(method="analysis",
                                                 args={"powers": processor.get_powers(False),
                                                       "noise_floors": processor.get_long_average(False),
@@ -488,7 +486,7 @@ def set_thumbs_dir() -> pathlib.PurePath:
     return thumbs_dir
 
 
-def initialise(sdr_config: Sdr, snap_config: Snapper,
+def initialise(sdr_config: Sdr.Sdr, snap_config: Snapper.Snapper,
                thumbs_dir: pathlib.PurePath, shared_status: dict, update_queue: multiprocessing.Queue) \
         -> Tuple[
             DataSource.DataSource,
@@ -563,7 +561,7 @@ def initialise(sdr_config: Sdr, snap_config: Snapper,
         raise msg
 
 
-def fill_status_fast_to_ui(shared_status: dict, sdr_config: Sdr, snap_config: Snapper) -> None:
+def fill_status_fast_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_config: Snapper.Snapper) -> None:
     # things we want to update faster
     shared_status['digitiserGain'] = sdr_config.gain
 
@@ -580,7 +578,7 @@ def fill_status_fast_to_ui(shared_status: dict, sdr_config: Sdr, snap_config: Sn
     shared_status['snapTriggerState'] = snap_config.triggerState
 
 
-def fill_shared_status_to_ui(shared_status: dict, sdr_config: Sdr, snap_config: Snapper) -> None:
+def fill_shared_status_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_config: Snapper.Snapper) -> None:
     # Half way house converting over from class containing configuration
     # to a dictionary,so we can use the multiproccessing dictionary between processes
 
@@ -658,15 +656,15 @@ def fill_shared_status_to_ui(shared_status: dict, sdr_config: Sdr, snap_config: 
     shared_status['web_socket_port'] = sdr_config.web_port + 1
 
 
-def sync_state_from_ui(sdr_config: Sdr,
-                       snap_config: Snapper,
-                       data_source: DataSource,
+def sync_state_from_ui(sdr_config: Sdr.Sdr,
+                       snap_config: Snapper.Snapper,
+                       data_source: DataSource.DataSource,
                        source_factory,
-                       snap_sink: DataSink_file,
+                       snap_sink: DataSink_file.FileOutput,
                        thumb_dir: pathlib.PurePath,
-                       processor: ProcessSamples,
+                       processor: ProcessSamples.ProcessSamples,
                        shared_status: dict,
-                       update_queue: multiprocessing.Queue):  # -> Tuple[DataSource, DataSink_file, Sdr, dict, bool]:
+                       update_queue: multiprocessing.Queue):  # -> Tuple[DataSource, DataSink_file.FileOutput, Sdr, dict, bool]:
     """
     All changes instigated by the UI rest interfaces end up in the shared_update dictionary.
     Once the changes are made we delete the entries in the shared_update dictionary
@@ -909,7 +907,7 @@ def sync_state_from_ui(sdr_config: Sdr,
     return data_source, snap_sink, sdr_config, snap_config, config_changed
 
 
-def send_spectrums_to_ui(sdr_config: Sdr,
+def send_spectrums_to_ui(sdr_config: Sdr.Sdr,
                          to_ui_queue: multiprocessing.Queue,
                          powers: np.ndarray,
                          peak_powers_since_last_display: np.ndarray,
@@ -992,7 +990,7 @@ def send_spectrums_to_ui(sdr_config: Sdr,
     return peak_powers_since_last_display
 
 
-def debug_print(sdr_config: Sdr, times_and_averages: TimesAndAverages) -> None:
+def debug_print(sdr_config: Sdr.Sdr, times_and_averages: TimesAndAverages.TimesAndAverages) -> None:
     """
     Various useful profiling prints
 

@@ -46,7 +46,7 @@ class Mqtt(Plugin):
         if self._enabled:
             # if the mqtt broker address is not set then we will not create a client
             if self._mqtt_broker_address:
-                self._mqtt_client = mqtt.Client("mqttStats")  # create new instance
+                self._mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, "mqttStats")  # create new instance
                 logger.info(f"Connecting to MQTT broker at: {self._mqtt_broker_address}")
                 try:
                     self._mqtt_client.connect(self._mqtt_broker_address)  # connect to broker
@@ -56,7 +56,7 @@ class Mqtt(Plugin):
                     logger.error("MQTT connection failed,", msg)
                     self._mqtt_client = None
 
-    def _parse_options(self, options: {}) -> None:
+    def _parse_options(self, options: dict) -> None:
         """
         Parse the given dictionary of options to see if there is anything for us
         :param options: Dictionary of stuff, note that these are NOT the command line args but derived from them

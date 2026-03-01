@@ -64,7 +64,7 @@ class FlaskInterface(multiprocessing.Process):
             self._httpd.shutdown()
         logger.debug("FlaskServer shutdown")
 
-    def signal_handler(self, sig, __):
+    def signal_handler(self, _sig, __):
         self.shutdown()
 
     def run(self):
@@ -180,7 +180,7 @@ class Input(Resource):
         for ep in self._allowed_get_endpoints:
             try:
                 points[ep] = self._status[ep]
-            except Exception as err:
+            except Exception:
                 points[ep] = "tbd"  # not present in status yet
         return points
 
@@ -197,7 +197,7 @@ class Input(Resource):
                     self._status[thing] = ""
                 try:
                     return jsonify({thing: tmp})
-                except Exception as e:
+                except Exception:
                     logger.error(f"Failed to jsonify for {thing} {type(tmp)}")
             else:
                 return jsonify({thing: self._status[thing]})
@@ -215,7 +215,7 @@ class Input(Resource):
                         "params": p,
                         "connected": "false",
                     })
-                except Exception as err:
+                except Exception:
                     return f"Failed to parse {thing} endpoint", 400
                 return "ok"
         return f"Endpoint {thing} not supported", 403
@@ -243,7 +243,7 @@ class Digitiser(Resource):
         for ep in self._allowed_get_endpoints:
             try:
                 points[ep] = self._status[ep]
-            except Exception as err:
+            except Exception:
                 points[ep] = "tbd"  # not present in status yet
         return points
 
@@ -255,7 +255,7 @@ class Digitiser(Resource):
         if thing in self._allowed_get_endpoints:
             try:
                 return jsonify({thing: self._status[thing]})
-            except Exception as e:
+            except Exception:
                 logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
         return f"Endpoint {thing} not supported", 403
 
@@ -341,7 +341,7 @@ class Spectrum(Resource):
         for ep in self._allowed_get_endpoints:
             try:
                 points[ep] = self._status[ep]
-            except Exception as err:
+            except Exception:
                 points[ep] = "tbd"  # not present in status yet
         return points
 
@@ -352,7 +352,7 @@ class Spectrum(Resource):
         if thing in self._allowed_get_endpoints:
             try:
                 return jsonify({thing: self._status[thing]})
-            except Exception as e:
+            except Exception:
                 logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
         return f"Endpoint {thing} not supported", 403
 
@@ -414,7 +414,7 @@ class Control(Resource):
         for ep in self._allowed_get_endpoints:
             try:
                 points[ep] = self._status[ep]
-            except Exception as err:
+            except Exception:
                 points[ep] = "tbd"  # not present in status yet
         return points
 
@@ -425,7 +425,7 @@ class Control(Resource):
         if thing in self._allowed_get_endpoints:
             try:
                 return jsonify({thing: self._status[thing]})
-            except Exception as e:
+            except Exception:
                 logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
         return f"Endpoint {thing} not supported", 403
 
@@ -475,7 +475,7 @@ class Snapshot(Resource):
         for ep in self._allowed_get_endpoints:
             try:
                 points[ep] = self._status[ep]
-            except Exception as err:
+            except Exception:
                 points[ep] = "tbd"  # not present in status yet
         return points
 
@@ -486,7 +486,7 @@ class Snapshot(Resource):
         if thing in self._allowed_get_endpoints:
             try:
                 return jsonify({thing: self._status[thing]})
-            except Exception as e:
+            except Exception:
                 logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
         return f"Endpoint {thing} not supported", 403
 
@@ -567,7 +567,7 @@ class Tuning(Resource):
         for ep in self._allowed_get_endpoints:
             try:
                 points[ep] = self._status[ep]
-            except Exception as err:
+            except Exception:
                 points[ep] = "tbd"  # not present in status yet
         return points
 
@@ -578,7 +578,7 @@ class Tuning(Resource):
         if thing in self._allowed_get_endpoints:
             try:
                 return jsonify({thing: self._status[thing]})
-            except Exception as e:
+            except Exception:
                 logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
         return f"Endpoint {thing} not supported", 403
 
@@ -594,6 +594,6 @@ class Tuning(Resource):
                         "conversion": c,
                     })
                 return "ok"
-            except Exception as err:
+            except Exception:
                 return f"Failed to parse {thing} command", 400
         return f"Endpoint {thing} not supported", 403
