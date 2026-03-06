@@ -691,6 +691,7 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
             msg = update_queue.get()
             message_name = msg['type']
             message_value = msg['set']
+            # print(message_name, message_value)
 
             if message_name == 'source':
                 source = message_value
@@ -902,7 +903,8 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                 snap_sink = data_sink
 
         except Exception as msg:
-            logger.error(f"sync_state() error '{msg}' from something in {msg}")
+            logging.exception("sync_state_from_ui")
+            logger.error(f"sync_state_from_ui() error '{msg}' from something in {msg}")
 
     return data_source, snap_sink, sdr_config, snap_config, config_changed
 
@@ -959,7 +961,7 @@ def send_spectrums_to_ui(sdr_config: Sdr.Sdr,
                 # data into the UI queue
                 try:
                     to_ui_queue.put((sdr_config.sample_rate, sdr_config.centre_frequency_hz,
-                                     display_peaks, sdr_config.time_first_spectrum, time_spectrum + 1), block=False)
+                                     display_peaks, sdr_config.time_first_spectrum, time_spectrum + 1), block=True)
 
                     # peak since last time is the current powers
                     sdr_config.sent_count += 1
@@ -983,9 +985,6 @@ def send_spectrums_to_ui(sdr_config: Sdr.Sdr,
                 sdr_config.time_first_spectrum = time_spectrum
                 sdr_config.update_count = 0
         sdr_config.update_count += 1
-    # else:
-    #     print(f"set peak array as -200 {sdr_config.update_count}")
-    #     peak_powers_since_last_display = np.full(sdr_config.fft_size, -200)
 
     return peak_powers_since_last_display
 
