@@ -448,7 +448,7 @@ class Control(Resource):
                 elif thing == 'stop':
                     self._updateQ.put({
                         "type": thing,
-                        "set": "true",
+                        "set": request.json[thing],
                     })
                 return "ok"
             except Exception:
