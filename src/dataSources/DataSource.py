@@ -103,6 +103,9 @@ class DataSource:
 
         self._rx_time = 0
 
+        self._min_frequency = None
+        self._max_frequency = None
+
         self._overflows = -1  # zero or above means source can detect overflows (ie. not reading fast enough)
         _ = read_and_reset_overflow()
 

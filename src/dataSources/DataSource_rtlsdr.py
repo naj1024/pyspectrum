@@ -110,6 +110,10 @@ class Input(DataSource.DataSource):
         self._tuner_type = 0
         self._device_index = 0
 
+        # hole in the middle of frequency range
+        self._min_frequency_gap = None
+        self._max_frequency_gap = None
+
         super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
         self._name = module_type
         self._connected = False
@@ -147,6 +151,42 @@ class Input(DataSource.DataSource):
             raise ValueError(self._error)
 
         self._tuner_type = self._sdr.get_tuner_type()
+        # frequency limits depend on tuner type: from https://wiki.radioreference.com/index.php/RTL-SDR
+        # Tuner 	             Frequency Range
+        # =======================================
+        # Elonics E4000 	     52 – 1100 MHz / 1250 - 2200 MHz
+        # Rafael Micro R820T(2)  24 – 1766 MHz
+        # Fitipower FC0013 	     22 – 1100 MHz
+        # Fitipower FC0012 	     22 - 948.6 MHz
+        # FCI FC2580 	         146 – 308 MHz / 438 – 924 MHz
+        if self._tuner_type == 1:
+            # E4000
+            self._min_frequency = 52e6
+            self._max_frequency = 2200e6
+            self._min_frequency_gap = 1100e6
+            self._max_frequency_gap = 1250e6
+        elif self._tuner_type == 2:
+            # FC0012
+            self._min_frequency = 22e6
+            self._max_frequency = 948.6e6
+        elif self._tuner_type == 3:
+            # FC0013
+            self._min_frequency = 22e6
+            self._max_frequency = 1100e6
+        elif self._tuner_type == 4:
+            # FC2580
+            self._min_frequency = 146e6
+            self._max_frequency = 924e6
+            self._min_frequency_gap = 308e6
+            self._max_frequency_gap = 438e6
+        elif self._tuner_type == 5 or self._tuner_type == 6:
+            self._min_frequency = 0 # R820T or R828D, may tune down lower than 24MHz, rtl-sdr-v4
+            self._max_frequency = 1766e6
+        else:
+            self._min_frequency = 0
+            self._max_frequency = 6e9
+            self._error = f"Unknown tuner type {self._tuner_type}, frequency range checking impossible"
+            logger.error(self._error)
 
         logger.debug(f"Connected to {module_type}")
 
@@ -241,14 +281,6 @@ class Input(DataSource.DataSource):
         logger.info(f"Set sample rate {sample_rate}sps as {self._sample_rate_sps}sps")
 
     def set_centre_frequency_hz(self, frequency: float) -> None:
-        # limits depend on tuner type: from https://wiki.radioreference.com/index.php/RTL-SDR
-        # Tuner 	             Frequency Range
-        # =======================================
-        # Elonics E4000 	     52 – 1100 MHz / 1250 - 2200 MHz
-        # Rafael Micro R820T(2)  24 – 1766 MHz
-        # Fitipower FC0013 	     22 – 1100 MHz
-        # Fitipower FC0012 	     22 - 948.6 MHz
-        # FCI FC2580 	         146 – 308 MHz / 438 – 924 MHz
 
         freq_ok = True
         frequency_to_use = frequency
@@ -256,28 +288,11 @@ class Input(DataSource.DataSource):
 
         # what type of tuner do we have ?
         freq_range = ""
-        if self._tuner_type == 1:
-            # E4000
-            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 52e6, 2200e6)
-            if freq_ok:
-                freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 1100e6, 1250e6)
-        elif self._tuner_type == 2:
-            # FC0012
-            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 22e6, 948.6e6)
-        elif self._tuner_type == 3:
-            # FC0013
-            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 22e6, 1100e6)
-        elif self._tuner_type == 4:
-            # FC2580
-            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 146e6, 924e6)
-            if freq_ok:
-                freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 308e6, 438e6)
-        elif self._tuner_type == 5 or self._tuner_type == 6:
-            # R820T or R828D, may tune down lower than 24MHz, rtl-sdr-v4
-            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, 0, 1766e6)
-        else:
-            self._error = f"Unknown tuner type {self._tuner_type}, frequency range checking impossible"
-            logger.error(self._error)
+        freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, self._min_frequency, self._max_frequency)
+        if freq_ok and (self._tuner_type == 1 or self._tuner_type == 4):
+            # E4000 and FC2580 have gaps in frequency coverage
+            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, self._min_frequency_gap, self._max_frequency_gap)
+            freq_ok = not freq_ok
 
         if not freq_ok:
             self._error = f"{allowed_tuner_types[self._tuner_type]} invalid frequency {frequency}Hz, " \

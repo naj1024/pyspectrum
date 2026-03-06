@@ -21,7 +21,18 @@ NOTE:
     def xo_correction(self, value):
         self._set_iio_dev_attr_str("xo_correction", value)
 
-    # For offset tracking
+    @property
+    def rx_lo_frequency_available(self):
+        val = self._get_iio_attr_str("altvoltage0", "frequency_available", True)
+        # turn string [70000000 1 6000000000] into list [70000000, 6000000000]
+        val = [int(x) for i, x in enumerate(val.strip("[]").split()) if i != 1]
+        return val
+
+    @rx_lo_frequency_available.setter
+    def rx_lo_frequency_available(self, value):
+        pass
+
+    # For DC offset tracking
     @property
     def bb_dc_offset_tracking(self):
         return self._get_iio_attr_str("voltage0", "bb_dc_offset_tracking_en", False)
@@ -45,7 +56,6 @@ NOTE:
     @quadrature_tracking.setter
     def quadrature_tracking(self, value):
         self._set_iio_attr_int("voltage0", "quadrature_tracking_en", False, value)
-
 """
 
 import logging
@@ -133,6 +143,13 @@ class Input(DataSource.DataSource):
         self._index = self._read_block_size  # force read on first access
         self._block_time = 0
 
+        # native pluto ad9363 325 - 3800 MHz 	BW:20 MHz 	channels:2 Rx, 2 Tx
+        # ad9364 is  70 - 6000 MHz 	BW:56 MHz 	channels: 2 Rx, 1 2x
+        # ad9363 is  47 - 6000 MHz 	BW:56 MHz 	channels: 2 Rx, 2 Tx
+        # ad9361 is 325 - 3800 MHz 	BW:20 MHz 	channels: 2 Rx, 2 Tx
+        self._max_frequency = 6000000000.0
+        self._min_frequency = 70000000.0
+
         super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
         self._name = module_type
         self._connected = False
@@ -166,11 +183,20 @@ class Input(DataSource.DataSource):
 
         self._hw_ppm_compensation = False
         self.get_ppm()  # will set _hw_ppm_compensation type, either inbuilt or emulated
-        logger.info(f"Pluto XO-correction {self.get_ppm()}")
+        logger.info(f"XO-correction {self.get_ppm()}")
+
+        # see if we can get the allowed frequency range
+        try:
+            allowed_range = self._sdr.rx_lo_frequency_available
+            self._min_frequency = float(allowed_range[0])
+            self._max_frequency = float(allowed_range[1])
+            logger.info(f"Frequency range {allowed_range}")
+        except Exception as err:
+            logger.info("No frequency range available through pyadi")
 
         # pluto is not consistent in its errors so check ranges here
-        if self._centre_frequency_hz < 70e6 or self._centre_frequency_hz > 6e9:
-            msgs = "centre frequency must be between 70MHz and 6GHz, "
+        if self._centre_frequency_hz < self._min_frequency or self._centre_frequency_hz > self._max_frequency:
+            msgs = "centre frequency must be between 47MHz and 6GHz, "
             msgs += f"attempting {self._centre_frequency_hz / 1e6:0.6}MHz, "
             self._centre_frequency_hz = 433.0e6
             msgs += f"set {self._centre_frequency_hz / 1e6:0.6}MHz. \n"
@@ -214,10 +240,11 @@ class Input(DataSource.DataSource):
             self._sdr.bb_dc_offset_tracking = 1
             self._sdr.rf_dc_offset_tracking = 1
             self._sdr.quadrature_tracking = 1
+            logger.info(f"DC offset tracking on")
         except AttributeError as err_msg:
-            logger.info(f"Failed to set offsets tracking on pluto, {err_msg}")
+            logger.info(f"Failed to set DC offset, {err_msg}")
 
-        logger.debug(f"{module_type}: {self._centre_frequency_hz / 1e6:.6}MHz @ {self._sample_rate_sps / 1e6:.3f}Msps")
+        logger.debug(f"{self._centre_frequency_hz / 1e6:.6}MHz @ {self._sample_rate_sps / 1e6:.3f}Msps")
         self._connected = True
         return self._connected
 
@@ -243,13 +270,13 @@ class Input(DataSource.DataSource):
 
     def set_centre_frequency_hz(self, cf: float) -> None:
         if self._sdr:
-            # native pluto ad9363 325 - 3800 MHz 	BW:20 MHz 	channels:2 Rx, 2 Tx
-            # ad9364 is 70 - 6000 MHz 	BW:56 MHz 	channels: 1 Rx, 1 Tx
-            # ad9361 is 70 - 6000 MHz 	BW:56 MHz 	channels: 2 Rx, 2 Tx
-            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(cf, 70e6, 6000e6)
+
+            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(cf,
+                                                                               self._min_frequency,
+                                                                               self._max_frequency)
             if not freq_ok:
                 self._error = f"{[module_type]} invalid frequency {cf}Hz, " \
-                              f"failing range {freq_range}. Setting {frequency_to_use}Hz"
+                              f"{freq_range}. Setting {frequency_to_use}Hz"
                 logger.error(self._error)
 
             try:
@@ -272,6 +299,7 @@ class Input(DataSource.DataSource):
                 self._hw_ppm_compensation = True
             except AttributeError:
                 self._hw_ppm_compensation = False
+                logger.info("No xo_correction available through pyadi")
         return self._ppm
 
     def set_ppm(self, ppm: float) -> None:

@@ -88,8 +88,8 @@ class Input(DataSource.DataSource):
         self._min_sps: float = 0.0
         self._max_sps: float = 8e6
         self._allowed_sps = []
-        self._min_cf: float = 50.0e6
-        self._max_cf: float = 1.0e9
+        self._min_frequency: float = 50.0e6
+        self._max_frequency: float = 1.0e9
         self._allowed_bws = []
         
         super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
@@ -180,11 +180,11 @@ class Input(DataSource.DataSource):
             # find min and max centre frequencies
             cf_range = self._sdr.getFrequencyRange(SoapySDR.SOAPY_SDR_RX, self._channel)
             for cf in cf_range:
-                if cf.minimum() < self._min_cf:
-                    self._min_cf = cf.minimum()
-                if cf.maximum() > self._max_cf:
-                    self._max_cf = cf.maximum()
-            logger.info(f"{module_type} {self._parameters} cf min {self._min_cf}, max {self._max_cf}")
+                if cf.minimum() < self._min_frequency:
+                    self._min_frequency = cf.minimum()
+                if cf.maximum() > self._max_frequency:
+                    self._max__max_frequencycf = cf.maximum()
+            logger.info(f"{module_type} {self._parameters} cf min {self._min_frequency}, max {self._max_frequency}")
 
             self.get_ppm()
 
@@ -266,10 +266,10 @@ class Input(DataSource.DataSource):
     def set_centre_frequency_hz(self, cf: float) -> None:
         if self._sdr:
             if self._hw_ppm_compensation:
-                if cf < self._min_cf:
-                    self._centre_frequency_hz = self._min_cf
-                elif cf > self._max_cf:
-                    self._centre_frequency_hz = self._max_cf
+                if cf < self._min_frequency:
+                    self._centre_frequency_hz = self._min_frequency
+                elif cf > self._max_frequency:
+                    self._centre_frequency_hz = self._max_frequency
                 else:
                     self._centre_frequency_hz = cf
                 self._sdr.setFrequency(SoapySDR.SOAPY_SDR_RX, self._channel, self._centre_frequency_hz)
@@ -277,12 +277,12 @@ class Input(DataSource.DataSource):
             else:
                 self._centre_frequency_hz = cf  # non compensated frequency
                 freq = self.get_ppm_corrected(cf)
-                if freq < self._min_cf:
-                    freq = self._min_cf
-                    self._centre_frequency_hz = self._min_cf
-                elif freq > self._max_cf:
-                    freq = self._max_cf
-                    self._centre_frequency_hz = self._max_cf
+                if freq < self._min_frequency:
+                    freq = self._min_frequency
+                    self._centre_frequency_hz = self._min_frequency
+                elif freq > self._max_frequency:
+                    freq = self._max_frequency
+                    self._centre_frequency_hz = self._max_frequency
                 else:
                     self._centre_frequency_hz = cf  # non compensated frequency
                 self._sdr.setFrequency(SoapySDR.SOAPY_SDR_RX, self._channel, freq)

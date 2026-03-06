@@ -225,8 +225,6 @@ class Input(DataSource.DataSource):
         self._audio_stream = None
         self._hid_device = None
         self._funcube_type = None
-        self._min_frequency = None
-        self._max_frequency = None
         
         # we will read samples from the actual source in a different size from that requested
         # so that we can divorce one from the other, need index to tell where we are
