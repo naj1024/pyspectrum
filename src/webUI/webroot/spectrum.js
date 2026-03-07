@@ -282,8 +282,10 @@ Spectrum.prototype.addData = function(magnitudes, start_sec, start_nsec, end_sec
         // start and end times can be the same
 
         // pack it all up to record of everything
+        // new Array(magnitudes),
+        // [...magnitudes],
         let spec = {
-            magnitudes: new Array(magnitudes),
+            magnitudes: magnitudes,
             start_sec: start_sec,
             start_nsec: start_nsec,
             end_sec: end_sec,
@@ -455,10 +457,10 @@ Spectrum.prototype.autoRange = function() {
             break;
         }
         // only get peak over centre 70%
-        let len = this.spectrums[index].magnitudes[0].length;
+        let len = this.spectrums[index].magnitudes.length;
         let begin = parseInt(len * 0.15)
         let end = parseInt(len * 0.85)
-        let spec = this.spectrums[index].magnitudes[0].slice(begin, end);
+        let spec = this.spectrums[index].magnitudes.slice(begin, end);
         if (spec) {
             let smax = Math.max(...spec);
             let smin = Math.min(...spec);
@@ -1476,7 +1478,7 @@ Spectrum.prototype.getSpectrumMarkerValues = function(xpos, ypos) {
 
     if (this.lockedSpectrogram) {
         let spectrum = this.spectrums[this.lockedSpectrogramIndex];
-        signal_db = spectrum.magnitudes[0][bin_index];
+        signal_db = spectrum.magnitudes[bin_index];
         // update the time
         let t =  spectrum.start_sec;
         t += spectrum.start_nsec/1e9;
@@ -1525,7 +1527,7 @@ Spectrum.prototype.getSpectrogramMarkerValues = function(xpos, ypos) {
     if ( (spectrogram_array_index >= 0) && (spectrogram_array_index < this.spectrums.length)) {
         spec = this.spectrums[spectrogram_array_index];
         if (spec) {
-            mags = spec.magnitudes[0];
+            mags = spec.magnitudes;
             if(mags) {
                 if (bin_index < mags.length) {
                     signal_db = mags[bin_index];
@@ -1593,7 +1595,7 @@ function Spectrum(id, options) {
     // Handle options
     this.centreHz = (options && options.centreHz) ? options.centreHz : 0;
     this.spanHz = (options && options.spanHz) ? options.spanHz : 0;
-    this.wf_size = (options && options.wf_size) ? options.wf_size : 0;
+    this.wf_size = (options && options.wf_size) ? options.wf_size : 512; // initial guess
     this.wf_rows = (options && options.wf_rows) ? options.wf_rows : 1024; // must be greater than spectrogram_size on display
     this.spectrumPercent = (options && options.spectrumPercent) ? options.spectrumPercent : 50;
     this.spectrumPercentStep = (options && options.spectrumPercentStep) ? options.spectrumPercentStep : 5;

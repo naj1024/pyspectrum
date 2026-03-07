@@ -138,3 +138,28 @@ input[type=number] {
     background: red;
 }
 
+/* fixing the spectrum/spectrogram size */
+.screen {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+}
+/* left spectrogram area */
+.leftPanel {
+    width: 75%;
+    display: flex;
+    flex-direction: column;
+}
+/* make spectrogram fill the space */
+#specCanvas {
+    flex: 1;
+}
+/* right side */
+.rightPanel {
+    width: 25%;
+    overflow-y: auto;
+    border-left: 1px solid #444;
+}
+#metaZoom {
+    transform-origin: top left;
+}

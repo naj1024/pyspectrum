@@ -15,6 +15,18 @@ if (window.DeviceOrientationEvent) {
     window.addEventListener('orientationchange', function() { location.reload(); }, false);
 }
 
+// handle mouse zoom events so that we only zoom the metadata part
+let zoom = 1;
+const zoomElement = document.getElementById("metaZoom");
+window.addEventListener("wheel", function(e) {
+    if (e.ctrlKey) {
+        e.preventDefault();
+        zoom += (e.deltaY < 0) ? 0.1 : -0.1;
+        zoom = Math.min(Math.max(0.5, zoom), 3);
+        zoomElement.style.transform = `scale(${zoom})`;
+    }
+}, { passive:false });
+
 function syncCurrent() {
     // currnet values not covered by fast update method
     // TODO: maybe this should be one big json document instead of lots of small fetch'es
