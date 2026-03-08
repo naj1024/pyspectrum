@@ -576,6 +576,8 @@ def fill_status_fast_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_config
 
     # snapshot stuff
     shared_status['snapTriggerState'] = snap_config.triggerState
+    shared_status['snapSize'] = ({'current': snap_config.currentSizeMbytes,
+                                  'limit': snap_config.expectedSizeMbytes})
 
 
 def fill_shared_status_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_config: Snapper.Snapper) -> None:

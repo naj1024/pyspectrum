@@ -398,7 +398,7 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
     
     if (jsonConfig.fps != undefined) {
         this.fps = parseInt(jsonConfig.fps.set);
-        this.measuredFps = parseFloat(jsonConfig.fps.measired);
+        this.measuredFps = parseFloat(jsonConfig.fps.measured);
     }
 }
 

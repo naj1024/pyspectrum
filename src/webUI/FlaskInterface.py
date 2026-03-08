@@ -55,7 +55,8 @@ class FlaskInterface(multiprocessing.Process):
                            'spectrum': Spectrum,
                            'control': Control,
                            'snapshot': Snapshot,
-                           'tuning': Tuning}
+                           'tuning': Tuning,
+                           'status': Status}
 
     def shutdown(self):
         logger.debug("FlaskServer Shutting down")
@@ -593,6 +594,68 @@ class Tuning(Resource):
                         "set": f,
                         "conversion": c,
                     })
+                return "ok"
+            except Exception:
+                return f"Failed to parse {thing} command", 400
+        return f"Endpoint {thing} not supported", 403
+
+
+class Status(Resource):
+    # Handle all web requests on the /status endpoint
+
+    def __init__(self, **kwargs):
+        # set the dictionary we use for updating things
+        self._status = kwargs['status']
+        self._updateQ = kwargs['updateQ']
+        self._allowed_get_endpoints = ['fastStatus', 'currentStatus']
+        self._allowed_put_endpoints = []
+
+    def api(self):
+        points = {}
+        for ep in self._allowed_get_endpoints:
+            try:
+                points[ep] = self._status[ep]
+            except Exception:
+                points[ep] = "tbd"  # not present in status yet
+        return points
+
+    def get(self, thing):
+        if thing == "api":
+            return jsonify({"fastStatus": self.api()})
+
+        if thing in self._allowed_get_endpoints:
+            try:
+                if thing == 'fastStatus':
+                    stats = ['delay', 'loopCpuPc', 'overflows', 'fps', 'oneInN',
+                            'digitiserInputLevel', 'digitiserGain', 'streamLength', 'streamCurrent',
+                            'snapSize', 'snapTriggerState',
+                            ]
+                    status = {}
+                    for stat in stats:
+                       status[stat] = self._status[stat]
+                    return jsonify(status)
+
+                elif thing == 'currentStatus':
+                    stats = ['source',
+                             'frequency',
+                             'digitiserFrequency', 'digitiserFormat', 'digitiserSampleRate',
+                             'digitiserBandwidth', 'digitiserPartsPerMillion', 'digitiserDcRemoval',
+                             'digitiserInputLevel', 'digitiserDbmOffset', 'digitiserGainType',
+                             'fftSize', 'fftOverlap', 'psd', 'fftFrameTime', 'fftWindow',
+                             'snapTriggerSource', 'snapName', 'snapFormat',
+                             'snapPreTrigger', 'snapPostTrigger',
+                            ]
+                    status = {}
+                    for stat in stats:
+                       status[stat] = self._status[stat]
+                    return jsonify(status)
+            except Exception:
+                logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
+        return f"Endpoint {thing} not supported", 403
+
+    def put(self, thing):
+        if thing in self._allowed_put_endpoints:
+            try:
                 return "ok"
             except Exception:
                 return f"Failed to parse {thing} command", 400

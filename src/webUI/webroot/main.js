@@ -4,13 +4,59 @@
 var data_active = false; // true when we are connected and receiving data
 var spectrum = null;     // don't like this global but can't get onclick in table of markers to work
 var sdrState = null;     // holds basics about the front end sdr
-var snapState = null;    // holds basics about snapshots
 var websocket = null;
 var updateTimer = null;  // for when we are not streaming we still need to update the display
 var configFormInFocus = false;
 var snapFormInFocus = false;
 
-// on mobile if orientation changes re-load the page. The canvas was not appearing on roation */
+// Holds references to the Ui elements.
+// Will also dynamically hold previous values
+const fastStatusUi = {
+    delay: $('#currentDelay'),
+    delay2: $('#currentDelay2'),
+    loopCpu: $('#currentLoopCpuPc'),
+    overflows: $('#currentOverflows'),
+    fps: $('#currentFPS'),
+    oneInN: $('#currentOneInN'),
+    inputLevel: $('#currentInputLevel'),
+    gain: $('#currentGain'),
+    streamLength: $('#streamLength'),
+    streamCurrent: $('#streamCurrent'),
+    snapSize: $('#currentSnapSize'),
+    snapNew: $('#newSnapSize'),
+    snapTrigger: $('#currentSnapTriggerState')
+};
+
+const currentStatusUi = {
+   source: $('#currentSource'),
+   centre: $('#currentCentre'),
+   cfOffset: $('#currentCfOffset'),
+   sdrCentre: $('#currentSdrCentre'),
+   format: $('#currentFormat'),
+   sps: $('#currentSps'),
+   rbw: $('#currentRBW'),
+   sdrBw: $('#currentSdrBw'),
+   ppm: $('#currentPpm'),
+   dcRemoval: $('#currentDcRemoval'),
+   inputLevel: $('#currentInputLevel'),
+   dbmOffset: $('#currentdBmOffset'),
+   gainMode: $('#currentGmode'),
+   fft: $('#currentFft'),
+   overlap: $('#currentFftOverlap'),
+   psd: $('#currentPsd'),
+   frameTime: $('#fftFrameTime'),
+   window: $('#currentFftWindow'),
+   triggerType: $('#currentSnapTriggerType'),
+   baseName: $('#currentSnapBaseName'),
+   fileFormat: $('#currentFileFormat'),
+   preTrigger: $('#currentSnapPreTrigger'),
+   postTrigger: $('#currentSnapPostTrigger'),
+   currentAvg: $('#currentAvg'),
+   currentZoom: $('#currentZoom'),
+   currentSpan: $('#currentSpan')
+}
+
+// on mobile if orientation changes re-load the page. The canvas was not appearing on rotation */
 if (window.DeviceOrientationEvent) {
     window.addEventListener('orientationchange', function() { location.reload(); }, false);
 }
@@ -27,20 +73,14 @@ window.addEventListener("wheel", function(e) {
     }
 }, { passive:false });
 
-function syncCurrent() {
-    // currnet values not covered by fast update method
-    // TODO: maybe this should be one big json document instead of lots of small fetch'es
-
+async function syncCurrent() {
     // from UI interface
-    $('#currentAvg').empty().append(spectrum.averaging);
-    $('#currentZoom').empty().append(spectrum.zoom);
+    currentStatusUi.currentAvg.text(spectrum.averaging);
+    currentStatusUi.currentZoom.text(spectrum.zoom);
     let zoomBw = sdrState.getSps()/spectrum.zoom;
-    $('#currentSpan').empty().append(spectrum.convertFrequencyForDisplay(zoomBw,3));
+    currentStatusUi.currentSpan.text(spectrum.convertFrequencyForDisplay(zoomBw,3));
 
-    let oldSourceType = sdrState.getInputSource();
-    let oldSourceParams = sdrState.getInputSourceParams();
-
-    // from api
+    // errors into alert box
    fetch('./input/errors').then(function (response) {
         return response.json();
     }).then(function (obj) {
@@ -50,301 +90,158 @@ function syncCurrent() {
     }).catch(function (error) {
     });
 
-    fetch('./input/source').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setConfigFromJason(obj);
+    try {
+        // current values not covered by fast update method
+        const res = await fetch('./status/currentStatus');
+        const obj = await res.json();
+        sdrState.setConfigFromJason(obj); // update the sdr state
+        snapState.setFromJson(obj); // update the snap state
+
         let src = '<div>'+sdrState.getInputSource()+'</div>';
         src += '<div title="'+sdrState.getInputSourceParamHelp()+'" class="CropLongTexts100">'+sdrState.getInputSourceParams()+'</div>'
         src += '<div>'+(sdrState.getSourceConnected()?'Connected':'Not Connected')+'</div>';
-        $('#currentSource').empty().append(src);
-    }).catch(function (error) {
-    });
+        currentStatusUi.source.empty().append(src);
 
-    // flagged that source changed so remove any green highlights from file table
-    updateSnapFileList();
+        // flagged that source changed so remove any green highlights from file table
+        updateSnapFileList();
 
-    fetch('./tuning/frequency').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setConfigFromJason(obj);
-        $('#currentCentre').empty().append((sdrState.getFrequencyHz()/1e6).toFixed(6)+' MHz');
-        $('#currentCfOffset').empty().append((sdrState.getFrequencyOffsetHz()/1e6).toFixed(6)+' MHz');
-    }).catch(function (error) {
-    });
+        currentStatusUi.centre.text((sdrState.getFrequencyHz()/1e6).toFixed(6)+' MHz');
+        currentStatusUi.cfOffset.text((sdrState.getFrequencyOffsetHz()/1e6).toFixed(6)+' MHz');
+        currentStatusUi.sdrCentre.text((sdrState.getSdrFrequencyHz()/1e6).toFixed(6)+' MHz');
+        currentStatusUi.format.text(sdrState.getDataFormat());
+        currentStatusUi.sps.text((sdrState.getSps()/1e6).toFixed(6)+' Msps');
+        currentStatusUi.rbw.text(spectrum.convertFrequencyForDisplay(sdrState.getSps() / sdrState.getFftSize(),2));
+        currentStatusUi.sdrBw.text((sdrState.getSdrBwHz()/1e6).toFixed(6)+' MHz');
+        currentStatusUi.ppm.text((sdrState.getPpmError()).toFixed(3));
+        currentStatusUi.dcRemoval.text(sdrState.getDcRemoval());
+        currentStatusUi.inputLevel.text(sdrState.getInputLevel().toFixed(1)+'%');
+        currentStatusUi.dbmOffset.text((sdrState.getDBmOffset()).toFixed(3));
+        currentStatusUi.gainMode.text(sdrState.getGainMode());
+        currentStatusUi.fft.text(sdrState.getFftSize());
+        currentStatusUi.rbw.text(spectrum.convertFrequencyForDisplay(sdrState.getSps() / sdrState.getFftSize(),2));
+        currentStatusUi.overlap.text(sdrState.getFftOverlap() + " %");
+        currentStatusUi.psd.text(sdrState.getPsd());
+        currentStatusUi.frameTime.text(sdrState.getFftFrameTime().toFixed(0) + " usec");
+        currentStatusUi.window.text(sdrState.getFftWindow());
 
-    fetch('./digitiser/digitiserFrequency').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setConfigFromJason(obj);
-        $('#currentSdrCentre').empty().append((sdrState.getSdrFrequencyHz()/1e6).toFixed(6)+' MHz');
-    }).catch(function (error) {
-    });
+        let name = '<div title="'+snapState.baseFilename+'" class="CropLongTexts100">'+snapState.baseFilename+'</div>'
+        currentStatusUi.baseName.empty().append(name);
 
-    fetch('./digitiser/digitiserFormat').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setConfigFromJason(obj);
-        $('#currentFormat').empty().append(sdrState.getDataFormat());
-    }).catch(function (error) {
-    });
+        currentStatusUi.fileFormat.text(snapState.fileFormat);
+        currentStatusUi.triggerType.text(snapState.triggerType);
+        //currentStatusUi.triggerState.text(snapState.triggerState);
+        currentStatusUi.preTrigger.text(snapState.preTriggerMs + ' msec');
+        currentStatusUi.postTrigger.text(snapState.postTriggerMs + ' msec');
 
-    fetch('./digitiser/digitiserSampleRate').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setConfigFromJason(obj);
-        $('#currentSps').empty().append((sdrState.getSps()/1e6).toFixed(6)+' Msps');
-        $('#currentRBW').empty().append(spectrum.convertFrequencyForDisplay(sdrState.getSps() / sdrState.getFftSize(),2));
-    }).catch(function (error) {
-    });
-
-    fetch('./digitiser/digitiserBandwidth').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setConfigFromJason(obj);
-        $('#currentSdrBw').empty().append((sdrState.getSdrBwHz()/1e6).toFixed(6)+' MHz');
-    }).catch(function (error) {
-    });
-
-    fetch('./digitiser/digitiserPartsPerMillion').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setConfigFromJason(obj);
-        $('#currentPpm',).empty().append((sdrState.getPpmError()).toFixed(3));
-    }).catch(function (error) {
-    });
-    
-    fetch('./digitiser/digitiserDcRemoval').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setConfigFromJason(obj);
-        $('#currentDcRemoval',).empty().append(sdrState.getDcRemoval());
-    }).catch(function (error) {
-    });
-
-    fetch('./digitiser/digitiserInputLevel').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setConfigFromJason(obj);
-        $('#currentInputLevel',).empty().append(sdrState.getInputLevel().toFixed(1)+'%');
-    }).catch(function (error) {
-    });
-
-    fetch('./digitiser/digitiserDbmOffset').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setConfigFromJason(obj);
-        $('#currentdBmOffset',).empty().append((sdrState.getDBmOffset()).toFixed(3));
-    }).catch(function (error) {
-    });
-
-    fetch('./digitiser/digitiserGainType').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setConfigFromJason(obj);
-        $('#currentGmode').empty().append(sdrState.getGainMode());
-    }).catch(function (error) {
-    });
-    
-    fetch('./spectrum/fftSize').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setConfigFromJason(obj);
-        $('#currentFft').empty().append(sdrState.getFftSize());
-        $('#currentRBW').empty().append(spectrum.convertFrequencyForDisplay(sdrState.getSps() / sdrState.getFftSize(),2));
-    }).catch(function (error) {
-    });
-
-    fetch('./spectrum/fftOverlap').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setConfigFromJason(obj);
-        $('#currentFftOverlap').empty().append(sdrState.getFftOverlap() + " %");
-    }).catch(function (error) {
-    });
-
-    fetch('./spectrum/psd').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setConfigFromJason(obj);
-        $('#currentPsd').empty().append(sdrState.getPsd());
-    }).catch(function (error) {
-    });
-
-    fetch('./spectrum/fftFrameTime').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setConfigFromJason(obj);
-        $('#fftFrameTime').empty().append(sdrState.getFftFrameTime().toFixed(0) + " usec");
-    }).catch(function (error) {
-    });
-
-    fetch('./spectrum/fftWindow').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setConfigFromJason(obj);
-        $('#currentFftWindow').empty().append(sdrState.getFftWindow());
-    }).catch(function (error) {
-    });
-
-    fetch('./snapshot/snapTriggerSource').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        snapState.setSnapFromJason(obj);
-        $('#currentSnapTriggerType').empty().append(snapState.getTriggerType());
-    }).catch(function (error) {
-    });
-
-    fetch('./snapshot/snapName').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        snapState.setSnapFromJason(obj);
-        let name = '<div title="'+snapState.getBaseName()+'" class="CropLongTexts100">'+snapState.getBaseName()+'</div>'
-        $('#currentSnapBaseName').empty().append(name);
-    }).catch(function (error) {
-    });
-
-    fetch('./snapshot/snapFormat').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        snapState.setSnapFromJason(obj);
-        $('#currentFileFormat').empty().append(snapState.getFileFormat());
-    }).catch(function (error) {
-    });
-
-    fetch('./snapshot/snapPreTrigger').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        snapState.setSnapFromJason(obj);
-        $('#currentSnapPreTrigger').empty().append(snapState.getPreTriggerMilliSec().toFixed(0) + ' msec');
-    }).catch(function (error) {
-    });
-
-    fetch('./snapshot/snapPostTrigger').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        snapState.setSnapFromJason(obj);
-        $('#currentSnapPostTrigger').empty().append(snapState.getPostTriggerMilliSec().toFixed(0) + ' msec');
-    }).catch(function (error) {
-    });
-
+    } catch(error) {
+        console.log(error)
+    }
 }
 
-function syncCurrentFast() {
-    // things that we wish to update faster
+async function syncCurrentFast() {
+    // things that we wish to update faster, single endpoint to save resources
+    try {
+        const res = await fetch('./status/fastStatus');
+        const obj = await res.json();
+        sdrState.setConfigFromJason(obj); // update the sdr state
+        snapState.setFromJson(obj); // update the snap state
 
-    fetch('./control/delay').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setUiDelay(obj.delay);
-        $('#currentDelay').empty().append(sdrState.getUiDelay().toFixed(2));
-        $('#currentDelay2').empty().append(sdrState.getUiDelay().toFixed(2));
-    }).catch(function (error) {
-    });
+        // only update the UI elements if things have changed
+        // store the previous state in the fastStatusUi
 
-    fetch('./control/loopCpuPc').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setLoopCpuPc(obj.loopCpuPc);
-        $('#currentLoopCpuPc').empty().append(sdrState.getLoopCpuPc().toFixed(1) +'%');
-        if (sdrState.getLoopCpuPc().toFixed(1) > 110) {
-            $('#currentLoopCpuPc').closest("td").css("background-color", "#ff0000");
-        } else {
-            $('#currentLoopCpuPc').closest("td").css("background-color", "#00ee00");
+        const delayText = obj.delay.toFixed(2);
+        if (fastStatusUi.lastDelay !== delayText){
+            fastStatusUi.delay.text(obj.delay.toFixed(2));
+            fastStatusUi.delay2.text(obj.delay.toFixed(2));
+            fastStatusUi.lastDelay = delayText;
         }
-    }).catch(function (error) {
-    });
 
-    fetch('./control/overflows').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setOverflows(obj.overflows);
-        $('#currentOverflows').empty().append(sdrState.getOverflows());
-    }).catch(function (error) {
-    });
-
-    fetch('./control/fps').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setFps(obj.fps);
-        let maxFps = (sdrState.getSps() * (100.0 /  (100 - sdrState.getFftOverlap()))) / sdrState.getFftSize();
-        $('#currentFPS').empty().append(sdrState.getMeasuredFps().toFixed(1), "/", sdrState.getFps().toFixed(0),", max:", maxFps.toFixed(1));
-    }).catch(function (error) {
-    });
-
-    fetch('./control/oneInN').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        $('#currentOneInN').empty().append(obj.oneInN.toFixed(0)+" traces");
-    }).catch(function (error) {
-    });
-
-    fetch('./digitiser/digitiserInputLevel').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setInputLevel(obj.digitiserInputLevel)
-        $('#currentInputLevel',).empty().append(sdrState.getInputLevel().toFixed(1)+'%');
-    }).catch(function (error) {
-    });
-
-    fetch('./digitiser/digitiserGain').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setGain(obj.digitiserGain);
-        $('#currentGain').empty().append(sdrState.getGain() + ' dB');
-    }).catch(function (error) {
-    });
-
-    fetch('./digitiser/streamLength').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setStreamLength(obj.streamLength)
-        $('#streamLength',).empty().append(sdrState.getStreamLength().toFixed(2)+' sec');
-    }).catch(function (error) {
-    });
-
-    fetch('./digitiser/streamCurrent').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        sdrState.setStreamCurrent(obj.streamCurrent)
-        $('#streamCurrent',).empty().append(sdrState.getStreamCurrent().toFixed(2)+' sec');
-    }).catch(function (error) {
-    });
-
-    fetch('./snapshot/snapSize').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        snapState.setCurrentSize(obj.snapSize.current);
-        snapState.setExpectedSize(obj.snapSize.limit);
-        $('#currentSnapSize').empty().append(snapState.getCurrentSize().toFixed(2) + ' MBytes');
-        $('#newSnapSize').empty().append(snapState.getExpectedSize().toFixed(2) + ' MBytes');
-    }).catch(function (error) {
-    });
-
-    fetch('./snapshot/snapTriggerState').then(function (response) {
-        return response.json();
-    }).then(function (obj) {
-        snapState.setTriggerState(obj.snapTriggerState);
-        $('#currentSnapTriggerState').empty().append(snapState.getTriggerState());
-        if (snapState.getTriggerState() == "triggered") {
-            $('#currentSnapTriggerState').addClass('redTrigger');
-            $('#currentSnapTriggerState').removeClass('greenTrigger');
-        } else {
-            $('#currentSnapTriggerState').addClass('greenTrigger');
-            $('#currentSnapTriggerState').removeClass('redTrigger');
+        const loopCpu = sdrState.getLoopCpuPc().toFixed(1);
+        if (fastStatusUi.lastLoopCpu != loopCpu) {
+            fastStatusUi.loopCpu.text(loopCpu +'%');
+            if (loopCpu > 110) {
+                fastStatusUi.loopCpuCell.css("background-color", "#ff0000");
+            } else {
+                fastStatusUi.loopCpuCell.css("background-color", "#00ee00");
+            }
+            fastStatusUi.lastLoopCpu = loopCpu;
         }
-    }).catch(function (error) {
-    });
+
+        if (fastStatusUi.lastOverflows != obj.overflows) {
+            fastStatusUi.overflows.text(obj.overflows);
+            fastStatusUi.lastOverflows = obj.overflows;
+        }
+
+        const maxFps = sdrState.getMeasuredFps().toFixed(1);
+        if (fastStatusUi.lastMaxFps != maxFps) {
+            fastStatusUi.fps.text(maxFps);
+            fastStatusUi.lastMaxFps = maxFps;
+        }
+
+        if (fastStatusUi.lastOneInN != obj.oneInN) {
+            fastStatusUi.oneInN.text(obj.oneInN.toFixed(0)+" traces");
+            fastStatusUi.lastOneInN = obj.oneInN;
+        }
+
+        const inputLevel = sdrState.getInputLevel().toFixed(1);
+        if (fastStatusUi.lastInputLevel != inputLevel) {
+            fastStatusUi.inputLevel.text(inputLevel +'%');
+            fastStatusUi.lastInputLevel = inputLevel;
+        }
+
+        if (fastStatusUi.lastGain != sdrState.getGain()) {
+            fastStatusUi.gain.text(sdrState.getGain() + ' dB');
+            fastStatusUi.lastGain = sdrState.getGain();
+        }
+
+        const streamLength = sdrState.getStreamLength().toFixed(2);
+        if (fastStatusUi.lastStreamLength != streamLength) {
+            fastStatusUi.streamLength.text(streamLength+' sec');
+            fastStatusUi.lastStreamLength = streamLength;
+        }
+
+        const streamCurrent = sdrState.getStreamCurrent().toFixed(2);
+        if (fastStatusUi.lastStreamCurrent != streamCurrent) {
+            fastStatusUi.streamCurrent.text(streamCurrent+' sec');
+            fastStatusUi.lastStreamCurrent = streamCurrent;
+        }
+
+        const currentSize = snapState.currentSize.toFixed(2);
+        if (fastStatusUi.lastCurrentSize != currentSize) {
+            fastStatusUi.snapSize.text(currentSize + ' MBytes');
+            fastStatusUi.lastCurrentSize = currentSize;
+        }
+
+        const expectedSize = snapState.expectedSize.toFixed(2);
+        if (fastStatusUi.lastExpectedSize != expectedSize) {
+            fastStatusUi.snapNew.text(expectedSize + ' MBytes');
+            fastStatusUi.lastExpectedSize = expectedSize;
+        }
+
+        if (fastStatusUi.lastTriggerState != snapState.triggerState) {
+            fastStatusUi.snapTrigger.text(snapState.triggerState);
+            if (snapState.triggerState == "triggered") {
+                fastStatusUi.snapTrigger.addClass('redTrigger');
+                fastStatusUi.snapTrigger.removeClass('greenTrigger');
+            } else {
+                fastStatusUi.snapTrigger.addClass('greenTrigger');
+                fastStatusUi.snapTrigger.removeClass('redTrigger');
+            }
+            fastStatusUi.lastTriggerState = snapState.triggerState;
+        }
+    } catch(error) {
+        console.log(error)
+    }
 }
 
 function syncNew() {
     // this rewrites all the values in the configuration table 'new' column
-
     // if we have focus on a form then don't update the table
     if (configFormInFocus) {
         return;
     }
 
+    // This is very busy on the network. TODO: change to have a single end point for this
     // get all the main stuff
     let initUris = ['./input/sources', './digitiser/digitiserFormats',
                 './spectrum/fftSizes', './spectrum/psd', './spectrum/fftOverlap',
@@ -358,7 +255,7 @@ function syncNew() {
             return response.json();
         }).then(function (obj) {
             // update the configuration and the html when we get a reply
-            sdrState.setConfigFromJason(obj)
+            sdrState.setConfigFromJason(obj);
             showNew(obj);
         }).catch(function (error) {
         });
@@ -372,7 +269,7 @@ function syncNew() {
             return response.json();
         }).then(function (obj) {
             // update the configuration and the html when we get a reply
-            snapState.setSnapFromJason(obj);
+            snapState.setFromJson(obj);
             showNewSnap(obj);
         }).catch(function (error) {
         });
@@ -400,7 +297,7 @@ function showNew(jsonConfig) {
             sources.forEach(function(src) {
                 new_html += '<option value="'+src+'"'+((src==source)?"selected":"")+'>'+src+'</option>';
             });
-
+            new_html += '</select>';
             // the parameters for the source
             let help = source+' '+sourceParams+'\n'+sdrState.getInputSourceParamHelp(source);
             new_html += '<input data-toggle="tooltip" title="'+help+'" type="text" size="10"';
@@ -829,15 +726,11 @@ function zoomedToCf() {
     spectrum.resetZoom();
 }
 
-function ack(ackTime) {
-    fetch("./control/ackTime", {
+function ack() {
+    return fetch("./control/ackTime", {
         method: "PUT",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({"ackTime":ackTime})
-    }).then(response => {
-        return response.json();
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ackTime: sdrState.getLastDataTime() })
     });
 }
 
@@ -1092,9 +985,81 @@ function handlePauseToggle() {
 //    }
 }
 
+function handleSnapTrigger() {
+    fetch("./snapshot/snapTrigger", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"snapTrigger":true})
+    }).then(response => {
+        return response.json();
+    });
+}
+function handleSnapBaseNameChange(name) {
+    fetch("./snapshot/snapName", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"snapName":(name)})
+    }).then(response => {
+        return response.json();
+    });
+    snapState.baseFilename = name;
+}
+function handleSnapTriggerModeChange(triggerType) {
+    fetch("./snapshot/snapTriggerSource", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"snapTriggerSource":(triggerType)})
+    }).then(response => {
+        return response.json();
+    });
+    snapState.triggerType = triggerType;
+}
+function handleSnapPreTriggerChange(millisec) {
+    fetch("./snapshot/snapPreTrigger", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"snapPreTrigger":(millisec)})
+    }).then(response => {
+        return response.json();
+    });
+    snapState.preTriggerMs = millisec;
+}
+function handleSnapPostTriggerChange(millisec) {
+    fetch("./snapshot/snapPostTrigger", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"snapPostTrigger":(millisec)})
+    }).then(response => {
+        return response.json();
+    });
+    snapState.postTriggerMs = millisec;
+}
+function handleSnapFileFormatChange(fileFormat) {
+    fetch("./snapshot/snapFormat", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"snapFormat":(fileFormat)})
+    }).then(response => {
+        return response.json();
+    });
+    snapState.fileFormat = fileFormat;
+}
+
 function showSnapTable() {
     // only update if the list length is different
-    if(snapState.getDirectoryListEntries() !=  ($('#snapFileTable tr').length-1)) {
+    if(snapState.directoryList !=  ($('#snapFileTable tr').length-1)) {
         updateSnapFileList();
     }
 }
@@ -1102,7 +1067,7 @@ function showSnapTable() {
 function updateSnapFileList() {
     $("#snapFileTable tbody tr").remove(); // delete all the current rows
     let row_count = 0;
-    for (const file of snapState.getDirectoryList()) {
+    for (const file of snapState.directoryList) {
         let new_row='<tr>';
         let fname = '<div title="'+file[0]+'" class="CropLongTexts180">';
         // link to the file so we can download it, hardcoded snapshot directory name !
@@ -1149,7 +1114,7 @@ function updateSnapFileList() {
             });
         
             // command goes by snapState
-            snapState.setDeleteFilename(file[0]);
+            snapState.deleteFileName = file[0];
         } );
         row_count += 1;
     }
@@ -1170,16 +1135,16 @@ function showNewSnap() {
     new_html = '<form ';
     new_html += ' onfocusin="snapTableFocusIn()" onfocusout="snapTableFocusOut()" ';
     new_html += 'action="javascript:handleSnapBaseNameChange(snapBaseName.value)">';
-    let help = snapState.getBaseName();
+    let help = snapState.baseFilename;
     // shorten long names
     new_html += '<input data-toggle="tooltip" title="'+help+'" type="text" size="10" value="';
-    new_html += snapState.getBaseName();
+    new_html += snapState.baseFilename;
     new_html += '" id="snapBaseName" name="snapBaseName">';
     new_html += '</form>';
     $('#newSnapBaseName').empty().append(new_html);
 
-    let fileFormats = snapState.getFileFormats();
-    let fileFormat = snapState.getFileFormat();
+    let fileFormats = snapState.fileFormats;
+    let fileFormat = snapState.fileFormat;
     new_html = '<form';
     new_html += ' onfocusin="snapTableFocusIn()" onfocusout="snapTableFocusOut()" ';
     new_html += ' action="javascript:handleSnapFileFormatChange(snapFileFormat.value)">';
@@ -1190,8 +1155,8 @@ function showNewSnap() {
     new_html += '</select></form>';
     $('#newFileFormat').empty().append(new_html);
 
-    let triggerTypes = snapState.getTriggers();
-    let triggerType = snapState.getTriggerType();
+    let triggerTypes = snapState.triggers;
+    let triggerType = snapState.triggerType;
     if (triggerTypes.length > 0) {
         new_html = '<form';
         new_html += ' onfocusin="snapTableFocusIn()" onfocusout="snapTableFocusOut()" ';
@@ -1212,7 +1177,7 @@ function showNewSnap() {
     new_html += 'action="javascript:handleSnapPreTriggerChange(snapPreTrigMilliSec.value)">';
     // as we remove the number inc/dec arrows in css the size parameter does work
     new_html += '<input type="number" size="5" min="0" value="';
-    new_html += snapState.getPreTriggerMilliSec();
+    new_html += snapState.preTriggerMs;
     new_html += '" id="snapPreTrigMilliSec" name="snapPreTrigMilliSec">';
     new_html += '&nbsp msec</form>';
     $('#newSnapPreTrigger').empty().append(new_html);
@@ -1222,7 +1187,7 @@ function showNewSnap() {
     new_html += 'action="javascript:handleSnapPostTriggerChange(snapPostTrigMilliSec.value)">';
     // as we remove the number inc/dec arrows in css the size parameter does work
     new_html += '<input type="number" size="6" min="0" value="';
-    new_html += snapState.getPostTriggerMilliSec();
+    new_html += snapState.postTriggerMs;
     new_html += '" id="snapPostTrigMilliSec" name="snapPostTrigMilliSec">';
     new_html += '&nbsp msec</form>';
     $('#newSnapPostTrigger').empty().append(new_html);
@@ -1368,6 +1333,18 @@ function showMarkers() {
   }
 }
 
+function startAsyncLoop(pollFn, intervalMs) {
+    async function loop() {
+        try {
+            await pollFn();
+        } catch (e) {
+            console.error("Error in async poll loop:", e);
+        }
+        setTimeout(loop, intervalMs);
+    }
+    loop(); // start immediately
+}
+
 function Main() {
     let not_supported=check_for_support();
     if (not_supported != ""){
@@ -1387,9 +1364,6 @@ function Main() {
 
     // create sdrState object
     sdrState = new sdrState();
-
-    // create snapState object
-    snapState = new snapState();
 
     let canvas = document.getElementById('spectrumanalyser');
 
@@ -1489,7 +1463,10 @@ function Main() {
         sdrState.setFrequencyOffsetHz(offset);
     }
 
-    // first paas
+    // cache where this element is
+    fastStatusUi.loopCpuCell = $('#currentLoopCpuPc').closest("td");
+
+    // first pass
     syncCurrent();
     syncNew();
     syncCurrentFast();
@@ -1497,22 +1474,15 @@ function Main() {
     // Connect to websocket
     connectWebSocket(spectrum);
 
-    // continually get and show the current state
-    setInterval(function() {
-        syncCurrent();
-        }, 2000);
-
     // continually get and show the new possible states
     setInterval(function() {
         syncNew();
         showSnapTable();
-        }, 4000);
+        }, 1579);
 
-    // fast update stuff
-    setInterval(function() {
-        syncCurrentFast();
-        ack(sdrState.getLastDataTime());
-    }, 500);
+    startAsyncLoop(ack, 103);
+    startAsyncLoop(syncCurrentFast, 503);
+    startAsyncLoop(syncCurrent, 1007);
 }
 
 window.onload = Main;
