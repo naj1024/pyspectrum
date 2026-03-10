@@ -996,66 +996,6 @@ function handleSnapTrigger() {
         return response.json();
     });
 }
-function handleSnapBaseNameChange(name) {
-    fetch("./snapshot/snapName", {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({"snapName":(name)})
-    }).then(response => {
-        return response.json();
-    });
-    snapState.baseFilename = name;
-}
-function handleSnapTriggerModeChange(triggerType) {
-    fetch("./snapshot/snapTriggerSource", {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({"snapTriggerSource":(triggerType)})
-    }).then(response => {
-        return response.json();
-    });
-    snapState.triggerType = triggerType;
-}
-function handleSnapPreTriggerChange(millisec) {
-    fetch("./snapshot/snapPreTrigger", {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({"snapPreTrigger":(millisec)})
-    }).then(response => {
-        return response.json();
-    });
-    snapState.preTriggerMs = millisec;
-}
-function handleSnapPostTriggerChange(millisec) {
-    fetch("./snapshot/snapPostTrigger", {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({"snapPostTrigger":(millisec)})
-    }).then(response => {
-        return response.json();
-    });
-    snapState.postTriggerMs = millisec;
-}
-function handleSnapFileFormatChange(fileFormat) {
-    fetch("./snapshot/snapFormat", {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({"snapFormat":(fileFormat)})
-    }).then(response => {
-        return response.json();
-    });
-    snapState.fileFormat = fileFormat;
-}
 
 function showSnapTable() {
     // only update if the list length is different
@@ -1130,7 +1070,7 @@ function showNewSnap() {
     const trigger=`
         <button type="button" id="snapTriggerBut" title="Manual trigger" class="specbuttons btn btn-outline-dark mx-1 my-1">
         Trigger
-        </button>'
+        </button>
     `;
     $('#newSnapTriggerState').empty().append(trigger);
     $('#snapTriggerBut').click(function() {handleSnapTrigger();});
