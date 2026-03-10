@@ -985,18 +985,6 @@ function handlePauseToggle() {
 //    }
 }
 
-function handleSnapTrigger() {
-    fetch("./snapshot/snapTrigger", {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({"snapTrigger":true})
-    }).then(response => {
-        return response.json();
-    });
-}
-
 function showSnapTable() {
     // only update if the list length is different
     if(snapState.directoryList !=  ($('#snapFileTable tr').length-1)) {
@@ -1073,7 +1061,7 @@ function showNewSnap() {
         </button>
     `;
     $('#newSnapTriggerState').empty().append(trigger);
-    $('#snapTriggerBut').click(function() {handleSnapTrigger();});
+    $('#snapTriggerBut').click(function() {triggerSnapshot();});
 
     let fileFormats = snapState.fileFormats;
     let fileFormat  = snapState.fileFormat;
