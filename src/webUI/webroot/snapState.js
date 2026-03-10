@@ -7,7 +7,6 @@
 class SnapState {
 
     constructor() {
-
         this.baseFilename = "";
         this.preTriggerMs = 0;
         this.postTriggerMs = 0;
@@ -25,8 +24,9 @@ class SnapState {
     }
 
     setFromJson(cfg) {
+        // One or more in json
         this._silent = true;
-        this.deleteFileName = "";
+        this.deleteFileName = ""; // TODO: why here
 
         if (cfg.snapName)
             this.baseFilename = cfg.snapName.split('/').pop();
@@ -72,7 +72,7 @@ class SnapState {
 /*
     API helper
 */
-async function updateSnapshot(endpoint, key, value) {
+async function update(endpoint, key, value) {
     try {
         const response = await fetch(`./snapshot/${endpoint}`, {
             method: "PUT",
@@ -100,30 +100,41 @@ const snapApiMap = {
     Create state with Proxy auto-sync
 */
 const snapState = new Proxy(new SnapState(), {
+
     set(target, prop, value) {
         target[prop] = value;
         if (target._silent)
             return true;
 
-        const api = snapApiMap[prop];
-        if (api) {
-            updateSnapshot(api.endpoint, api.key, value);
+        if (!target._silent) {
+            const api = snapApiMap[prop];
+            if (api) {
+                update(api.endpoint, api.key, value);
+            }
+
+            if (target._listeners) {
+                target._listeners.forEach(fn => fn(prop, value));
+            }
         }
         return true;
     }
-
 });
+
+snapState.onChange = function(callback) {
+    if (!this._listeners)
+        this._listeners = [];
+    this._listeners.push(callback);
+};
 
 /*
     Snapshot trigger
 */
 function triggerSnapshot() {
-    return updateSnapshot(
+    return update(
         "snapTrigger",
         "snapTrigger",
         true
     );
-
 }
 
 /*

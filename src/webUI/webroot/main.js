@@ -1122,75 +1122,88 @@ function updateSnapFileList() {
 
 function showNewSnap() {
     // show all the values for the snap
-    // if we have focus on a form then don't update the table
+    // if we have focus on any snap input then don't update anything
     if (snapFormInFocus) {
         return;
     }
-    let new_html=""
 
-    new_html = '<button type="button" id="snapTriggerBut" title="Manual trigger" class="specbuttons btn btn-outline-dark mx-1 my-1">Trigger</button>';
-    $('#newSnapTriggerState').empty().append(new_html);
+    const trigger=`
+        <button type="button" id="snapTriggerBut" title="Manual trigger" class="specbuttons btn btn-outline-dark mx-1 my-1">
+        Trigger
+        </button>'
+    `;
+    $('#newSnapTriggerState').empty().append(trigger);
     $('#snapTriggerBut').click(function() {handleSnapTrigger();});
 
-    new_html = '<form ';
-    new_html += ' onfocusin="snapTableFocusIn()" onfocusout="snapTableFocusOut()" ';
-    new_html += 'action="javascript:handleSnapBaseNameChange(snapBaseName.value)">';
-    let help = snapState.baseFilename;
-    // shorten long names
-    new_html += '<input data-toggle="tooltip" title="'+help+'" type="text" size="10" value="';
-    new_html += snapState.baseFilename;
-    new_html += '" id="snapBaseName" name="snapBaseName">';
-    new_html += '</form>';
-    $('#newSnapBaseName').empty().append(new_html);
-
     let fileFormats = snapState.fileFormats;
-    let fileFormat = snapState.fileFormat;
-    new_html = '<form';
-    new_html += ' onfocusin="snapTableFocusIn()" onfocusout="snapTableFocusOut()" ';
-    new_html += ' action="javascript:handleSnapFileFormatChange(snapFileFormat.value)">';
-    new_html += '<select id="snapFileFormat" name="snapFileFormat" onchange="this.form.submit()">';
+    let fileFormat  = snapState.fileFormat;
+    let allowedFormats="";
     fileFormats.forEach(function(type) {
-        new_html += '<option value="'+type+'"'+((type==fileFormat)?"selected":"")+'>'+type+'</option>';
+        allowedFormats += '<option value="'+type+'"'+((type==fileFormat)?" selected":"")+'>'+type+'</option>';
     });
-    new_html += '</select></form>';
-    $('#newFileFormat').empty().append(new_html);
+    const formats= `
+        <form onfocusin="snapTableFocusIn()" onfocusout="snapTableFocusOut()">
+            <select id="snapFileFormat" data-bind="fileFormat">
+                ${allowedFormats}
+            </select>
+        </form>
+    `;
+    $('#newFileFormat').empty().append(formats);
 
     let triggerTypes = snapState.triggers;
     let triggerType = snapState.triggerType;
-    if (triggerTypes.length > 0) {
-        new_html = '<form';
-        new_html += ' onfocusin="snapTableFocusIn()" onfocusout="snapTableFocusOut()" ';
-        new_html += ' action="javascript:handleSnapTriggerModeChange(snapTriggerMode.value)">';
-        new_html += '<select id="snapTriggerMode" name="snapTriggerMode" onchange="this.form.submit()">';
-        triggerTypes.forEach(function(type) {
-            new_html += '<option value="'+type+'"'+((type==triggerType)?"selected":"")+'>'+type+'</option>';
-        });
-        new_html += '</select></form>';
-    }
-    else {
-        new_html = triggerType;
-    }
-    $('#newSnapTriggerType').empty().append(new_html);
+    let allowedTriggers="";
+    triggerTypes.forEach(function(type) {
+        allowedTriggers += '<option value="'+type+'"'+((type==triggerType)?" selected":"")+'>'+type+'</option>';
+    });
+    const triggers= `
+        <form onfocusin="snapTableFocusIn()" onfocusout="snapTableFocusOut()">
+            <select id="snapTriggerMode" data-bind="triggerType">
+                ${allowedTriggers}
+            </select>
+        </form>
+    `;
+    $('#newSnapTriggerType').empty().append(triggers);
 
-    new_html = '<form ';
-    new_html += ' onfocusin="snapTableFocusIn()" onfocusout="snapTableFocusOut()" ';
-    new_html += 'action="javascript:handleSnapPreTriggerChange(snapPreTrigMilliSec.value)">';
-    // as we remove the number inc/dec arrows in css the size parameter does work
-    new_html += '<input type="number" size="5" min="0" value="';
-    new_html += snapState.preTriggerMs;
-    new_html += '" id="snapPreTrigMilliSec" name="snapPreTrigMilliSec">';
-    new_html += '&nbsp msec</form>';
-    $('#newSnapPreTrigger').empty().append(new_html);
+    const shortName = snapState.baseFilename.slice(0, 10);
+    const snapName= `
+    <input
+        data-toggle="tooltip"
+        onfocusin="snapTableFocusIn()"
+        onfocusout="snapTableFocusOut()"
+        title="${snapState.baseFilename}"
+        type="text"
+        size="10"
+        value="${shortName}"
+        data-bind="baseFilename">
+    `;
+    $('#newSnapBaseName').empty().append(snapName);
 
-    new_html = '<form ';
-    new_html += ' onfocusin="snapTableFocusIn()" onfocusout="snapTableFocusOut()" ';
-    new_html += 'action="javascript:handleSnapPostTriggerChange(snapPostTrigMilliSec.value)">';
-    // as we remove the number inc/dec arrows in css the size parameter does work
-    new_html += '<input type="number" size="6" min="0" value="';
-    new_html += snapState.postTriggerMs;
-    new_html += '" id="snapPostTrigMilliSec" name="snapPostTrigMilliSec">';
-    new_html += '&nbsp msec</form>';
-    $('#newSnapPostTrigger').empty().append(new_html);
+    const preTrigger= `
+    <input
+        data-toggle="tooltip"
+        onfocusin="snapTableFocusIn()"
+        onfocusout="snapTableFocusOut()"
+        title="${snapState.preTriggerMs}"
+        type="number"
+        size="5"
+        min=0
+        data-bind="preTriggerMs">
+    `;
+    $('#newSnapPreTrigger').empty().append(preTrigger);
+
+    const postTrigger= `
+    <input
+        data-toggle="tooltip"
+        onfocusin="snapTableFocusIn()"
+        onfocusout="snapTableFocusOut()"
+        title="${snapState.postTriggerMs}"
+        type="number"
+        size="6"
+        min=0
+        data-bind="postTriggerMs">
+    `;
+    $('#newSnapPostTrigger').empty().append(postTrigger);
 }
 
 function snapTableFocusIn(){
@@ -1206,6 +1219,59 @@ function configFocusIn(){
 function configFocusOut(){
     configFormInFocus = false;
 }
+
+function bindElement(el) {
+    if (!el.dataset || !el.dataset.bind)
+        return;
+
+    const prop = el.dataset.bind;
+
+    /* initial value */
+//    if (prop in snapState) {
+//        el.value = snapState[prop];
+//    }
+
+    /* state → UI */
+    if (prop in snapState) {
+        if (el.tagName === "SELECT" || el.tagName === "INPUT")
+            el.value = snapState[prop];
+    }
+
+    /* UI → state */
+    el.addEventListener("change", () => {
+        snapState[prop] = el.value;
+    });
+
+    /* state → UI updates */
+    snapState.onChange((changedProp, value) => {
+        if (changedProp === prop && el.value !== value) {
+            el.value = value;
+        }
+    });
+}
+
+function bindSnapInputs(root = document) {
+    root.querySelectorAll("[data-bind]").forEach(bindElement);
+}
+
+const snapObserver = new MutationObserver(mutations => {
+    for (const mutation of mutations) {
+        mutation.addedNodes.forEach(node => {
+            if (node.nodeType !== 1)
+                return;
+
+            if (node.dataset?.bind)
+                bindElement(node);
+
+            node.querySelectorAll?.("[data-bind]").forEach(bindElement);
+        });
+    }
+});
+
+snapObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+});
 
 function connectWebSocket(spec) {
     // connect to a websocket server, note socket is one up from rest-api socket
@@ -1465,6 +1531,8 @@ function Main() {
 
     // cache where this element is
     fastStatusUi.loopCpuCell = $('#currentLoopCpuPc').closest("td");
+
+    bindSnapInputs();
 
     // first pass
     syncCurrent();
