@@ -36,6 +36,7 @@ class Sdr:
     fft_frame_time = 1e6 * (fft_size / sample_rate)  # useconds
     window = ""
     window_types = []
+    read_magnitudes = False  # for sources that will give fft magnitudes instead of samples
 
     loop_cpu_pc = 0.0  # % of fft/sample rate time being used
 

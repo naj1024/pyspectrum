@@ -118,6 +118,8 @@ class DataSource:
 
         self._connected = False
 
+        self._has_magnitudes = False # has method to read magnitudes instead of samples
+
     def open(self) -> bool:
         """
         Override in derived class
@@ -366,3 +368,10 @@ class DataSource:
         #   iq -= (1 + 1j)
 
         return complex_data
+
+    def read_cplx_samples(self, number_samples: int) -> Tuple[np.array, float]:
+        raise NotImplementedError("Derived class has to provide read_cplx_samples()")
+
+    def read_magnitude_samples(self, number_samples: int) -> Tuple[np.array, float]:
+        # used for reading say fft spectrum magnitudes instead of complex samples
+        raise NotImplementedError("Derived class has to provide read_magnitude_samples()")

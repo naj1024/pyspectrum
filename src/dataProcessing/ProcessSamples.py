@@ -1,7 +1,8 @@
 import logging
-from typing import List
+from typing import List, Any
 
 import numpy as np
+from numpy import dtype, ndarray
 
 from dataProcessing import Spectrum
 from misc import Sdr
@@ -56,6 +57,9 @@ class ProcessSamples:
         magnitudes_squared = self._spec.mag_spectrum(samples, False)
         self._powers = Spectrum.get_powers(magnitudes_squared, sps, psd, dbm_offset)
 
+        self.set_powers(samples)
+
+    def set_powers(self, samples: ndarray[tuple[Any, ...], dtype[Any]]):
         # check that the size of the arrays have not changed, i.e. FFT size changed
         if samples.size != self._long_average.size:
             self._long_average = np.zeros(samples.size)
