@@ -46,6 +46,9 @@ sdrState.prototype.setFftWindow = function(window) {
 sdrState.prototype.setFftWindows = function(windows) {
     this.windows = windows;
 }
+sdrState.prototype.setReadMagnitudes = function(magnitudes) {
+    this.readMagnitudes = magnitudes;
+}
 sdrState.prototype.setInputSource = function(source) {
     this.source = source;
 }
@@ -124,6 +127,9 @@ sdrState.prototype.getFftOverlap = function() {
 }
 sdrState.prototype.getPsd = function() {
     return this.psd;
+}
+sdrState.prototype.getReadMagnitudes = function() {
+    return this.readMagnitudes;
 }
 sdrState.prototype.getFftFrameTime = function() {
     return this.fftFrameTime;
@@ -288,11 +294,11 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
     }
 
     if (jsonConfig.psd != undefined) {
-        if (jsonConfig.psd == false) {
-            this.psd = "Off";
+        if (jsonConfig.psd == "On") {
+            this.psd = "On";
         }
         else{
-            this.psd = "On";
+            this.psd = "Off";
         }
     }
 
@@ -302,6 +308,10 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
 
     if (jsonConfig.fftWindows != undefined) {
         this.windows = jsonConfig.fftWindows;
+    }
+
+    if(jsonConfig.readMagnitudes != undefined) {
+        this.readMagnitudes = jsonConfig.readMagnitudes;
     }
 
     if (jsonConfig.sources != undefined) {
@@ -437,6 +447,8 @@ function sdrState() {
     this.fftFrameTime = 0;
     this.window = "";
     this.windows = [];
+
+    this.readMagnitudes = false;
 
     this.source = "";
     this.sourceParams = "";

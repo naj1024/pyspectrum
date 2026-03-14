@@ -234,10 +234,11 @@ class Digitiser(Resource):
                                        'digitiserGainType', 'digitiserGain',
                                        'digitiserDcRemoval', 'digitiserDcRemovals',
                                        'digitiserDbmOffset', 'digitiserInputLevel',
-                                       'streamLength', 'streamCurrent']
+                                       'streamLength', 'streamCurrent',
+                                       'readMagnitudes']
         self._allowed_put_endpoints = ['digitiserFormat', 'digitiserSampleRate', 'digitiserBandwidth',
                                        'digitiserPartsPerMillion', 'digitiserGainType', 'digitiserGain',
-                                       'digitiserDcRemoval', 'digitiserDbmOffset']
+                                       'digitiserDcRemoval', 'digitiserDbmOffset', 'readMagnitudes']
 
     def api(self):
         points = {}
@@ -320,6 +321,12 @@ class Digitiser(Resource):
                     self._updateQ.put({
                             "type": thing,
                             "set": gn,
+                    })
+                elif thing == 'readMagnitudes':
+                    gt = request.json[thing]
+                    self._updateQ.put({
+                            "type": thing,
+                            "set": gt,
                     })
                 return "ok"
             except Exception:
@@ -643,7 +650,7 @@ class Status(Resource):
                              'digitiserInputLevel', 'digitiserDbmOffset', 'digitiserGainType',
                              'fftSize', 'fftOverlap', 'psd', 'fftFrameTime', 'fftWindow',
                              'snapTriggerSource', 'snapName', 'snapFormat',
-                             'snapPreTrigger', 'snapPostTrigger',
+                             'snapPreTrigger', 'snapPostTrigger', 'readMagnitudes'
                             ]
                     status = {}
                     for stat in stats:

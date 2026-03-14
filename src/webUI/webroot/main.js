@@ -32,6 +32,7 @@ const currentStatusUi = {
    centre: $('#currentCentre'),
    cfOffset: $('#currentCfOffset'),
    sdrCentre: $('#currentSdrCentre'),
+   readMagnitudes: $('#currentReadMagnitudes'),
    format: $('#currentFormat'),
    sps: $('#currentSps'),
    rbw: $('#currentRBW'),
@@ -109,6 +110,7 @@ async function syncCurrent() {
         currentStatusUi.cfOffset.text((sdrState.getFrequencyOffsetHz()/1e6).toFixed(6)+' MHz');
         currentStatusUi.sdrCentre.text((sdrState.getSdrFrequencyHz()/1e6).toFixed(6)+' MHz');
         currentStatusUi.format.text(sdrState.getDataFormat());
+        currentStatusUi.readMagnitudes.text(sdrState.getReadMagnitudes());
         currentStatusUi.sps.text((sdrState.getSps()/1e6).toFixed(6)+' Msps');
         currentStatusUi.rbw.text(spectrum.convertFrequencyForDisplay(sdrState.getSps() / sdrState.getFftSize(),2));
         currentStatusUi.sdrBw.text((sdrState.getSdrBwHz()/1e6).toFixed(6)+' MHz');
@@ -249,7 +251,8 @@ function syncNew() {
                 './spectrum/fftWindows', './digitiser/digitiserGainTypes', './control/presetFps',
                 './digitiser/digitiserGain', './digitiser/digitiserSampleRate', './tuning/frequency',
                 './digitiser/digitiserBandwidth', './digitiser/digitiserPartsPerMillion',
-                './digitiser/digitiserDbmOffset', './digitiser/digitiserDcRemovals'];
+                './digitiser/digitiserDbmOffset', './digitiser/digitiserDcRemovals',
+                './digitiser/readMagnitudes'];
     for (let i = 0; i < initUris.length; i++) {
         fetch(initUris[i]).then(function (response) {
             return response.json();
@@ -307,6 +310,22 @@ function showNew(jsonConfig) {
             new_html += '</form>';
             $('#newSource').empty().append(new_html);
         }
+    }
+
+    /////////////
+    // magnitudes
+    ///////
+    if(jsonConfig.readMagnitudes != undefined) {
+        let dataFormats = ["samples", "magnitudes"];
+        new_html = '<form ';
+        new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
+        new_html += ' action="javascript:handleReadMagnitudesChange(readMagnitudesInput.value)">';
+        new_html += '<select id="readMagnitudesInput" name="readMagnitudesInput" onchange="this.form.submit()">';
+        dataFormats.forEach(function(dtype) {
+            new_html += '<option value="'+dtype+'"'+((dtype==sdrState.getReadMagnitudes())?"selected":"")+'>'+dtype+'</option>';
+        });
+        new_html += '</select></form>';
+        $('#newReadMagnitudes').empty().append(new_html);
     }
 
     /////////////
@@ -890,6 +909,21 @@ function handleInputChange(newSource, newParams) {
 
     sdrState.setInputSource(newSource);
     sdrState.setInputSourceParams(newParams);
+    configFocusOut();
+}
+
+function handleReadMagnitudesChange(newType) {
+    fetch("./digitiser/readMagnitudes", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"readMagnitudes":(newType)})
+    }).then(response => {
+        return response.json();
+    });
+
+    sdrState.setDataFormat(newFormat);
     configFocusOut();
 }
 
