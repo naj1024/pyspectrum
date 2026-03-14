@@ -118,8 +118,6 @@ class DataSource:
 
         self._connected = False
 
-        self._has_magnitudes = False # has method to read magnitudes instead of samples
-
     def open(self) -> bool:
         """
         Override in derived class
