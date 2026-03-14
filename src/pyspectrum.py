@@ -158,10 +158,11 @@ def main() -> None:
         else:
             try:
                 # do we get complex samples or magnitudes from the source
-                if fetcher is not None:
-                    samples, time_rx_nsec, hop = fetcher.get_next_block()
-                else:
+                if fetcher is None:
                     samples, time_rx_nsec = data_source.read_magnitude_samples(sdr_config.fft_size)
+                else:
+                    samples, time_rx_nsec, hop = fetcher.get_next_block()
+
                 sdr_config.input_overflows = data_source.get_overflows()
 
             except ValueError as mm:
@@ -186,8 +187,9 @@ def main() -> None:
         ######################
         if samples is not None:
             # samples will be dtype=np.complex64
-            if sdr_config.read_magnitudes:
-                processor.set_powers(samples.view(np.float32))  # view the samples as just float,float...
+            if fetcher is None:
+                # samples are magnitudes_squared values
+                processor.set_powers(samples, sdr_config.sample_rate, sdr_config.psd, sdr_config.dbm_offset)
             else:
                 samples, snap_finished = handle_samples(data_sink, hop, plugin_manager, processor, samples, sdr_config,
                                                         snap_config, time_rx_nsec, times_and_averages)
@@ -331,7 +333,7 @@ def set_sample_fetcher(data_source: DataSource, sdr_config: Sdr) -> BlockSampleF
         try:
             _ = data_source.read_magnitude_samples(sdr_config.fft_size)
         except NotImplementedError:
-            print("Object does not support magnitude samples")
+            logger.error(f"{data_source.get_name()} does not support magnitude samples")
             sdr_config.read_magnitudes = False
             fetcher = create_sample_fetch(data_source, sdr_config)
     else:
@@ -649,7 +651,7 @@ def fill_shared_status_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_conf
     shared_status['fftSize'] = sdr_config.fft_size
     shared_status['fftOverlaps'] = sdr_config.fft_overlaps
     shared_status['fftOverlap'] = sdr_config.fft_overlap
-    shared_status['psd'] = sdr_config.psd
+    shared_status['psd'] = "On" if sdr_config.psd else "Off"
     sdr_config.fft_frame_time = 1e6 * (sdr_config.fft_size / sdr_config.sample_rate)
     shared_status['fftFrameTime'] = sdr_config.fft_frame_time
     # spectrogram does not work with 32768 points
@@ -669,6 +671,8 @@ def fill_shared_status_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_conf
     shared_status['overflows'] = sdr_config.input_overflows
     shared_status['ackTime'] = sdr_config.ackTime
     shared_status['oneInN'] = sdr_config.one_in_n
+
+    shared_status['readMagnitudes'] = "magnitudes" if sdr_config.read_magnitudes else "samples"
 
     # snapshot stuff
     shared_status['snapTrigger'] = snap_config.triggered
@@ -754,6 +758,12 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                     sdr_config.input_overflows = 0
                     config_changed = True
                     snap_changed = True
+
+            if message_name == 'readMagnitudes':
+                mags = True if message_value == "magnitudes" else False
+                if mags != sdr_config.read_magnitudes:
+                    sdr_config.read_magnitudes = mags
+                    config_changed = True
 
             if message_name == 'fps':
                 if message_value != sdr_config.fps:
@@ -851,8 +861,9 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                     config_changed = True
 
             if message_name == 'psd':
-                if message_value != sdr_config.psd:
-                    sdr_config.psd = message_value
+                psd = True if message_value == "On" else False
+                if psd != sdr_config.psd:
+                    sdr_config.psd = psd
                     config_changed = True
 
             if message_name == 'digitiserGain':
@@ -958,7 +969,6 @@ def send_spectrums_to_ui(sdr_config: Sdr.Sdr,
     :param time_spectrum: Time of this spectrum in nanoseconds
     :return: array of updated peak powers
     """
-
     peak_detect = False
     if sdr_config.stop:
         # drop things on the floor if we are told to stop
