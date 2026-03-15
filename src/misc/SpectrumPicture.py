@@ -39,6 +39,8 @@ class SpectrumPicture:
         if matplotlib:
             matplotlib.use('Agg')
 
+        self._spec = Spectrum.Spectrum(512, 'Hanning')
+
     def create_picture(self, filename: pathlib.PurePath) -> bool:
         if not matplotlib:
             return False
@@ -69,7 +71,7 @@ class SpectrumPicture:
                         ok = False  # end of file
 
                 if count > 0:
-                    powers = Spectrum.get_powers(peaks_squared, 0, False, 0)
+                    powers = self._spec.get_powers(peaks_squared, 0, False, 0)
                     average = np.average(powers)
                     maximum = np.max(powers)
                     # set everything below average to the average

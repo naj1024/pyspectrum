@@ -1,5 +1,7 @@
 """
-Test class for magnitude source
+Test class for a sample and magnitude source
+
+Note: Can't change the fft window.
 """
 
 import logging
