@@ -8,6 +8,7 @@ from typing import Tuple
 import time
 
 import numpy as np
+import numpy.typing as npt
 
 from dataSources import DataSource
 from dataProcessing import Spectrum
@@ -43,8 +44,7 @@ class Input(DataSource.DataSource):
         :param input_bw: The filtering of the input, may not be configurable
         """
 
-        # Driver converts to floating point for us, underlying data from ad936x was 16bit i/q
-        self._constant_data_type = "16tle"
+        self._constant_data_type = "32fle"
 
         self._min_frequency = 0.0
         self._max_frequency = 6000000000.0
@@ -67,7 +67,7 @@ class Input(DataSource.DataSource):
         self._doing_mags = False
         self._max_amp = 0.001    # dont really want +-1.0 for the samples
 
-        logger.info(f"New test source with FIXED Hanning window, {self._sample_rate_sps}sps, {self._gain}, {self._snr_db}dB")
+        logger.info(f"Test source FIXED Hanning window, {self._sample_rate_sps}sps, {self._gain}, {self._snr_db}dB")
         self._spec = Spectrum.Spectrum(512, 'Hanning')
 
     def open(self) -> bool:
@@ -90,18 +90,18 @@ class Input(DataSource.DataSource):
         # we can't set a different sample type on this source
         super().set_sample_type(self._constant_data_type)
 
-    def read_cplx_samples(self, number_samples: int) -> Tuple[np.array, float]:
+    def read_cplx_samples(self, number_samples: int) -> Tuple[npt.NDArray[np.complex64], float]:
         Fs = self._sample_rate_sps
         N = number_samples
 
         # Initialise state
         if not hasattr(self, "_current_freq"):
-            self._current_freq = -Fs / 2.0
+            self._current_freq = -Fs / 8.0
         if not hasattr(self, "_osc_phase"):
-            self._osc_phase = 1 + 0j   # complex phase accumulator
+            self._osc_phase = np.complex64(1 + 0j)
 
         # Phase step for this frequency
-        phase_step = np.exp(1j * 2 * np.pi * self._current_freq / Fs)
+        phase_step = np.complex64(np.exp(1j * 2 * np.pi * self._current_freq / Fs))
 
         # Generate oscillator samples
         signal = np.empty(number_samples, dtype=np.complex64)
@@ -127,12 +127,16 @@ class Input(DataSource.DataSource):
         noise_std_per_component = np.sqrt(noise_power / 2)  # split between I and Q
 
         # Add Gaussian noise
-        noise1 = np.random.normal(0, noise_std_per_component, N)
-        noise2 = np.random.normal(0, noise_std_per_component, N)
-        signal_noisy = signal + (noise1 + 1j * noise2)
+        noise = (
+                np.random.normal(0, noise_std_per_component, N).astype(np.float32)
+                + 1j * np.random.normal(0, noise_std_per_component, N).astype(np.float32)
+        )
+        signal_noisy = signal + noise.astype(np.complex64)
+
+        # limit max
+        signal_noisy *= np.float32(self._max_amp)
 
         # add gain
-        signal_noisy *= self._max_amp
         signal_noisy *= 10 ** (self._gain / 20.0)
 
         rx_time = 0
