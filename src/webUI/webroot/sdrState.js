@@ -329,10 +329,10 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         // todo: keep the source and help paired up
         let sourceArray = Object.entries(jsonConfig.sources);
         let sources = [];
-        let sourceHelps = [];
+        let sourceHelps = {};  /* map/dict */
         for (var src = 0; src < sourceArray.length; src++) {
             sources.push(sourceArray[src][0]);
-            sourceHelps.push(sourceArray[src][1]);
+            sourceHelps[sourceArray[src][0]] = sourceArray[src][1];
         }
         this.sources = sources;
         this.sourceHelps = sourceHelps;

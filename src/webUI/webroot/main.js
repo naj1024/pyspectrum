@@ -99,9 +99,22 @@ async function syncCurrent() {
         sdrState.setConfigFromJason(obj); // update the sdr state
         snapState.setFromJson(obj); // update the snap state
 
-        let src = '<div>'+sdrState.getInputSource()+'</div>';
-        src += '<div title="'+sdrState.getInputSourceParamHelp()+'" class="CropLongTexts100">'+sdrState.getInputSourceParams()+'</div>'
-        src += '<div>'+(sdrState.getSourceConnected()?'Connected':'Not Connected')+'</div>';
+        let source = sdrState.getInputSource();
+        let params = sdrState.getInputSourceParams();
+        let connected = (sdrState.getSourceConnected()?'Connected':'Not Connected')
+        let container = $('<div>')
+        .css('cursor', 'help')
+        .attr('title', params || '');
+        container.append(
+            $('<div>')
+                .addClass('CropLongTexts100')
+                .text(params)
+        );
+        let src = $('<div>')
+            .append($('<div>').text(source))
+            .append(container)
+            .append($('<div>').text(connected))
+
         currentStatusUi.source.empty().append(src);
 
         // flagged that source changed so remove any green highlights from file table
@@ -288,32 +301,64 @@ function showNew(jsonConfig) {
     /////////////
     // input
     ///////
-    if( (jsonConfig.sources != undefined) || (jsonConfig.source != undefined)) {
-        let source = sdrState.getInputSource();
-        let sourceParams = sdrState.getInputSourceParams();
+    if ((jsonConfig.sources !== undefined) || (jsonConfig.source !== undefined)) {
+
         let sources = sdrState.getInputSources();
         if (sources.length > 0) {
-            new_html = '<form ';
-            new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
-            new_html += ' action="javascript:handleInputChange(inputSource2.value, inputSourceParams.value)">';
-            // the possible sources
-            new_html += '<select id="inputSource2" name="inputSource2">';
+            let source = sdrState.getInputSource();
+            let sourceParams = sdrState.getInputSourceParams();
+            let sourceHelp = sdrState.getInputSourceParamHelp(source);
+
+            let form = $('<form>')
+                .attr('action', 'javascript:handleInputChange(inputSource2.value, inputSourceParams.value)')
+                .on('focusin', configFocusIn)
+                .on('focusout', configFocusOut);
+
+            // Source selector
+            let select = $('<select>')
+                .attr({ id: 'inputSource2', name: 'inputSource2' });
+
             sources.forEach(function(src) {
-                new_html += '<option value="'+src+'"'+((src==source)?"selected":"")+'>'+src+'</option>';
+                select.append(
+                    $('<option>')
+                        .val(src)
+                        .text(src)
+                        .prop('selected', src === source)
+                );
             });
-            new_html += '</select>';
-            new_html += '</br>'
-            // the parameters for the source
-            let help = source+' '+sourceParams+'\n'+sdrState.getInputSourceParamHelp(source);
-            new_html += '<input data-toggle="tooltip" title="'+help+'" type="text" size="10"';
-            new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
-            new_html += ' value="'+ sourceParams + '" id="inputSourceParams" name="inputSourceParams">';
-            new_html += '</br>'
-            new_html += '<input type="submit" value="Attach">';
-            new_html += '</form>';
-            $('#newSource').empty().append(new_html);
+
+            // Tooltip text (safe)
+            let helpText = (source + ' ' + sourceParams + '\n' + (sourceHelp || ''));
+
+            // Input with tooltip
+            let input = $('<input>')
+                .attr({
+                    type: 'text',
+                    size: 10,
+                    id: 'inputSourceParams',
+                    name: 'inputSourceParams',
+                    title: helpText
+                })
+                .val(sourceParams)
+                .on('focusin', configFocusIn)
+                .on('focusout', configFocusOut);
+
+            let submit = $('<input>')
+                .attr({ type: 'submit', value: 'Attach' });
+
+            form.append(select, '<br>', input, '<br>', submit);
+            $('#newSource').empty().append(form);
+
+            select.on('change', function() {
+                let newSource = $(this).val();
+                let newHelp = newSource + ' \n' + (sdrState.getInputSourceParamHelp(newSource) || '');
+
+                input.val('');              // clear input
+                input.attr('title', newHelp); // update tooltip
+            });
         }
     }
+
 
     /////////////
     // magnitudes
@@ -1152,7 +1197,6 @@ function showNewSnap() {
     const shortName = snapState.baseFilename.slice(0, 10);
     const snapName= `
     <input
-        data-toggle="tooltip"
         onfocusin="snapTableFocusIn()"
         onfocusout="snapTableFocusOut()"
         title="${snapState.baseFilename}"
@@ -1166,7 +1210,6 @@ function showNewSnap() {
     const preTrigger= `
     <div class="input-with-unit">
     <input
-        data-toggle="tooltip"
         onfocusin="snapTableFocusIn()"
         onfocusout="snapTableFocusOut()"
         title="${snapState.preTriggerMs}"
@@ -1182,7 +1225,6 @@ function showNewSnap() {
     const postTrigger= `
     <div class="input-with-unit">
     <input
-        data-toggle="tooltip"
         onfocusin="snapTableFocusIn()"
         onfocusout="snapTableFocusOut()"
         title="${snapState.postTriggerMs}"
