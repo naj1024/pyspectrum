@@ -128,6 +128,12 @@ sdrState.prototype.getFftOverlap = function() {
 sdrState.prototype.getPsd = function() {
     return this.psd;
 }
+sdrState.prototype.getFftRbw = function() {
+    return this.fftRbw;
+}
+sdrState.prototype.getFftBin = function() {
+    return this.fftBin;
+}
 sdrState.prototype.getReadMagnitudes = function() {
     return this.readMagnitudes;
 }
@@ -283,6 +289,11 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
 
     if (jsonConfig.fftSize != undefined) {
         this.fftSize = jsonConfig.fftSize;
+    }
+
+    if (jsonConfig.fftRbw != undefined) {
+        this.fftRbw = jsonConfig.fftRbw;
+        this.fftBin = this.sps / this.fftSize;
     }
 
     if (jsonConfig.fftOverlaps != undefined) {
@@ -447,6 +458,8 @@ function sdrState() {
     this.fftFrameTime = 0;
     this.window = "";
     this.windows = [];
+    this.fftRbw = 0;
+    this.fftBin = 0;
 
     this.readMagnitudes = false;
 

@@ -163,3 +163,86 @@ input[type=number] {
 #metaZoom {
     transform-origin: top left;
 }
+
+/* Input number suffix support */
+.input-with-unit {
+  position: relative;
+  display: inline-block;
+}
+.input-with-unit input {
+  padding-right: 30px; /* make space inside box */
+}
+.input-with-unit .unit {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #666;
+  font-size: 0.9em;
+}
+
+/* sticky tabs at top of right panel */
+#metaData {
+    height: 100%;              /* or 100% / calc(...) depending on your layout */
+    display: flex;
+    flex-direction: column;
+}
+/* Sticky + standout style */
+#metaZoom .nav-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f8f9fa;   /* light gray background for contrast */
+    border-bottom: 2px solid #dee2e6; /* subtle bottom border */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* slight shadow for depth */
+}
+/* Active tab highlight */
+/* Container setup */
+#metaData {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+#metaZoom {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+/* Sticky tabs with card-style */
+#metaZoom .nav-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #ffffff;
+    border-bottom: none;           /* remove default line */
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1); /* subtle lift */
+    margin-bottom: 0;              /* align with content */
+    border-radius: 0.5rem 0.5rem 0 0; /* rounded top corners */
+    padding: 0.25rem 1rem;
+}
+/* Tab items */
+#metaZoom .nav-tabs .nav-item {
+    margin-bottom: 0;
+}
+#metaZoom .nav-tabs .nav-link {
+    border: 1px solid transparent;
+    border-radius: 0.5rem 0.5rem 0 0; /* match tab container */
+    margin-right: 0.25rem;
+    transition: all 0.2s ease-in-out;
+    background-color: #f8f9fa; /* subtle gray for inactive */
+    color: #495057;
+}
+/* Active tab style */
+#metaZoom .nav-tabs .nav-link.active {
+    background-color: #ffffff;
+    color: #007bff;             /* Bootstrap primary */
+    border-color: #dee2e6 #dee2e6 #fff; /* blend bottom with content */
+    font-weight: 500;
+    box-shadow: 0 -1px 0 #fff inset; /* subtle separation */
+}
+/* Hover effect */
+#metaZoom .nav-tabs .nav-link:hover {
+    background-color: #e9ecef;
+    color: #0056b3;
+}

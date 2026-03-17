@@ -35,7 +35,8 @@ const currentStatusUi = {
    readMagnitudes: $('#currentReadMagnitudes'),
    format: $('#currentFormat'),
    sps: $('#currentSps'),
-   rbw: $('#currentRBW'),
+   fftRbw: $('#currentRBW'),
+   fftBin: $('#currentFftBin'),
    sdrBw: $('#currentSdrBw'),
    ppm: $('#currentPpm'),
    dcRemoval: $('#currentDcRemoval'),
@@ -112,7 +113,6 @@ async function syncCurrent() {
         currentStatusUi.format.text(sdrState.getDataFormat());
         currentStatusUi.readMagnitudes.text(sdrState.getReadMagnitudes());
         currentStatusUi.sps.text((sdrState.getSps()/1e6).toFixed(6)+' Msps');
-        currentStatusUi.rbw.text(spectrum.convertFrequencyForDisplay(sdrState.getSps() / sdrState.getFftSize(),2));
         currentStatusUi.sdrBw.text((sdrState.getSdrBwHz()/1e6).toFixed(6)+' MHz');
         currentStatusUi.ppm.text((sdrState.getPpmError()).toFixed(3));
         currentStatusUi.dcRemoval.text(sdrState.getDcRemoval());
@@ -120,11 +120,12 @@ async function syncCurrent() {
         currentStatusUi.dbmOffset.text((sdrState.getDBmOffset()).toFixed(3));
         currentStatusUi.gainMode.text(sdrState.getGainMode());
         currentStatusUi.fft.text(sdrState.getFftSize());
-        currentStatusUi.rbw.text(spectrum.convertFrequencyForDisplay(sdrState.getSps() / sdrState.getFftSize(),2));
         currentStatusUi.overlap.text(sdrState.getFftOverlap() + " %");
         currentStatusUi.psd.text(sdrState.getPsd());
         currentStatusUi.frameTime.text(sdrState.getFftFrameTime().toFixed(0) + " usec");
         currentStatusUi.window.text(sdrState.getFftWindow());
+        currentStatusUi.fftRbw.text(spectrum.convertFrequencyForDisplay(sdrState.getFftRbw(),1));
+        currentStatusUi.fftBin.text(spectrum.convertFrequencyForDisplay(sdrState.getFftBin(),1));
 
         let name = '<div title="'+snapState.baseFilename+'" class="CropLongTexts100">'+snapState.baseFilename+'</div>'
         currentStatusUi.baseName.empty().append(name);
@@ -247,7 +248,7 @@ function syncNew() {
     // get all the main stuff
     let initUris = ['./input/sources', './digitiser/digitiserFormats',
                 './spectrum/fftSizes', './spectrum/psd', './spectrum/fftOverlap',
-                './spectrum/fftOverlaps', './spectrum/fftFrameTime',
+                './spectrum/fftOverlaps', './spectrum/fftFrameTime', './spectrum/fftRbw',
                 './spectrum/fftWindows', './digitiser/digitiserGainTypes', './control/presetFps',
                 './digitiser/digitiserGain', './digitiser/digitiserSampleRate', './tuning/frequency',
                 './digitiser/digitiserBandwidth', './digitiser/digitiserPartsPerMillion',
@@ -301,11 +302,13 @@ function showNew(jsonConfig) {
                 new_html += '<option value="'+src+'"'+((src==source)?"selected":"")+'>'+src+'</option>';
             });
             new_html += '</select>';
+            new_html += '</br>'
             // the parameters for the source
             let help = source+' '+sourceParams+'\n'+sdrState.getInputSourceParamHelp(source);
             new_html += '<input data-toggle="tooltip" title="'+help+'" type="text" size="10"';
             new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
             new_html += ' value="'+ sourceParams + '" id="inputSourceParams" name="inputSourceParams">';
+            new_html += '</br>'
             new_html += '<input type="submit" value="Attach">';
             new_html += '</form>';
             $('#newSource').empty().append(new_html);
@@ -355,28 +358,35 @@ function showNew(jsonConfig) {
         new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
         new_html += ' action="javascript:handleCfChangeMHz(centreFrequencyInput.value)">';
         // as we remove the number inc/dec arrows in css the size parameter does work
+        new_html += '<div class="input-with-unit">';
         new_html += '<input type="number" size="12" min="0" max="40000" ';
         new_html += ' step="';
         new_html += cf_step;
         new_html += '" value="';
         new_html += (sdrState.getFrequencyHz()/1e6).toFixed(6);
-        new_html += '" id="centreFrequencyInput" name="centreFrequencyInput">';
+        new_html += '" id="centreFrequencyInput" name="centreFrequencyInput"/>';
+        new_html += '<span class="unit">MHz</span>';
+        new_html += '</div>';
         new_html += '<input type=submit id="submitbtnFreq">';
-        new_html += '&nbsp MHz</form>';
+        new_html += '</form>';
+
         $('#newCentre').empty().append(new_html);
 
         new_html = '<form ';
         new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
         new_html += ' action="javascript:handleCfOffsetChange(centreFrequencyOffsetInput.value)">';
         // as we remove the number inc/dec arrows in css the size parameter does work
+        new_html += '<div class="input-with-unit">';
         new_html += '<input type="number" size="12" min="-30000" max="30000" ';
         new_html += ' step="';
         new_html += cf_step;
         new_html += '" value="';
         new_html += (sdrState.getFrequencyOffsetHz()/1e6).toFixed(6);
         new_html += '" id="centreFrequencyOffsetInput" name="centreFrequencyOffsetInput">';
+        new_html += '<span class="unit">MHz</span>';
+        new_html += '</div>';
         new_html += '<input type=submit id="submitbtnFreqOffset">';
-        new_html += '&nbsp MHz</form>';
+        new_html += '</form>';
         $('#newCfOffset').empty().append(new_html);
     }
 
@@ -390,12 +400,15 @@ function showNew(jsonConfig) {
         new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
         new_html += 'action="javascript:handleSpsChange(spsInput.value)">';
         // as we remove the number inc/dec arrows in css the size parameter does work
+        new_html += '<div class="input-with-unit">';
         new_html += '<input type="number" size="9" min="0" max="100" step="';
         new_html += sps_step;
         new_html += '" value="';
         new_html += (sps/1e6).toFixed(6);
         new_html += '" id="spsInput" name="spsInput">';
-        new_html += "&nbsp Msps</form>";
+        new_html += '<span class="unit">Msps</span>';
+        new_html += '</div>';
+        new_html += "</form>";
         $('#newSps').empty().append(new_html);
     }
 
@@ -409,12 +422,15 @@ function showNew(jsonConfig) {
         new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
         new_html += 'action="javascript:handleSdrBwChange(sdrBwInput.value)">';
         // as we remove the number inc/dec arrows in css the size parameter does work
+        new_html += '<div class="input-with-unit">';
         new_html += '<input type="number" size="9" min="0" max="100" step="';
         new_html += sdrbw_step;
         new_html += '" value="';
         new_html += (sdrBwHz/1e6).toFixed(6);
         new_html += '" id="sdrBwInput" name="sdrBwInput">';
-        new_html += "&nbsp MHz</form>";
+        new_html += '<span class="unit">MHz</span>';
+        new_html += '</div>';
+        new_html += "</form>";
         $('#newSdrBw').empty().append(new_html);
     }
 
@@ -466,11 +482,14 @@ function showNew(jsonConfig) {
         new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
         new_html += 'action="javascript:handleDBmOffsetChange(sdrDBmOffsetInput.value)">';
         // as we remove the number inc/dec arrows in css the size parameter does work
+        new_html += '<div class="input-with-unit">';
         new_html += '<input type="number" size="9" min="-100" max="100" step="';
         new_html += offset_step;
         new_html += '" value="';
         new_html += (dbm_offset).toFixed(2);
         new_html += '" id="sdrDBmOffsetInput" name="sdrDBmOffsetInput">';
+        new_html += '<span class="unit">dB</span>';
+        new_html += '</div>';
         new_html += "</form>";
         $('#newdBmOffset').empty().append(new_html);
     }
@@ -577,6 +596,7 @@ function showNew(jsonConfig) {
         new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
         new_html += ' action="javascript:handleGainChange(gainInput.value)">';
         // as we remove the number inc/dec arrows in css the size parameter does work
+        new_html += '<div class="input-with-unit">';
         new_html += '<input type="number" size="2" min="-100" max="100" ';
         new_html += ' step="';
         new_html += gain_step;
@@ -584,7 +604,9 @@ function showNew(jsonConfig) {
         new_html += sdrState.getGain();
         new_html += '" id="gainInput" name="gainInput">';
         new_html += '<input type=submit id="submitbtnGain">';
-        new_html += '&nbsp dB</form>';
+        new_html += '<span class="unit">dB</span>';
+        new_html += '</div>';
+        new_html += '</form>';
         $('#newGain').empty().append(new_html);
     }
 
@@ -1142,6 +1164,7 @@ function showNewSnap() {
     $('#newSnapBaseName').empty().append(snapName);
 
     const preTrigger= `
+    <div class="input-with-unit">
     <input
         data-toggle="tooltip"
         onfocusin="snapTableFocusIn()"
@@ -1151,10 +1174,13 @@ function showNewSnap() {
         size="5"
         min=0
         data-bind="preTriggerMs">
+        <span class="unit">msec</span>
+    </div>
     `;
     $('#newSnapPreTrigger').empty().append(preTrigger);
 
     const postTrigger= `
+    <div class="input-with-unit">
     <input
         data-toggle="tooltip"
         onfocusin="snapTableFocusIn()"
@@ -1164,6 +1190,8 @@ function showNewSnap() {
         size="6"
         min=0
         data-bind="postTriggerMs">
+        <span class="unit">msec</span>
+    </div>
     `;
     $('#newSnapPostTrigger').empty().append(postTrigger);
 }
