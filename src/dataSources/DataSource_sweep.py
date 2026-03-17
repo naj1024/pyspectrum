@@ -17,9 +17,9 @@ from dataProcessing import Spectrum
 
 logger = logging.getLogger('spectrum_logger')
 
-module_type = "test"
+module_type = "sweep"
 help_string = f"{module_type}:snr_dB"
-web_help_string = "A test source with a ramping signal snr_db above noise"
+web_help_string = "A test source with a sweeping signal at snr_db above noise"
 import_error_msg = ""
 
 # return an error string if we are not available
@@ -37,9 +37,9 @@ class Input(DataSource.DataSource):
                  centre_frequency: float,
                  input_bw: float):
         """
-        Test source
+        Sweep test source
 
-        :param parameters: The address the device should be on
+        :param parameters: snr of the sweeping tone
         :param data_type: Not used
         :param sample_rate: The sample rate the pluto device will be set to, AND it's BW
         :param centre_frequency: The Centre frequency we will tune to
