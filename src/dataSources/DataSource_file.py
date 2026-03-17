@@ -54,7 +54,7 @@ class Input(DataSource.DataSource):
         self._rewind = True  # true if we will rewind the file each time it ends
         self._full_path = ""
         self._file_time = 0
-        self._sleep = True  # may want to read file as fast as possible
+        self._throttle = True  # may want to read file as fast as possible
         self._file_in_seconds = 0.0  # how long is the file
         self._file_current_seconds = 0.0
 
@@ -62,6 +62,7 @@ class Input(DataSource.DataSource):
 
         self._name = module_type
         self._connected = False
+        self._last_time = time.time_ns()
 
         try:
             self._create_time = time.time_ns()
@@ -76,8 +77,8 @@ class Input(DataSource.DataSource):
         if self._file:
             self._file.close()
 
-    def set_sleep(self, sleep: bool) -> None:
-        self._sleep = sleep
+    def set_throttle(self, throttle: bool) -> None:
+        self._throttle = throttle
 
     def set_file_in_seconds(self):
         if os.path.exists(self._full_path):
@@ -207,11 +208,8 @@ class Input(DataSource.DataSource):
                         else:
                             raise ValueError("end-of-file")
 
-                    if self._sleep:
-                        sleep_time = number_samples / self._sample_rate_sps
-                        if sleep_time > 0.0001:
-                            # wait how long these samples would of taken to arrive
-                            time.sleep(sleep_time * 0.7)  # bodge to allow for time it took to get here
+                    if self._throttle:
+                        _ = self.simulate_sample_wait_time(number_samples)
 
                 except OSError as msg:
                     msgs = f'OSError, {msg}'
@@ -231,3 +229,12 @@ class Input(DataSource.DataSource):
                 complex_data = self.unpack_data(raw_bytes)
 
         return complex_data, rx_time
+
+    def simulate_sample_wait_time(self, number_samples: int) -> float:
+        elapsed = (time.time_ns() - self._last_time) * 1e-9
+        wait = (number_samples / self._sample_rate_sps) - elapsed
+        if wait > 0:
+            time.sleep(wait)
+        rx_time = time.time_ns()
+        self._last_time = rx_time * 0.8  # don't take all the time
+        return rx_time

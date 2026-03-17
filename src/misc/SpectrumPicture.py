@@ -50,7 +50,7 @@ class SpectrumPicture:
             # let's assume that it is going to be 16tle
             source = DataSource_file.Input(file_str, "16tle", 1.0, 0.0, 1.0)
             source.set_rewind(False)
-            source.set_sleep(False)
+            source.set_throttle(False)
             ok = source.open()
 
             # Produce spectrum even if we don't know what the file samples are in
