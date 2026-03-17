@@ -59,18 +59,35 @@ class Input(DataSource.DataSource):
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 
+        self._offset = 10  # To make peak signal above noise correct
         try:
-            self._snr_db = float(self._parameters)
-        except Exception as k:
+            self._snr_db = float(self._parameters) + self._offset
+        except ValueError:
             self._snr_db = 200.0  # very high snr
+            logger.error(f"Test data source defaulting snr as '{self._parameters}' not a number")
         logger.info(f"Test source using snr of {self._snr_db}dB")
 
         self._last_time = time.time_ns()
-        self._doing_mags = False
         self._max_amp = 0.001    # dont really want +-1.0 for the samples
 
-        logger.info(f"Test source FIXED Hanning window, {self._sample_rate_sps}sps, {self._gain}, {self._snr_db}dB")
-        self._spec = Spectrum.Spectrum(512, 'Hanning')
+        self._current_freq = -sample_rate / 8.0  # starts 1/8 of way from negative extreme
+        self._osc_phase = np.complex64(1 + 0j)
+
+        self.enbw = 0
+        self.enbw_db = 0
+        self.change_spectrum(512)
+
+    def change_spectrum(self, N: int):
+        self._spec = Spectrum.Spectrum(N, 'Hanning')
+        self._enbw_db= 10 * math.log10(self._spec.get_enbw())
+        self._enbw = 10 * math.log10(self._spec.get_enbw())
+
+        logger.info(f"Test source with magnitudes {N}, "
+                    f"{self._spec.get_window()} (FIXED), "
+                    f"{self._sample_rate_sps}sps, "
+                    f"enbw {self._spec.get_enbw():.3f}, "
+                    f"rbw {self._spec.get_rbw(self._sample_rate_sps):.1f}Hz")
+
 
     def open(self) -> bool:
         global import_error_msg
@@ -96,72 +113,61 @@ class Input(DataSource.DataSource):
         Fs = self._sample_rate_sps
         N = number_samples
 
-        # Initialise state
-        if not hasattr(self, "_current_freq"):
-            self._current_freq = -Fs / 8.0
-        if not hasattr(self, "_osc_phase"):
-            self._osc_phase = np.complex64(1 + 0j)
+        # do we need to update the spectrum, update enbw_db
+        if N != self._spec.get_fft_size():
+            self.change_spectrum(N)
 
         # Phase step for this frequency
         phase_step = np.complex64(np.exp(1j * 2 * np.pi * self._current_freq / Fs))
 
-        # Generate oscillator samples
-        signal = np.empty(number_samples, dtype=np.complex64)
+        # generate samples
+        phases = np.arange(number_samples, dtype=np.float64)
+        signal = (self._osc_phase * np.exp(1j * 2 * np.pi * self._current_freq / Fs * phases)).astype(np.complex64)
 
-        p = self._osc_phase
-        for i in range(number_samples):
-            signal[i] = p
-            p *= phase_step
+        # advance for next call
+        self._osc_phase = signal[-1] * phase_step
 
-        # Frequency step per call
-        self._current_freq += Fs / 8192
-
-        # Wrap to [-Fs/2, Fs/2)
+        # Frequency step per call and wrap to [-Fs/2, Fs/2)
+        self._current_freq += Fs / 8192  # decent sweep rate
         if self._current_freq >= Fs / 2:
             self._current_freq -= Fs
 
-        # Signal power
-        sig_power = np.mean(np.abs(signal) ** 2)
-
         # Desired noise level
-        snr_linear = 10 ** ((self._snr_db -23) / 10)  # not sure why i'm out by 23dB probably tied up with sample/fft size
-        noise_power = sig_power / snr_linear
-        noise_std_per_component = np.sqrt(noise_power / 2)  # split between I and Q
+        fft_gain_db = 10 * math.log10(N)
+        snr_offset_db = fft_gain_db - self._enbw_db
+        snr_linear = 10 ** ((self._snr_db - snr_offset_db) / 10)
 
-        # Add Gaussian noise
+        sig_power = 1.0  # complex exponential has unity power
+        noise_power = sig_power / snr_linear
+        noise_std_per_component = np.sqrt(noise_power / 2)
+
+        # Add Gaussian noise, make sure we stay as complex64
         noise = (
                 np.random.normal(0, noise_std_per_component, N).astype(np.float32)
                 + 1j * np.random.normal(0, noise_std_per_component, N).astype(np.float32)
         )
         signal_noisy = signal + noise.astype(np.complex64)
 
-        # limit max
+        # limit max as we don't want full scale test signals
         signal_noisy *= np.float32(self._max_amp)
 
         # add gain
         signal_noisy *= 10 ** (self._gain / 20.0)
 
-        rx_time = 0
-        if not self._doing_mags:
-            rx_time = self.simulate_sample_wait_time(number_samples, rx_time)
-
-        # always clear this flag
-        self._doing_mags = False
+        # always set the time
+        rx_time = self.simulate_sample_wait_time(number_samples)
 
         return signal_noisy, rx_time
 
     def read_magnitude_samples(self, number_samples: int) -> Tuple[np.ndarray, float]:
-        self._doing_mags = True
         rx_time = time.time_ns()
-
-        signal, rx_time = self.read_cplx_samples(number_samples)
+        signal, _ = self.read_cplx_samples(number_samples)
         magnitudes_squared = self._spec.mag_spectrum(signal, False)
-
-        rx_time = self.simulate_sample_wait_time(number_samples, rx_time)
+        rx_time = self.simulate_sample_wait_time(number_samples)
 
         return magnitudes_squared, rx_time
 
-    def simulate_sample_wait_time(self, number_samples: int, rx_time: int) -> float:
+    def simulate_sample_wait_time(self, number_samples: int) -> float:
         elapsed = (time.time_ns() - self._last_time) * 1e-9
         wait = (number_samples / self._sample_rate_sps) - elapsed
         if wait > 0:
