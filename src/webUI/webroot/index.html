@@ -228,121 +228,135 @@
 
                         <div id="analysisTab" class="tab-pane">
                             <div>
-                                <table id="fftTable" class="table table-hover table-striped table-bordered table-sm">
-                                    <thead class="thead-dark">
-                                    <tr>
-                                        <th scope="col">Param</th>
-                                        <th scope="col">Current</th>
-                                        <th scope="col">New</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    <tr title="FFT size">
-                                        <td><b>FFT</b></td>
-                                        <td>
-                                            <div id="currentFft"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newFft"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="FFT overlap">
-                                        <td><b>Overlap</b></td>
-                                        <td>
-                                            <div id="currentFftOverlap"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newFftOverlap"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="PSD, fft magnitudes divided by sample rate and fft size">
-                                        <td><b>PSD</b></td>
-                                        <td>
-                                            <div id="currentPsd"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newPsd"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="FFT RBW">
-                                        <td><b>FFT RBW</b></td>
-                                        <td>
-                                            <div id="currentRBW"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newRBW"></div>
-                                        </td>
-                                        <td></td>
-                                    </tr>
-                                    <tr title="FFT bin">
-                                        <td><b>FFT bin</b></td>
-                                        <td>
-                                            <div id="currentFftBin"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newFftBin"></div>
-                                        </td>
-                                        <td></td>
-                                    </tr>
-                                    <tr title="Period covered by one FFt frame">
-                                        <td><b>FFT frame</b></td>
-                                        <td>
-                                            <div id="fftFrameTime">us</div>
-                                        </td>
-                                        <td></td>
-                                    </tr>
-                                    <tr title="Window applied to samples">
-                                        <td><b>Window</b></td>
-                                        <td>
-                                            <div id="currentFftWindow"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newFftWindow"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Zoom level on display">
-                                        <td><b>Zoom</b></td>
-                                        <td>
-                                            <div id="currentZoom"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newZoom"></div>
-                                        </td>
-                                        <td></td>
-                                    </tr>
-                                    <tr title="Span of the display, with zoom">
-                                        <td><b>Span</b></td>
-                                        <td>
-                                            <div id="currentSpan"></div>
-                                        </td>
-                                        <td></td>
-                                    </tr>
-                                    <tr class="blank_row">
-                                        <td colspan="3">&nbsp;</td>
-                                    </tr>
-                                    <tr title="How often we update this UI display">
-                                        <td><b>FPS</b></td>
-                                        <td>
-                                            <div id="currentFPS"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newFPS"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Peak detect on all fft results, updating every 1 in N">
-                                        <td><b>Peak over </b></td>
-                                        <td>
-                                            <div id="currentOneInN"></div>
-                                        </td>
-                                        <td></td>
-                                    </tr>
-                                    <tr title="Approximate delay from front end to UI, limited to 2seconds">
-                                        <td><b>UI delay</b></td>
-                                        <td>
-                                            <div id="currentDelay2"></div>
-                                        </td>
-                                        <td></td>
-                                    </tr>
+                                <details open>
+                                    <summary>FFT</summary>
+                                    <table id="fftTable" class="table table-hover table-striped table-bordered table-sm">
+                                        <thead class="thead-dark">
+                                        <tr>
+                                            <th scope="col">Param</th>
+                                            <th scope="col">Current</th>
+                                            <th scope="col">New</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        <tr title="FFT size">
+                                            <td><b>FFT</b></td>
+                                            <td>
+                                                <div id="currentFft"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newFft"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Window applied to samples">
+                                            <td><b>Window</b></td>
+                                            <td>
+                                                <div id="currentFftWindow"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newFftWindow"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="PSD, fft magnitudes divided by sample rate and fft size">
+                                            <td><b>PSD</b></td>
+                                            <td>
+                                                <div id="currentPsd"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newPsd"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="FFT overlap">
+                                            <td><b>Overlap</b></td>
+                                            <td>
+                                                <div id="currentFftOverlap"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newFftOverlap"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="FFT RBW">
+                                            <td><b>FFT RBW</b></td>
+                                            <td>
+                                                <div id="currentRBW"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newRBW"></div>
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                        <tr title="FFT bin">
+                                            <td><b>FFT bin</b></td>
+                                            <td>
+                                                <div id="currentFftBin"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newFftBin"></div>
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                        <tr title="Period covered by one FFt frame">
+                                            <td><b>FFT frame</b></td>
+                                            <td>
+                                                <div id="fftFrameTime">us</div>
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                        </tbody>
+                                    </table>
+                                </details>
+
+                                <details open>
+                                    <summary>UI</summary>
+                                    <table id="UiTable" class="table table-hover table-striped table-bordered table-sm">
+                                        <thead class="thead-dark">
+                                        <tr>
+                                            <th scope="col">Param</th>
+                                            <th scope="col">Current</th>
+                                            <th scope="col">New</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        <tr title="Zoom level on display">
+                                            <td><b>Zoom</b></td>
+                                            <td>
+                                                <div id="currentZoom"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newZoom"></div>
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                        <tr title="Span of the display, with zoom">
+                                            <td><b>Span</b></td>
+                                            <td>
+                                                <div id="currentSpan"></div>
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                        <tr title="How often we update this UI display">
+                                            <td><b>FPS</b></td>
+                                            <td>
+                                                <div id="currentFPS"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newFPS"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Peak detect on all fft results, updating every 1 in N">
+                                            <td><b>Peak over </b></td>
+                                            <td>
+                                                <div id="currentOneInN"></div>
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                        <tr title="Approximate delay from front end to UI, limited to 2seconds">
+                                            <td><b>UI delay</b></td>
+                                            <td>
+                                                <div id="currentDelay2"></div>
+                                            </td>
+                                            <td></td>
+                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
