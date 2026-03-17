@@ -341,7 +341,7 @@ class Spectrum(Resource):
         self._status = kwargs['status']
         self._updateQ = kwargs['updateQ']
         self._allowed_get_endpoints = ['fftSizes', 'fftSize', 'psd', 'fftOverlap', 'fftOverlaps',
-                                       'fftFrameTime', 'fftWindows', 'fftWindow']
+                                       'fftFrameTime', 'fftWindows', 'fftWindow', 'fftRbw']
         self._allowed_put_endpoints = ['fftSize', 'fftOverlap', 'psd', 'fftWindow']
 
     def api(self):
@@ -648,7 +648,7 @@ class Status(Resource):
                              'digitiserFrequency', 'digitiserFormat', 'digitiserSampleRate',
                              'digitiserBandwidth', 'digitiserPartsPerMillion', 'digitiserDcRemoval',
                              'digitiserInputLevel', 'digitiserDbmOffset', 'digitiserGainType',
-                             'fftSize', 'fftOverlap', 'psd', 'fftFrameTime', 'fftWindow',
+                             'fftSize', 'fftOverlap', 'psd', 'fftFrameTime', 'fftWindow', 'fftRbw',
                              'snapTriggerSource', 'snapName', 'snapFormat',
                              'snapPreTrigger', 'snapPostTrigger', 'readMagnitudes'
                             ]
