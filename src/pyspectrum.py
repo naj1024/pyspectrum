@@ -101,7 +101,7 @@ def main() -> None:
     # Some info on the amount of time to get samples
     expected_samples_receive_time = sdr_config.fft_size / sdr_config.sample_rate
     logger.info(f"SPS: {sdr_config.sample_rate / 1e6:0.3}MHzs "
-                f"RBW: {(sdr_config.sample_rate / (sdr_config.fft_size * 1e3)):0.1f}kHz")
+                f"RBW: {(sdr_config.sample_rate * processor.get_rbw_per_sps()):0.1f}Hz")
     logger.info(f"Samples {sdr_config.fft_size}: {(1000000 * expected_samples_receive_time):.0f}usec")
     logger.info(f"Required FFT per second: {sdr_config.sample_rate / sdr_config.fft_size:.0f}")
 
@@ -462,6 +462,7 @@ def setup() -> Tuple[Sdr.Sdr, Snapper.Snapper, pathlib.PurePath]:
     configuration.window_types = ProcessSamples.get_windows()
     configuration.window = configuration.window_types[0]
 
+    # processing
     snap_configuration = setup_snap_config()
     thumbs_dir = set_thumbs_dir()
 
@@ -579,6 +580,7 @@ def initialise(sdr_config: Sdr.Sdr, snap_config: Snapper.Snapper,
 
         # The main processor for producing ffts etc
         processor = ProcessSamples.ProcessSamples(sdr_config)
+        sdr_config.fft_rbw = processor.get_rbw_per_sps() * sdr_config.sample_rate
 
         # thumbnail and pic generator process
         pic_generator = PicGenerator.PicGenerator(global_vars.SNAPSHOT_DIRECTORY, thumbs_dir, logger.level)
@@ -654,6 +656,7 @@ def fill_shared_status_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_conf
     shared_status['psd'] = "On" if sdr_config.psd else "Off"
     sdr_config.fft_frame_time = 1e6 * (sdr_config.fft_size / sdr_config.sample_rate)
     shared_status['fftFrameTime'] = sdr_config.fft_frame_time
+    shared_status['fftRbw'] = sdr_config.fft_rbw
     # spectrogram does not work with 32768 points
     # 256 points never keeps up due to overheads
     shared_status['fftSizes'] = [512, 1024, 2048, 4096, 8192, 16384]
@@ -844,13 +847,16 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                 if message_value != sdr_config.window:
                     processor.set_window(message_value)
                     sdr_config.window = processor.get_window()
+                    sdr_config.fft_rbw = processor.get_rbw_per_sps() * sdr_config.sample_rate
                     config_changed = True
 
             if message_name == 'fftSize':
                 if message_value != sdr_config.fft_size:
                     sdr_config.fft_size = message_value
+                    processor.set_fft_size(sdr_config.fft_size)
                     fudge = (100 - sdr_config.fft_overlap) / 100
                     sdr_config.one_in_n = int(sdr_config.sample_rate / (fudge * sdr_config.fps * sdr_config.fft_size))
+                    sdr_config.fft_rbw = processor.get_rbw_per_sps() * sdr_config.sample_rate
                     config_changed = True
 
             if message_name == 'fftOverlap':
@@ -880,11 +886,6 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                     data_source.set_gain_mode(sdr_config.gain_mode)
                     Sdr.add_to_error(sdr_config, data_source.get_and_reset_error())
                     sdr_config.gain_mode = data_source.get_gain_mode()
-                    config_changed = True
-
-            if message_name == 'digitiserFormat':
-                if message_value != sdr_config.sample_type:
-                    sdr_config.sample_type = message_value
                     config_changed = True
 
             if message_name == 'snapDelete':

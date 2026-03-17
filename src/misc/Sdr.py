@@ -31,6 +31,7 @@ class Sdr:
     # input data related
     fft_size = 2048  # default, but any integer allowed
     psd = False
+    fft_rbw = 0
     fft_overlaps = [0, 25, 50, 75]  # 25 and 75 seem to give problems with reading sources - not quick enough?
     fft_overlap = 0
     fft_frame_time = 1e6 * (fft_size / sample_rate)  # useconds

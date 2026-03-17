@@ -100,3 +100,9 @@ class ProcessSamples:
 
     def get_fft_used(self) -> str:
         return self._spec.get_fft_used()
+
+    def get_rbw_per_sps(self) -> float:
+        return self._spec.get_rbw(1)
+
+    def set_fft_size(self, fft_size: int):
+        self._spec.set_fft_size(fft_size)
