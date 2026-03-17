@@ -860,7 +860,7 @@ Spectrum.prototype.findPeak = function() {
         let peakSpectrum = null;
         for (const s of this.spectrums) {
             if (s) {
-                let smax = Math.max(...s.magnitudes[0]);
+                let smax = Math.max(...s.magnitudes);
                 if (smax > max) {
                     max = smax;
                     peakSpectrum = s; // best so far
@@ -967,7 +967,7 @@ Spectrum.prototype.getBasicValuesFromMagnitudes = function(mags) {
 Spectrum.prototype.getMarkerValuesFromSpectrum = function(spec) {
     // return marker type values from a spectrum, spectrum includes time etc
 
-    let basic = this.getBasicValuesFromMagnitudes(spec.magnitudes[0]);
+    let basic = this.getBasicValuesFromMagnitudes(spec.magnitudes);
 
     // calculate the time of this spectrum
     let t =  spec.start_sec;
