@@ -66,7 +66,7 @@ hr {
 
 /* snapshot file table, max height and scroll */
 .fileListTable {
-    height:300px;
+    height:400px;
     overflow-y:auto;
 }
 
@@ -87,11 +87,38 @@ input[type=number] {
 #submitbtnFreqOffset{display:none;}
 #submitbtnGain{display:none;}
 
-/* the font for our buttons */
-.specbuttons{
-    font-weight: 600;
-    font-size: 10pt;
-    font-family: 'Courier New';
+/* buton grid layout */
+#buttons > div {
+    display: grid;
+    grid-auto-flow: row; /* stack buttons horizontally by default */
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); /* all buttons same width */
+    gap: 0.5rem; /* spacing between buttons */
+}
+
+/* the font and button size */
+.specbuttons {
+    flex: 1;
+    width: 100%;
+    height: 40px;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    background-color: #f0f0f0;  /* light gray background */
+    color: #333;                /* text color */
+    border: 2px solid #999;     /* visible border */
+    border-radius: 6px;         /* rounded corners */
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.2); /* subtle shadow */
+    cursor: pointer;            /* pointer on hover */
+    transition: all 0.2s ease; /* smooth hover animation */
+}
+.specbuttons:hover {
+    background-color: #e0e0e0;  /* slightly darker on hover */
+    box-shadow: 4px 4px 8px rgba(0,0,0,0.3); /* pop-up effect */
+    transform: translateY(-2px); /* lift effect */
+}
+#marker-buttons {
+    display: flex;
+    gap: 8px;      /* space between buttons */
+    flex-wrap: wrap; /* allows wrapping if screen is too narrow */
 }
 
 /* for the average beside the H4 on the Trace 0 buttons */
