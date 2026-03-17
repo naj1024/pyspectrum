@@ -89,10 +89,10 @@ def convert_to_frequencies(bins: List[int], sample_rate: float, fft_size: int) -
 
 def get_windows() -> list[str]:
     if fftpack:
-        return ['Hanning', 'Hamming', 'Blackman', 'Bartlett', 'Kaiser_16', 'rectangular', 'flattop']
+        return ['Hanning', 'Hamming', 'Blackman', 'Bartlett', 'Kaiser_16', 'Rectangular', 'Flattop']
     else:
         # no flat top
-        return ['Hanning', 'Hamming', 'Blackman', 'Bartlett', 'Kaiser_16', 'rectangular']
+        return ['Hanning', 'Hamming', 'Blackman', 'Bartlett', 'Kaiser_16', 'Rectangular']
 
 
 class Spectrum:
@@ -112,16 +112,27 @@ class Spectrum:
         self.set_window(window)
         self.set_fft()
 
+        logger.info(f"Spectrum {self._fft_size}, "
+                    f"{self._window_type}, "
+                    f"{1.0}sps, "
+                    f"enbw {self.get_enbw():.3f}, "
+                    f"rbw {self.get_rbw(1):.6f}Hz per sps")
+
+    def set_fft_size(self, fft_size: int):
+        self._fft_size = fft_size
+        self.set_fft()
+
     def set_window(self, window: str) -> None:
         # window_gain_compensation values adjusted by matching the
         # rectangular window average power on the spectrum
         try:
             N = self._fft_size
-            if window in get_windows():
+            win = window.lower()
+            if win in (w.lower() for w in get_windows()):
                 self._window_type = window
-                if self._window_type == 'rectangular':
+                if self._window_type == 'Rectangular':
                     self._win = np.ones(N)
-                elif self._window_type == 'flattop':
+                elif self._window_type == 'Flattop':
                     if signal:
                         self._win = signal.windows.flattop(N, False)
                     else:
@@ -149,7 +160,15 @@ class Spectrum:
             # default window is hanning
             self._win = np.hanning(self._fft_size)
             self._window_gain_compensation = np.mean(self._win)
+            self._effective_noise_bw = N * np.sum(self._win ** 2) / (np.sum(self._win) ** 2)
             self._window_type = "Hanning"
+            logging.error(f"Unavailable window {window}, defaulting to Hanning")
+
+        logger.info(f"Spectrum {self._fft_size}, "
+                    f"{self._window_type}, "
+                    f"{1.0}sps, "
+                    f"enbw {self.get_enbw():.3f}, "
+                    f"rbw {self.get_rbw(1):.6f}Hz per sps")
 
     def get_window(self) -> str:
         return self._window_type
@@ -164,6 +183,12 @@ class Spectrum:
             return "fftw"
         else:
             return "numpy"
+
+    def get_enbw(self) -> float:
+        return self._effective_noise_bw
+
+    def get_rbw(self, sps: float) -> float:
+        return (sps /  self._fft_size) * self._effective_noise_bw
 
     def set_fft(self) -> None:
         """
