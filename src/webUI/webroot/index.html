@@ -227,7 +227,6 @@
                         </div>
 
                         <div id="analysisTab" class="tab-pane">
-                            <div>
                                 <details open>
                                     <summary>FFT</summary>
                                     <table id="fftTable" class="table table-hover table-striped table-bordered table-sm">
@@ -359,7 +358,7 @@
                                         </tr>
                                     </tbody>
                                 </table>
-                            </div>
+                                </details>
                         </div>
 
                         <div id="operationTab" class="tab-pane">
@@ -537,95 +536,101 @@
                         </div>
 
                         <div id="snapshotTab" class="tab-pane">
-                            <table id="snapshotTable" class="table table-hover table-striped table-bordered table-sm">
-                                <thead class="thead-dark">
-                                <tr>
-                                    <th scope="col">Param</th>
-                                    <th scope="col">Current</th>
-                                    <th scope="col">New</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                <tr>
-                                    <td><b>Trigger</b></td>
-                                    <td>
-                                        <div id="currentSnapTriggerState"></div>
-                                    </td>
-                                    <td>
-                                        <div id="newSnapTriggerState"></div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td title="How we trigger"><b>Trigger source</b></td>
-                                    <td>
-                                        <div id="currentSnapTriggerType"></div>
-                                    </td>
-                                    <td>
-                                        <div id="newSnapTriggerType"></div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td title="Pre-pended to auto created name"><b>Name</b></td>
-                                    <td>
-                                        <div id="currentSnapBaseName"></div>
-                                    </td>
-                                    <td>
-                                        <div id="newSnapBaseName"></div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td title="File encapsulation"><b>Format</b></td>
-                                    <td>
-                                        <div id="currentFileFormat"></div>
-                                    </td>
-                                    <td>
-                                        <div id="newFileFormat"></div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td title="Samples before trigger"><b>PreTrigger</b></td>
-                                    <td>
-                                        <div id="currentSnapPreTrigger"></div>
-                                    </td>
-                                    <td>
-                                        <div id="newSnapPreTrigger"></div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td title="Samples after trigger"><b>PostTrigger</b></td>
-                                    <td>
-                                        <div id="currentSnapPostTrigger"></div>
-                                    </td>
-                                    <td>
-                                        <div id="newSnapPostTrigger"></div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td title="Bytes we currently have in the snap"><b>Size</b></td>
-                                    <td>
-                                        <div id="currentSnapSize"></div>
-                                    </td>
-                                    <td>
-                                        <div id="newSnapSize"></div>
-                                    </td>
-                                </tr>
-                                </tbody>
-                            </table>
-
-                            <div id="theSnapFileTable" class="fileListTable">
-                                <table id="snapFileTable" class="table table-hover table-striped table-bordered table-sm">
+                            <details open>
+                                <summary>Settings</summary>
+                                <table id="snapshotTable" class="table table-hover table-striped table-bordered table-sm">
                                     <thead class="thead-dark">
                                     <tr>
-                                        <th scope="col">Snapshot</th>
-                                        <th scope="col">MB</th>
-                                        <th scope="col">Pic</th>
-                                        <th scope="col"></th>
-                                        <th scope="col"></th>
+                                        <th scope="col">Param</th>
+                                        <th scope="col">Current</th>
+                                        <th scope="col">New</th>
                                     </tr>
                                     </thead>
-                                    <tbody><!--- dynamically created marker data will go here ---></tbody>
+                                    <tbody>
+                                    <tr>
+                                        <td><b>Trigger</b></td>
+                                        <td>
+                                            <div id="currentSnapTriggerState"></div>
+                                        </td>
+                                        <td>
+                                            <div id="newSnapTriggerState"></div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td title="How we trigger"><b>Trigger source</b></td>
+                                        <td>
+                                            <div id="currentSnapTriggerType"></div>
+                                        </td>
+                                        <td>
+                                            <div id="newSnapTriggerType"></div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td title="Pre-pended to auto created name"><b>Name</b></td>
+                                        <td>
+                                            <div id="currentSnapBaseName"></div>
+                                        </td>
+                                        <td>
+                                            <div id="newSnapBaseName"></div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td title="File encapsulation"><b>Format</b></td>
+                                        <td>
+                                            <div id="currentFileFormat"></div>
+                                        </td>
+                                        <td>
+                                            <div id="newFileFormat"></div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td title="Samples before trigger"><b>PreTrigger</b></td>
+                                        <td>
+                                            <div id="currentSnapPreTrigger"></div>
+                                        </td>
+                                        <td>
+                                            <div id="newSnapPreTrigger"></div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td title="Samples after trigger"><b>PostTrigger</b></td>
+                                        <td>
+                                            <div id="currentSnapPostTrigger"></div>
+                                        </td>
+                                        <td>
+                                            <div id="newSnapPostTrigger"></div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td title="Bytes we currently have in the snap"><b>Size</b></td>
+                                        <td>
+                                            <div id="currentSnapSize"></div>
+                                        </td>
+                                        <td>
+                                            <div id="newSnapSize"></div>
+                                        </td>
+                                    </tr>
+                                    </tbody>
                                 </table>
-                            </div>
+                            </details>
+
+                            <details open>
+                                <summary>Snaps</summary>
+                                <div id="theSnapFileTable" class="fileListTable">
+                                    <table id="snapFileTable" class="table table-hover table-striped table-bordered table-sm">
+                                        <thead class="thead-dark">
+                                        <tr>
+                                            <th scope="col">Snapshot</th>
+                                            <th scope="col">MB</th>
+                                            <th scope="col">Pic</th>
+                                            <th scope="col"></th>
+                                            <th scope="col"></th>
+                                        </tr>
+                                        </thead>
+                                        <tbody><!--- dynamically created marker data will go here ---></tbody>
+                                    </table>
+                                </div>
+                            </details>
                         </div>
                     </div>
                 </div>
