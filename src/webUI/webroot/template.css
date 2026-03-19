@@ -82,6 +82,19 @@ input[type=number] {
   -moz-appearance: textfield;
 }
 
+/* small button for marker to centre frequency*/
+.mini-btn {
+  width: 12px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #555;
+  background-color: #ccc;
+  cursor: pointer;
+}
+.mini-btn:active {
+  background-color: #888;
+}
+
 /* hide submit buttons */
 #submitbtnFreq{display:none;}
 #submitbtnFreqOffset{display:none;}

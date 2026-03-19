@@ -677,7 +677,7 @@ Spectrum.prototype.handleMarkerTableClick = function(row) {
     // find the correct marker entry
     for (let item of this.markersSet) {
         if (row == marker_num) {
-            setCfHz(item.freqHz);
+            handleCfChangeMHz(item.freqHz/1e6);
             break;
         }
         marker_num += 1;
@@ -725,7 +725,7 @@ Spectrum.prototype.addMarker = function(frequencyHz, magdB, time_start, inputCou
     new_row += '</td>';
 
     new_row += '<td>';
-    new_row += '<input type="checkbox" title="marker to centre frequency" unchecked="true" id="'+cf_id+'"> ';
+    new_row += '<button title="marker to centre frequency" id="'+cf_id+'" class="mini-btn"></button>';
     new_row += '<label for="'+cf_id+'" /label>';
     new_row += '</td>';
 
@@ -753,8 +753,8 @@ Spectrum.prototype.addMarker = function(frequencyHz, magdB, time_start, inputCou
     $('#'+marker_id).click(function() {spectrum.markerCheckBox(number);});
     $('#'+bin_id).click(function() {spectrum.deleteMarker(number);});
 
-    // set the cf to this markers frequency if checkbox ticked
-    $('#'+cf_id).click(function() { if ($('#'+cf_id).prop('checked')){spectrum.handleMarkerTableClick(number);}});
+    // set the cf to this markers frequency if button clicked
+    $('#'+cf_id).click(function() { spectrum.handleMarkerTableClick(number); });
 
     // store all the markers so we can restore after page refresh
     window.sessionStorage.setItem("markers", JSON.stringify([...this.markersSet]));
