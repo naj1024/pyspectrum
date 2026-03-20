@@ -42,6 +42,8 @@ class Input(DataSource.DataSource):
         if not parameters or parameters == "":
             parameters = "127.0.0.1:1234"  # default
 
+        super().__init__(parameters, data_type, sample_rate, centre_frequency, input_bw)
+
         # add this classes own variables before calling super() in case we get called back and don't have them
         self._ip_address = ""  # filled in when we open()
         self._ip_port = 0  # filled in when we open()
@@ -49,7 +51,6 @@ class Input(DataSource.DataSource):
         self._served_connection = None
         self._client = True
 
-        super().__init__(parameters, data_type, sample_rate, centre_frequency, input_bw)
         self._name = module_type
         self._connected = False
         super().set_help(help_string)

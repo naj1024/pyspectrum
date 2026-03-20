@@ -47,11 +47,13 @@ class Input(DataSource.DataSource):
         """
 
         self._constant_data_type = "32fle"
+        if not parameters or parameters == "":
+            parameters = "40"  # default of 40dB snr
+
+        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
 
         self._min_frequency = 0.0
         self._max_frequency = 6000000000.0
-
-        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
         self._name = module_type
         self._connected = False
         self._gain_modes = ["manual"]

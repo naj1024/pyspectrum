@@ -68,6 +68,8 @@ class Input(DataSource.DataSource):
         if not parameters or parameters == "":
             parameters = "rtlsdr"  # default
 
+        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
+
         # add this classes own variables before calling super() in case we get called back and don't have them
         self._sdr = None
         self._overflows = 0  # interface that actually returns overflows
@@ -92,7 +94,6 @@ class Input(DataSource.DataSource):
         self._max_frequency: float = 1.0e9
         self._allowed_bws = []
         
-        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
         self._name = module_type
         self._connected = False
         

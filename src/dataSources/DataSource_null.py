@@ -43,6 +43,7 @@ class Input(DataSource.DataSource):
         """
         if not parameters or parameters == "":
             parameters = "0"  # default
+
         super().__init__(parameters, data_type, sample_rate, centre_frequency, input_bw)
 
         self._name = module_type

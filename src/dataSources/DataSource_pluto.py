@@ -128,10 +128,13 @@ class Input(DataSource.DataSource):
         :param centre_frequency: The Centre frequency we will tune to
         :param input_bw: The filtering of the input, may not be configurable
         """
+
         # Driver converts to floating point for us, underlying data from ad936x was 16bit i/q
         self._constant_data_type = "16tle"
         if not parameters or parameters == "":
             parameters = "192.168.2.1"  # default
+
+        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
 
         # add this classes own variables before calling super() in case we get called back and don't have them
         # we will read samples from the actual source in a different size from that requested
@@ -150,7 +153,6 @@ class Input(DataSource.DataSource):
         self._max_frequency = 6000000000.0
         self._min_frequency = 70000000.0
 
-        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
         self._name = module_type
         self._connected = False
         self._gain_modes = ["manual", "fast_attack", "slow_attack", "hybrid"]  # would ask, but can't

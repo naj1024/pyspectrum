@@ -219,6 +219,8 @@ class Input(DataSource.DataSource):
         if not parameters or parameters == "":
             parameters = "0"  # default
 
+        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
+
         # add this classes own variables before calling super() in case we get called back and don't have them
         self._channels = 2  # we are really expecting stereo
         self._device_number = 0  # will be set in open
@@ -236,8 +238,6 @@ class Input(DataSource.DataSource):
         # Count number of queue emtpy events, along with sleep to get an idea if
         # something is broken
         self._empty_count = 0
-
-        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
 
         self._name = module_type
         self._connected = False

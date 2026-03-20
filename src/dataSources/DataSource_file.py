@@ -44,12 +44,13 @@ class Input(DataSource.DataSource):
         :param centre_frequency: The centre frequency this input is supposed to be at, in Hz
         :param input_bw: The filtering of the input, may not be configurable
         """
-        self._is_wav_file = False  # until we work it out
-
         if not parameters or parameters == "":
             parameters = "not-given"  # default
 
+        super().__init__(parameters, data_type, sample_rate, centre_frequency, input_bw)
+
         # add this classes own variables before calling super() in case we get called back and don't have them
+        self._is_wav_file = False  # until we work it out
         self._file = None
         self._rewind = True  # true if we will rewind the file each time it ends
         self._full_path = ""
@@ -57,8 +58,6 @@ class Input(DataSource.DataSource):
         self._throttle = True  # may want to read file as fast as possible
         self._file_in_seconds = 0.0  # how long is the file
         self._file_current_seconds = 0.0
-
-        super().__init__(parameters, data_type, sample_rate, centre_frequency, input_bw)
 
         self._name = module_type
         self._connected = False
