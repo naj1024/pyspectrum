@@ -59,191 +59,148 @@
                                     </tr>
                                     </thead>
                                     <tbody>
-                                    <tr>
-                                        <td><b>Device</b></td>
-                                        <td>
-                                            <div id="currentSource"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newSource"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Select magnitudes if source can provide fft magnitudes">
-                                        <td><b>Type</b></td>
-                                        <td>
-                                            <div id="currentReadMagnitudes"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newReadMagnitudes"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Input data type, fixed for most sources">
-                                        <td><b>Format</b></td>
-                                        <td>
-                                            <div id="currentFormat"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newFormat"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Frequency the SDR is tuned to">
-                                        <td><b>sdr Freq</b></td>
-                                        <td>
-                                            <div id="currentSdrCentre"></div>
-                                        </td>
-                                        <td></td>
-                                    </tr>
-                                    <tr title="Real tuned frequency, takes conversion into account">
-                                        <td><b>Frequency</b></td>
-                                        <td>
-                                            <div id="currentCentre"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newCentre"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Up or down conversion factor to give the real frequency">
-                                        <td><b>Conversion</b></td>
-                                        <td>
-                                            <div id="currentCfOffset"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newCfOffset"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Sample rate for the source">
-                                        <td><b>SPS</b></td>
-                                        <td>
-                                            <div id="currentSps"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newSps"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Filtering at the front end">
-                                        <td><b>SDR BW</b></td>
-                                        <td>
-                                            <div id="currentSdrBw"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newSdrBw"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Parts per million error on frequency">
-                                        <td><b>ppm</b></td>
-                                        <td>
-                                            <div id="currentPpm"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newPpm"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Offset subtracted from dB values">
-                                        <td><b>dB offset</b></td>
-                                        <td>
-                                            <div id="currentdBmOffset"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newdBmOffset"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Remove DC from samples, takes extra time. Subtracts average signal level">
-                                        <td><b>DC removal</b></td>
-                                        <td>
-                                            <div id="currentDcRemoval"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newDcRemoval"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Input level percentage of full scale">
-                                        <td><b>Input Level</b></td>
-                                        <td>
-                                            <div id="currentInputLevel"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Type of gain control">
-                                        <td><b>Gmode</b></td>
-                                        <td>
-                                            <div id="currentGmode"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newGmode"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Gain in dB">
-                                        <td><b>Gain</b></td>
-                                        <td>
-                                            <div id="currentGain"></div>
-                                        </td>
-                                        <td>
-                                            <div id="newGain"></div>
-                                        </td>
-                                    </tr>
+                                        <tr>
+                                            <td><b>Device</b></td>
+                                            <td>
+                                                <div id="currentSource"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newSource"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Select magnitudes if source can provide fft magnitudes">
+                                            <td><b>Type</b></td>
+                                            <td>
+                                                <div id="currentReadMagnitudes"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newReadMagnitudes"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Input data type, fixed for most sources">
+                                            <td><b>Format</b></td>
+                                            <td>
+                                                <div id="currentFormat"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newFormat"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Frequency the SDR is tuned to">
+                                            <td><b>sdr Freq</b></td>
+                                            <td>
+                                                <div id="currentSdrCentre"></div>
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                        <tr title="Real tuned frequency, takes conversion into account">
+                                            <td><b>Frequency</b></td>
+                                            <td>
+                                                <div id="currentCentre"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newCentre"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Up or down conversion factor to give the real frequency">
+                                            <td><b>Conversion</b></td>
+                                            <td>
+                                                <div id="currentCfOffset"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newCfOffset"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Sample rate for the source">
+                                            <td><b>SPS</b></td>
+                                            <td>
+                                                <div id="currentSps"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newSps"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Filtering at the front end">
+                                            <td><b>SDR BW</b></td>
+                                            <td>
+                                                <div id="currentSdrBw"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newSdrBw"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Parts per million error on frequency">
+                                            <td><b>ppm</b></td>
+                                            <td>
+                                                <div id="currentPpm"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newPpm"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Offset subtracted from dB values">
+                                            <td><b>dB offset</b></td>
+                                            <td>
+                                                <div id="currentdBmOffset"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newdBmOffset"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Remove DC from samples, takes extra time. Subtracts average signal level">
+                                            <td><b>DC removal</b></td>
+                                            <td>
+                                                <div id="currentDcRemoval"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newDcRemoval"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Input level percentage of full scale">
+                                            <td><b>Input Level</b></td>
+                                            <td>
+                                                <div id="currentInputLevel"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Type of gain control">
+                                            <td><b>Gmode</b></td>
+                                            <td>
+                                                <div id="currentGmode"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newGmode"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Gain in dB">
+                                            <td><b>Gain</b></td>
+                                            <td>
+                                                <div id="currentGain"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newGain"></div>
+                                            </td>
+                                        </tr>
 
-                                    <tr class="blank_row">
-                                        <td colspan="3">&nbsp;</td>
-                                    </tr>
+                                        <tr class="blank_row">
+                                            <td colspan="3">&nbsp;</td>
+                                        </tr>
                                     </tbody>
                                 </table>
-                            </details>
-                            <details open>
-                                <summary>Processing</summary>
-                                <table id="processingTable" class="table table-hover table-striped table-bordered table-sm">
-                                    <tbody>
-                                    <tr title="Overflows on input buffer from device, -1 means that the IO library provides no support for detecting overflows">
-                                        <td><b>Overflows</b></td>
-                                        <td>
-                                            <div id="currentOverflows"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Approximate delay from front end to UI, limited to 2seconds">
-                                        <td><b>UI delay</b></td>
-                                        <td>
-                                            <div id="currentDelay"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Max CPU core load %, may not be due to this program">
-                                        <td><b>CPU core %</b></td>
-                                        <td>
-                                            <div id="maxCpuCorePc"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Percentage of FFT frame time being used. Should be close to 100%, >100% may indicate problem with keeping up. The percentage includes all processing and time to get samples">
-                                        <td><b>Loop %</b></td>
-                                        <td>
-                                            <div id="currentLoopCpuPc"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Length of file input stream in seconds">
-                                        <td><b>Stream Length</b></td>
-                                        <td>
-                                            <div id="streamLength"></div>
-                                        </td>
-                                    </tr>
-                                    <tr title="Current seconds of file input streams">
-                                        <td><b>Stream current</b></td>
-                                        <td>
-                                            <div id="streamCurrent"></div>
-                                        </td>
-                                    </tr>
-                                    </tbody>
-                                </table>
-                            </details>
+                            </detail>
                         </div>
 
                         <div id="analysisTab" class="tab-pane">
-                                <details open>
-                                    <summary>FFT</summary>
-                                    <table id="fftTable" class="table table-hover table-striped table-bordered table-sm">
-                                        <thead class="thead-dark">
-                                        <tr>
-                                            <th scope="col">Param</th>
-                                            <th scope="col">Current</th>
-                                            <th scope="col">New</th>
-                                        </tr>
-                                        </thead>
-                                        <tbody>
+                            <details open>
+                                <summary>FFT</summary>
+                                <table id="fftTable" class="table table-hover table-striped table-bordered table-sm">
+                                    <thead class="thead-dark">
+                                    <tr>
+                                        <th scope="col">Param</th>
+                                        <th scope="col">Current</th>
+                                        <th scope="col">New</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
                                         <tr title="FFT size">
                                             <td><b>FFT</b></td>
                                             <td>
@@ -307,21 +264,21 @@
                                             </td>
                                             <td></td>
                                         </tr>
-                                        </tbody>
-                                    </table>
-                                </details>
+                                    </tbody>
+                                </table>
+                            </details>
 
-                                <details open>
-                                    <summary>UI</summary>
-                                    <table id="UiTable" class="table table-hover table-striped table-bordered table-sm">
-                                        <thead class="thead-dark">
-                                        <tr>
-                                            <th scope="col">Param</th>
-                                            <th scope="col">Current</th>
-                                            <th scope="col">New</th>
-                                        </tr>
-                                        </thead>
-                                        <tbody>
+                            <details open>
+                                <summary>UI</summary>
+                                <table id="UiTable" class="table table-hover table-striped table-bordered table-sm">
+                                    <thead class="thead-dark">
+                                    <tr>
+                                        <th scope="col">Param</th>
+                                        <th scope="col">Current</th>
+                                        <th scope="col">New</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
                                         <tr title="Zoom level on display">
                                             <td><b>Zoom</b></td>
                                             <td>
@@ -364,7 +321,51 @@
                                         </tr>
                                     </tbody>
                                 </table>
-                                </details>
+                            </details>
+
+                            <details open>
+                                <summary>Processing</summary>
+                                <table id="processingTable" class="table table-hover table-striped table-bordered table-sm">
+                                    <tbody>
+                                        <tr title="Overflows on input buffer from device, -1 means that the IO library provides no support for detecting overflows">
+                                            <td><b>Overflows</b></td>
+                                            <td>
+                                                <div id="currentOverflows"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Approximate delay from front end to UI, limited to 2seconds">
+                                            <td><b>UI delay</b></td>
+                                            <td>
+                                                <div id="currentDelay"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Max CPU core load %, may not be due to this program">
+                                            <td><b>CPU core %</b></td>
+                                            <td>
+                                                <div id="maxCpuCorePc"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Percentage of FFT frame time being used. Should be close to 100%, >100% may indicate problem with keeping up. The percentage includes all processing and time to get samples">
+                                            <td><b>Loop %</b></td>
+                                            <td>
+                                                <div id="currentLoopCpuPc"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Length of file input stream in seconds">
+                                            <td><b>Stream Length</b></td>
+                                            <td>
+                                                <div id="streamLength"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Current seconds of file input streams">
+                                            <td><b>Stream current</b></td>
+                                            <td>
+                                                <div id="streamCurrent"></div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </details>
                         </div>
 
                         <div id="operationTab" class="tab-pane">
