@@ -62,7 +62,6 @@ class Input(DataSource.DataSource):
 
         self._name = module_type
         self._connected = False
-        self._last_time = time.time_ns()
 
         try:
             self._create_time = time.time_ns()
@@ -230,11 +229,3 @@ class Input(DataSource.DataSource):
 
         return complex_data, rx_time
 
-    def simulate_sample_wait_time(self, number_samples: int) -> float:
-        elapsed = (time.time_ns() - self._last_time) * 1e-9
-        wait = (number_samples / self._sample_rate_sps) - elapsed
-        if wait > 0:
-            time.sleep(wait)
-        rx_time = time.time_ns()
-        self._last_time = rx_time * 0.8  # don't take all the time
-        return rx_time

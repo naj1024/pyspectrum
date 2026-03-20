@@ -69,7 +69,6 @@ class Input(DataSource.DataSource):
             logger.error(f"Test data source defaulting snr as '{self._parameters}' not a number")
         logger.info(f"Test source using snr of {self._snr_db}dB")
 
-        self._last_time = time.time_ns()
         self._max_amp = 0.001    # dont really want +-1.0 for the samples
 
         self._current_freq = -sample_rate / 8.0  # starts 1/8 of way from negative extreme
@@ -112,6 +111,9 @@ class Input(DataSource.DataSource):
         super().set_sample_type(self._constant_data_type)
 
     def read_cplx_samples(self, number_samples: int) -> Tuple[npt.NDArray[np.complex64], float]:
+
+        time_in = time.time_ns()
+
         Fs = self._sample_rate_sps
         N = number_samples
 
@@ -169,11 +171,3 @@ class Input(DataSource.DataSource):
 
         return magnitudes_squared, rx_time
 
-    def simulate_sample_wait_time(self, number_samples: int) -> float:
-        elapsed = (time.time_ns() - self._last_time) * 1e-9
-        wait = (number_samples / self._sample_rate_sps) - elapsed
-        if wait > 0:
-            time.sleep(wait)
-        rx_time = time.time_ns()
-        self._last_time = rx_time * 0.8  # don't take all the time
-        return rx_time
