@@ -1588,11 +1588,11 @@ function Main() {
     setInterval(function() {
         syncNew();
         showSnapTable();
-        }, 1579);
+        }, 2345);
 
-    startAsyncLoop(ack, 103);
-    startAsyncLoop(syncCurrentFast, 503);
-    startAsyncLoop(syncCurrent, 1007);
+    startAsyncLoop(ack, 333);
+    startAsyncLoop(syncCurrentFast, 777);
+    startAsyncLoop(syncCurrent, 1333);
 }
 
 window.onload = Main;
