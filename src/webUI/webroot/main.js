@@ -26,7 +26,7 @@ const fastStatusUi = {
     snapNew: $('#newSnapSize'),
     snapTrigger: $('#currentSnapTriggerState'),
     loopCpuCell: $('#currentLoopCpuPc'),
-    maxCpuCorePc: $('#maxCpuCorePc'),
+    maxCpuCorePc: $('#currentMaxCpuCorePc'),
 };
 
 const currentStatusUi = {
@@ -73,7 +73,9 @@ window.addEventListener("wheel", function(e) {
         e.preventDefault();
         zoom += (e.deltaY < 0) ? 0.1 : -0.1;
         zoom = Math.min(Math.max(0.5, zoom), 3);
-        zoomElement.style.transform = `scale(${zoom})`;
+        if (zoomElement) {
+           zoomElement.style.transform = `scale(${zoom})`;
+        }
     }
 }, { passive:false });
 
@@ -186,14 +188,14 @@ async function syncCurrentFast() {
         }
 
         const coreCpuPc = sdrState.getMaxCpuCorePc().toFixed(1);
-        if (fastStatusUi.maxCpuCorePc != coreCpuPc) {
-            fastStatusUi.maxCpuCorePc.text(coreCpuPc +'%');
+        if (fastStatusUi.lastMaxCpuCorePc != coreCpuPc) {
+            fastStatusUi.maxCpuCorePc.text(coreCpuPc + '%');
             if (coreCpuPc > 90) {
                 fastStatusUi.maxCpuCorePc.css("background-color", "#ff0000");
             } else {
                 fastStatusUi.maxCpuCorePc.css("background-color", "#00ee00");
             }
-            fastStatusUi.lastLoopCpu = loopCpu;
+            fastStatusUi.lastMaxCpuCorePc = coreCpuPc;
         }
 
         if (fastStatusUi.lastOverflows != obj.overflows) {
@@ -1003,7 +1005,7 @@ function handleReadMagnitudesChange(newType) {
         return response.json();
     });
 
-    sdrState.setDataFormat(newFormat);
+    sdrState.setReadMagnitudes(newType);
     configFocusOut();
 }
 
