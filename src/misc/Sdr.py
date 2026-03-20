@@ -40,6 +40,7 @@ class Sdr:
     read_magnitudes = False  # for sources that will give fft magnitudes instead of samples
 
     loop_cpu_pc = 0.0  # % of fft/sample rate time being used
+    max_cpu_core_pc = 0.0
 
     # display
     fps = 20

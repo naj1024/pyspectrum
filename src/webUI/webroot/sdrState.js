@@ -203,6 +203,9 @@ sdrState.prototype.getUiDelay = function() {
 sdrState.prototype.getLoopCpuPc = function() {
     return this.loopCpuPc;
 }
+sdrState.prototype.getMaxCpuCorePc = function() {
+    return this.maxCpuCorePc;
+}
 sdrState.prototype.getOverflows = function() {
     return this.overflows;
 }
@@ -239,6 +242,9 @@ sdrState.prototype.setUiDelay = function(delay) {
 }
 sdrState.prototype.setLoopCpuPc = function(loopCpuPc) {
     this.loopCpuPc = loopCpuPc;
+}
+sdrState.prototype.setMaxCpuCorePc = function(maxCpuCorePc) {
+    this.maxCpuCorePc = maxCpuCorePc;
 }
 sdrState.prototype.setOverflows = function(overflows) {
     this.overflows = overflows;
@@ -407,6 +413,9 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
     if (jsonConfig.loopCpuPc != undefined) {
         this.loopCpuPc = parseFloat(jsonConfig.loopCpuPc);
     }
+    if (jsonConfig.maxCpuCorePc != undefined) {
+        this.maxCpuCorePc = parseFloat(jsonConfig.maxCpuCorePc);
+    }
     if (jsonConfig.overflows != undefined) {
         this.overflows = parseInt(jsonConfig.overflows);
     }
@@ -430,6 +439,7 @@ function sdrState() {
     this.fps = 0;
     this.uiDelay = 0;
     this.loopCpuPc = 0;
+    this.maxCpuCorePc = 0;
     this.overflows = 0;
 
     // non visible things

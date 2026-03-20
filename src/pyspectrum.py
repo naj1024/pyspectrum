@@ -27,6 +27,7 @@ import queue
 import signal
 import sys
 import time
+import psutil
 from typing import Tuple, Any
 
 import numpy as np
@@ -366,6 +367,9 @@ def update_source_stats(data_source: DataSource.DataSource, now: float, samples:
         data_time = (sdr_config.fft_size / sdr_config.sample_rate)
         sdr_config.loop_cpu_pc = 100.0 * (times_and_averages.loop_time.get_ewma() / data_time)
 
+        # cpu load
+        sdr_config.max_cpu_core_pc = max(psutil.cpu_percent(percpu=True))
+
         # update the input level
         if samples is not None:
             sdr_config.input_level = 100.0 * np.max(np.absolute(samples))
@@ -607,6 +611,7 @@ def fill_status_fast_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_config
     shared_status['stop'] = sdr_config.stop
     shared_status['delay'] = sdr_config.ui_delay
     shared_status['loopCpuPc'] = sdr_config.loop_cpu_pc
+    shared_status['maxCpuCorePc'] = sdr_config.max_cpu_core_pc
     shared_status['overflows'] = sdr_config.input_overflows
     shared_status['oneInN'] = sdr_config.one_in_n
 

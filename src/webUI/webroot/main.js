@@ -24,7 +24,9 @@ const fastStatusUi = {
     streamCurrent: $('#streamCurrent'),
     snapSize: $('#currentSnapSize'),
     snapNew: $('#newSnapSize'),
-    snapTrigger: $('#currentSnapTriggerState')
+    snapTrigger: $('#currentSnapTriggerState'),
+    loopCpuCell: $('#currentLoopCpuPc'),
+    maxCpuCorePc: $('#maxCpuCorePc'),
 };
 
 const currentStatusUi = {
@@ -55,7 +57,7 @@ const currentStatusUi = {
    postTrigger: $('#currentSnapPostTrigger'),
    currentAvg: $('#currentAvg'),
    currentZoom: $('#currentZoom'),
-   currentSpan: $('#currentSpan')
+   currentSpan: $('#currentSpan'),
 }
 
 // on mobile if orientation changes re-load the page. The canvas was not appearing on rotation */
@@ -179,6 +181,17 @@ async function syncCurrentFast() {
                 fastStatusUi.loopCpuCell.css("background-color", "#ff0000");
             } else {
                 fastStatusUi.loopCpuCell.css("background-color", "#00ee00");
+            }
+            fastStatusUi.lastLoopCpu = loopCpu;
+        }
+
+        const coreCpuPc = sdrState.getMaxCpuCorePc().toFixed(1);
+        if (fastStatusUi.maxCpuCorePc != coreCpuPc) {
+            fastStatusUi.maxCpuCorePc.text(coreCpuPc +'%');
+            if (coreCpuPc > 90) {
+                fastStatusUi.maxCpuCorePc.css("background-color", "#ff0000");
+            } else {
+                fastStatusUi.maxCpuCorePc.css("background-color", "#00ee00");
             }
             fastStatusUi.lastLoopCpu = loopCpu;
         }
@@ -1560,9 +1573,6 @@ function Main() {
     if (offset != null) {
         sdrState.setFrequencyOffsetHz(offset);
     }
-
-    // cache where this element is
-    fastStatusUi.loopCpuCell = $('#currentLoopCpuPc').closest("td");
 
     bindSnapInputs();
 

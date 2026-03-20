@@ -633,7 +633,7 @@ class Status(Resource):
         if thing in self._allowed_get_endpoints:
             try:
                 if thing == 'fastStatus':
-                    stats = ['delay', 'loopCpuPc', 'overflows', 'fps', 'oneInN',
+                    stats = ['delay', 'loopCpuPc', 'maxCpuCorePc', 'overflows', 'fps', 'oneInN',
                             'digitiserInputLevel', 'digitiserGain', 'streamLength', 'streamCurrent',
                             'snapSize', 'snapTriggerState',
                             ]

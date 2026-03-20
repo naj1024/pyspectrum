@@ -47,13 +47,14 @@ class Input(DataSource.DataSource):
         if not parameters or parameters == "":
             parameters = "not-given"  # default
 
+        self._file = None
+        self._full_path = ""
+
         super().__init__(parameters, data_type, sample_rate, centre_frequency, input_bw)
 
         # add this classes own variables before calling super() in case we get called back and don't have them
         self._is_wav_file = False  # until we work it out
-        self._file = None
         self._rewind = True  # true if we will rewind the file each time it ends
-        self._full_path = ""
         self._file_time = 0
         self._throttle = True  # may want to read file as fast as possible
         self._file_in_seconds = 0.0  # how long is the file
@@ -73,7 +74,7 @@ class Input(DataSource.DataSource):
         super().set_web_help(web_help_string)
 
     def __del__(self):
-        if self._file:
+        if self._file is not None and self._file:
             self._file.close()
 
     def set_throttle(self, throttle: bool) -> None:
