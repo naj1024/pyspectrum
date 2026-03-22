@@ -165,9 +165,8 @@ class Input(DataSource.DataSource):
 
     def read_magnitude_samples(self, number_samples: int) -> Tuple[np.ndarray, float]:
         rx_time = time.time_ns()
-        signal, _ = self.read_cplx_samples(number_samples)
+        signal, rx_time = self.read_cplx_samples(number_samples)
         magnitudes_squared = self._spec.mag_spectrum(signal, False)
-        rx_time = self.simulate_sample_wait_time(number_samples)
 
         return magnitudes_squared, rx_time
 

@@ -382,6 +382,5 @@ class DataSource:
             wait = (expected_time - elapsed) / 1e9
             if wait > 0.0:
                 time.sleep(wait)
-        rx_time = time.time_ns()
-        self._last_time = rx_time
-        return rx_time
+        self._last_time = time.time_ns()
+        return self._last_time
