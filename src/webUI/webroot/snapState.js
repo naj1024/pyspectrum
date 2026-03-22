@@ -23,7 +23,7 @@ class SnapState {
         this._silent = false;
     }
 
-    setFromJson(cfg) {
+    setConfigFromJason(cfg) {
         // One or more in json
         this._silent = true;
         this.deleteFileName = ""; // TODO: why here

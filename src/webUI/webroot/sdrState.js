@@ -1,487 +1,261 @@
 /*
-    The state of the SDR front end
+    SDR State (modernised, reactive)
 */
 
-'use strict';
+"use strict";
 
 function basename(path) {
-   return path.split(/[\\/]/).pop();
+    return path.split(/[\\/]/).pop();
 }
 
-sdrState.prototype.setName = function(name) {
-    this.name = name;
-}
+class SdrState {
 
-sdrState.prototype.setSdrFrequencyHz = function(freqHz) {
-    this.sdrFrequencyHz = parseInt(freqHz);
-}
-sdrState.prototype.setFrequencyHz = function(freqHz) {
-    this.frequencyRealHz = parseInt(freqHz);
-}
-sdrState.prototype.setFrequencyOffsetHz = function(freqHz) {
-    this.frequencyOffsetHz = parseInt(freqHz);
-    window.sessionStorage.setItem("frequencyOffsetHz", this.frequencyOffsetHz);
-}
-sdrState.prototype.setSps = function(sps) {
-    this.sps = parseInt(sps);
-}
-sdrState.prototype.setFftSize = function(fftSize) {
-    this.fftSize = parseInt(fftSize);
-}
-sdrState.prototype.setFftOverlap = function(fftOverlap) {
-    this.fftOverlap = fftOverlap;
-}
-sdrState.prototype.setPsd = function(psd) {
-    this.psd = psd;
-}
-sdrState.prototype.setFftFrameTime = function(fftFrameTime) {
-    this.fftFrameTime = parseInt(fftFrameTime);
-}
-sdrState.prototype.setFftSizes = function(fftSizes) {
-    this.fftSizes = fftSizes;
-}
-sdrState.prototype.setFftWindow = function(window) {
-    this.window = window;
-}
-sdrState.prototype.setFftWindows = function(windows) {
-    this.windows = windows;
-}
-sdrState.prototype.setReadMagnitudes = function(magnitudes) {
-    this.readMagnitudes = magnitudes;
-}
-sdrState.prototype.setInputSource = function(source) {
-    this.source = source;
-}
-sdrState.prototype.setInputSourceParams = function(params) {
-    if (this.source == "file") {
-        this.sourceParams = basename(params);
-        this.frequencyOffsetHz = 0.0;
-    } else {
-        this.sourceParams = params;
-    }
-}
-sdrState.prototype.setDataFormat = function(format) {
-    this.dataFormat = format;
-}
-sdrState.prototype.setAllowedFps = function(allowed) {
-    this.fpsAllowed = allowed;
-}
-sdrState.prototype.setFps = function(fps) {
-    this.fps = parseInt(fps.set);
-    this.measuredFps = parseFloat(fps.measured);
-}
-sdrState.prototype.setGain = function(gain) {
-    this.gain = parseInt(gain);
-}
-sdrState.prototype.setGainMode = function(gainMode) {
-    this.gainMode = gainMode;
-}
-sdrState.prototype.setGainModes = function(gainModes) {
-    this.gainModes = gainModes;
-}
-sdrState.prototype.setSdrBwHz = function(sdrBwHz) {
-    this.sdrBwHz = parseInt(sdrBwHz);
-}
-sdrState.prototype.setPpmError = function(error) {
-    this.ppmError = parseFloat(error);
-}
-sdrState.prototype.setDBmOffset = function(error) {
-    this.dbmOffset = parseFloat(error);
-}
-sdrState.prototype.setDcRemoval = function(state) {
-    this.dcRemoval = state;
-}
-sdrState.prototype.setDcRemovals = function(states) {
-    this.dcRemovals = states;
-}
-sdrState.prototype.setInputLevel = function(state) {
-    this.inputLevel = state;
-}
+    constructor() {
 
-////////////////////
-// getters
-///////
-sdrState.prototype.getName = function() {
-    return this.name;
-}
-sdrState.prototype.getSdrFrequencyHz = function() {
-    return this.sdrFrequencyHz;
-}
-sdrState.prototype.getFrequencyHz = function() {
-    return this.frequencyRealHz;
-}
-sdrState.prototype.getFrequencyOffsetHz = function() {
-    return this.frequencyOffsetHz;
-}
-sdrState.prototype.getSps = function() {
-    return this.sps;
-}
-sdrState.prototype.getFftSize = function() {
-    return this.fftSize;
-}
-sdrState.prototype.getFftOverlaps = function() {
-    return this.fftOverlaps;
-}
-sdrState.prototype.getFftOverlap = function() {
-    return this.fftOverlap;
-}
-sdrState.prototype.getPsd = function() {
-    return this.psd;
-}
-sdrState.prototype.getFftRbw = function() {
-    return this.fftRbw;
-}
-sdrState.prototype.getFftBin = function() {
-    return this.fftBin;
-}
-sdrState.prototype.getReadMagnitudes = function() {
-    return this.readMagnitudes;
-}
-sdrState.prototype.getFftFrameTime = function() {
-    return this.fftFrameTime;
-}
-sdrState.prototype.getFftSizes = function() {
-    return this.fftSizes;
-}
-sdrState.prototype.getFftWindow = function() {
-    return this.window;
-}
-sdrState.prototype.getFftWindows = function() {
-    return this.windows;
-}
-sdrState.prototype.getInputSource = function() {
-    return this.source;
-}
-sdrState.prototype.getInputSourceParams = function() {
-    return this.sourceParams;
-}
-sdrState.prototype.getInputSources = function() {
-    return this.sources;
-}
-sdrState.prototype.getInputSourceHelps = function() {
-    return this.sourceHelps;
-}
-sdrState.prototype.getInputSourceParamHelp = function(source) {
-    return this.sourceHelps[source];
-}
-sdrState.prototype.getDataFormats = function() {
-    return this.dataFormats;
-}
-sdrState.prototype.getDataFormat = function() {
-    return this.dataFormat;
-}
-sdrState.prototype.getAllowedFps = function() {
-    return this.fpsAllowed;
-}
-sdrState.prototype.getFps = function() {
-    return this.fps;
-}
-sdrState.prototype.getMeasuredFps = function() {
-    return this.measuredFps;
-}
-sdrState.prototype.getSourceConnected = function() {
-    return this.sourceConnected;
-}
-sdrState.prototype.getGain = function() {
-    return this.gain;
-}
-sdrState.prototype.getGainMode = function() {
-    return this.gainMode;
-}
-sdrState.prototype.getGainModes = function() {
-    return this.gainModes;
-}
-sdrState.prototype.getSdrBwHz = function() {
-    return this.sdrBwHz;
-}
-sdrState.prototype.getLastDataTime = function() {
-    return this.lastDataTime;
-}
-sdrState.prototype.getUiDelay = function() {
-    return this.uiDelay;
-}
-sdrState.prototype.getLoopCpuPc = function() {
-    return this.loopCpuPc;
-}
-sdrState.prototype.getMaxCpuCorePc = function() {
-    return this.maxCpuCorePc;
-}
-sdrState.prototype.getOverflows = function() {
-    return this.overflows;
-}
-sdrState.prototype.getPpmError = function() {
-    return this.ppmError;
-}
-sdrState.prototype.getDBmOffset = function() {
-    return this.dbmOffset;
-}
-sdrState.prototype.getDcRemoval = function() {
-    return this.dcRemoval;
-}
-sdrState.prototype.getDcRemovals = function() {
-    return this.dcRemovals;
-}
-sdrState.prototype.getInputLevel = function() {
-    return this.inputLevel;
-}
-sdrState.prototype.getStreamLength = function() {
-    return this.streamLength;
-}
-sdrState.prototype.getStreamCurrent = function() {
-    return this.streamCurrent;
-}
+        // dynamic / runtime
+        this.gain = 0;
+        this.measuredFps = 0;
+        this.fps = 0;
+        this.uiDelay = 0;
+        this.loopCpuPc = 0;
+        this.maxCpuCorePc = 0;
+        this.overflows = 0;
 
-sdrState.prototype.setLastDataTime = function(last) {
-    this.lastDataTime = last;
-}
-sdrState.prototype.setNextAckTime = function(next) {
-    this.nextAckTime = next;
-}
-sdrState.prototype.setUiDelay = function(delay) {
-    this.uiDelay = delay;
-}
-sdrState.prototype.setLoopCpuPc = function(loopCpuPc) {
-    this.loopCpuPc = loopCpuPc;
-}
-sdrState.prototype.setMaxCpuCorePc = function(maxCpuCorePc) {
-    this.maxCpuCorePc = maxCpuCorePc;
-}
-sdrState.prototype.setOverflows = function(overflows) {
-    this.overflows = overflows;
-}
-sdrState.prototype.setStreamLength = function(length) {
-    this.streamLength = length;
-}
-sdrState.prototype.setStreamCurrent = function(curr) {
-    this.streamCurrent = curr;
-}
+        this.lastDataTime = 0;
 
-sdrState.prototype.setConfigFromJason = function(jsonConfig) {
-    // console.log(jsonConfig);
+        // RF / DSP
+        this.sdrFrequencyHz = 0;
+        this.frequencyRealHz = 0;
+        this.frequencyOffsetHz = 0;
+        this.firstTime = true;
 
-    // this should only set the offset frequency initially, i.e. set on command line
-    if (this.firstTime) {
-        this.frequencyOffsetHz = parseInt(jsonConfig.conversion_frequency_hz);
-        this.firstTime = false;
+        this.sps = 0;
+        this.sdrBwHz = 0;
+        this.ppmError = 0;
+        this.dbmOffset = 0;
+        this.dcRemoval = false;
+        this.inputLevel = 0;
+        this.streamLength = 0;
+        this.streamCurrent = 0;
+
+        this.fftSize = 0;
+        this.psd = "";
+        this.fftOverlap = 0;
+        this.fftOverlaps = [];
+        this.fftSizes = [];
+        this.fftFrameTime = 0;
+        this.window = "";
+        this.windows = [];
+        this.fftRbw = 0;
+        this.fftBin = 0;
+
+        this.readMagnitudes = false;
+
+        this.source = "";
+        this.sourceParams = "";
+        this.sources = [];
+        this.sourceHelps = {};
+        this.sourceConnected = false;
+
+        this.gainMode = "";
+        this.gainModes = [];
+
+        this.dataFormat = "";
+        this.dataFormats = [];
+
+        // internal
+        this._silent = false;
+        this._listeners = [];
     }
 
-    if (jsonConfig.digitiserFrequency != undefined){
-        this.sdrFrequencyHz = parseInt(jsonConfig.digitiserFrequency);
+    onChange(fn) {
+        this._listeners.push(fn);
     }
 
-    if (jsonConfig.frequency != undefined) {
-        this.frequencyRealHz = parseInt(jsonConfig.frequency.value);
-        this.frequencyOffsetHz = parseInt(jsonConfig.frequency.conversion);
-        spectrum.setCentreFreqHz(this.frequencyRealHz);
+    _notify(prop, value) {
+        this._listeners.forEach(fn => fn(prop, value));
     }
 
-    if (jsonConfig.digitiserSampleRate != undefined) {
-        this.sps = parseInt(jsonConfig.digitiserSampleRate);
-        spectrum.setSps(jsonConfig.digitiserSampleRate);
-        spectrum.setSpanHz(jsonConfig.digitiserSampleRate);
-    }
+    setConfigFromJason(cfg) {
 
-    if (jsonConfig.digitiserBandwidth != undefined) {
-        this.sdrBwHz = parseInt(jsonConfig.digitiserBandwidth);
-    }
+        this._silent = true;
 
-    if (jsonConfig.fftSizes != undefined) {
-        this.fftSizes = jsonConfig.fftSizes;
-    }
-
-    if (jsonConfig.fftFrameTime != undefined) {
-        this.fftFrameTime = jsonConfig.fftFrameTime;
-    }
-
-    if (jsonConfig.fftSize != undefined) {
-        this.fftSize = jsonConfig.fftSize;
-    }
-
-    if (jsonConfig.fftRbw != undefined) {
-        this.fftRbw = jsonConfig.fftRbw;
-        this.fftBin = this.sps / this.fftSize;
-    }
-
-    if (jsonConfig.fftOverlaps != undefined) {
-        this.fftOverlaps = jsonConfig.fftOverlaps;
-    }
-
-    if (jsonConfig.fftOverlap != undefined) {
-        this.fftOverlap = jsonConfig.fftOverlap;
-    }
-
-    if (jsonConfig.psd != undefined) {
-        if (jsonConfig.psd == "On") {
-            this.psd = "On";
+        if (this.firstTime) {
+            this.frequencyOffsetHz = Number(cfg.conversion_frequency_hz) || 0;
+            this.firstTime = false;
         }
-        else{
-            this.psd = "Off";
+
+        if (cfg.digitiserFrequency)
+            this.sdrFrequencyHz = Number(cfg.digitiserFrequency);
+
+        if (cfg.frequency) {
+            this.frequencyRealHz = Number(cfg.frequency.value);
+            this.frequencyOffsetHz = Number(cfg.frequency.conversion);
+
+            if (window.spectrum) {
+                spectrum.setCentreFreqHz(this.frequencyRealHz);
+            }
         }
-    }
 
-    if (jsonConfig.fftWindow != undefined) {
-        this.window = jsonConfig.fftWindow;
-    }
+        if (cfg.digitiserSampleRate) {
+            this.sps = Number(cfg.digitiserSampleRate);
 
-    if (jsonConfig.fftWindows != undefined) {
-        this.windows = jsonConfig.fftWindows;
-    }
-
-    if(jsonConfig.readMagnitudes != undefined) {
-        this.readMagnitudes = jsonConfig.readMagnitudes;
-    }
-
-    if (jsonConfig.sources != undefined) {
-        // todo: keep the source and help paired up
-        let sourceArray = Object.entries(jsonConfig.sources);
-        let sources = [];
-        let sourceHelps = {};  /* map/dict */
-        for (var src = 0; src < sourceArray.length; src++) {
-            sources.push(sourceArray[src][0]);
-            sourceHelps[sourceArray[src][0]] = sourceArray[src][1];
+            if (window.spectrum) {
+                spectrum.setSps(this.sps);
+                spectrum.setSpanHz(this.sps);
+            }
         }
-        this.sources = sources;
-        this.sourceHelps = sourceHelps;
-    }
 
-    if (jsonConfig.source != undefined) {
-        //let src = Object.entries(jsonConfig.source);
-        this.source = jsonConfig.source.source;
-        this.sourceConnected = jsonConfig.source.connected;
-        if (this.source == "file") {
-            this.sourceParams = basename(jsonConfig.source.params);
-        } else {
-            this.sourceParams = jsonConfig.source.params;
+        if (cfg.digitiserBandwidth)
+            this.sdrBwHz = Number(cfg.digitiserBandwidth);
+
+        if (cfg.fftSizes)
+            this.fftSizes = cfg.fftSizes;
+
+        if (cfg.fftFrameTime)
+            this.fftFrameTime = cfg.fftFrameTime;
+
+        if (cfg.fftSize)
+            this.fftSize = cfg.fftSize;
+
+        if (cfg.fftRbw) {
+            this.fftRbw = cfg.fftRbw;
+            this.fftBin = this.sps / this.fftSize;
         }
-    }
 
-    if (jsonConfig.digitiserFormats != undefined) {
-        this.dataFormats = jsonConfig.digitiserFormats;
-    }
+        if (cfg.fftOverlaps)
+            this.fftOverlaps = cfg.fftOverlaps;
 
-    if (jsonConfig.digitiserFormat != undefined) {
-        this.dataFormat = jsonConfig.digitiserFormat;
-    }
+        if (cfg.fftOverlap)
+            this.fftOverlap = cfg.fftOverlap;
 
-    if (jsonConfig.digitiserGain != undefined) {
-        this.gain = parseInt(jsonConfig.digitiserGain);
-    }
+        if (cfg.psd)
+            this.psd = (cfg.psd === "On") ? "On" : "Off";
 
-    if (jsonConfig.digitiserGainType != undefined) {
-        this.gainMode = jsonConfig.digitiserGainType;
-    }
+        if (cfg.fftWindow)
+            this.window = cfg.fftWindow;
 
-    if (jsonConfig.digitiserGainTypes != undefined) {
-        this.gainModes = jsonConfig.digitiserGainTypes;
-    }
+        if (cfg.fftWindows)
+            this.windows = cfg.fftWindows;
 
-    if (jsonConfig.digitiserPartsPerMillion != undefined) {
-        this.ppmError = parseFloat(jsonConfig.digitiserPartsPerMillion);
-    }
+        if (cfg.readMagnitudes)
+            this.readMagnitudes = cfg.readMagnitudes;
 
-    if (jsonConfig.digitiserDcRemoval != undefined) {
-        this.dcRemoval = jsonConfig.digitiserDcRemoval;
-    }
+        if (cfg.sources) {
+            const entries = Object.entries(cfg.sources);
+            this.sources = entries.map(e => e[0]);
+            this.sourceHelps = Object.fromEntries(entries);
+        }
 
-    if (jsonConfig.digitiserDcRemovals != undefined) {
-        this.dcRemovals = jsonConfig.digitiserDcRemovals;
-    }
+        if (cfg.source) {
+            this.source = cfg.source.source;
+            this.sourceConnected = cfg.source.connected;
 
-    if (jsonConfig.digitiserInputLevel != undefined) {
-        this.inputLevel = jsonConfig.digitiserInputLevel;
-    }
+            this.sourceParams = (this.source === "file")
+                ? basename(cfg.source.params)
+                : cfg.source.params;
+        }
 
-    if (jsonConfig.streamLength != undefined) {
-        this.streamLength = jsonConfig.streamLength;
-    }
+        if (cfg.digitiserFormats)
+            this.dataFormats = cfg.digitiserFormats;
 
-    if (jsonConfig.streamCurrent != undefined) {
-        this.streamCurrent = jsonConfig.streamCurrent;
-    }
+        if (cfg.digitiserFormat)
+            this.dataFormat = cfg.digitiserFormat;
 
-    if (jsonConfig.digitiserDbmOffset != undefined) {
-        this.dbmOffset = parseFloat(jsonConfig.digitiserDbmOffset);
-    }
+        if (cfg.digitiserGain)
+            this.gain = Number(cfg.digitiserGain);
 
-    if (jsonConfig.presetFps != undefined) {
-        this.fpsAllowed = jsonConfig.presetFps;
-    }
+        if (cfg.digitiserGainType)
+            this.gainMode = cfg.digitiserGainType;
 
-    if (jsonConfig.delay != undefined) {
-        this.uiDelay = parseFloat(jsonConfig.delay);
-    }
-    if (jsonConfig.loopCpuPc != undefined) {
-        this.loopCpuPc = parseFloat(jsonConfig.loopCpuPc);
-    }
-    if (jsonConfig.maxCpuCorePc != undefined) {
-        this.maxCpuCorePc = parseFloat(jsonConfig.maxCpuCorePc);
-    }
-    if (jsonConfig.overflows != undefined) {
-        this.overflows = parseInt(jsonConfig.overflows);
-    }
-    if (jsonConfig.ui_delay != this.uiDelay) {
-        this.uiDelay = parseFloat(jsonConfig.ui_delay);
-    }
-    if (jsonConfig.overflows != this.overflows) {
-        this.overflows = parseInt(jsonConfig.input_overflows);
-    }
-    
-    if (jsonConfig.fps != undefined) {
-        this.fps = parseInt(jsonConfig.fps.set);
-        this.measuredFps = parseFloat(jsonConfig.fps.measured);
+        if (cfg.digitiserGainTypes)
+            this.gainModes = cfg.digitiserGainTypes;
+
+        if (cfg.digitiserPartsPerMillion)
+            this.ppmError = Number(cfg.digitiserPartsPerMillion);
+
+        if (cfg.digitiserDcRemoval)
+            this.dcRemoval = cfg.digitiserDcRemoval;
+
+        if (cfg.digitiserDcRemovals)
+            this.dcRemovals = cfg.digitiserDcRemovals;
+
+        if (cfg.digitiserInputLevel)
+            this.inputLevel = cfg.digitiserInputLevel;
+
+        if (cfg.streamLength)
+            this.streamLength = cfg.streamLength;
+
+        if (cfg.streamCurrent)
+            this.streamCurrent = cfg.streamCurrent;
+
+        if (cfg.digitiserDbmOffset)
+            this.dbmOffset = Number(cfg.digitiserDbmOffset);
+
+        if (cfg.presetFps)
+            this.fpsAllowed = cfg.presetFps;
+
+        if (cfg.delay)
+            this.uiDelay = Number(cfg.delay);
+
+        if (cfg.loopCpuPc)
+            this.loopCpuPc = Number(cfg.loopCpuPc);
+
+        if (cfg.maxCpuCorePc)
+            this.maxCpuCorePc = Number(cfg.maxCpuCorePc);
+
+        if (cfg.overflows)
+            this.overflows = Number(cfg.overflows);
+
+        if (cfg.fps) {
+            this.fps = Number(cfg.fps.set);
+            this.measuredFps = Number(cfg.fps.measured);
+        }
+
+        this._silent = false;
     }
 }
 
-function sdrState() {
-    // special values that are expected to vary every time
-    this.gain = 0;
-    this.measuredFps = 0;
-    this.fps = 0;
-    this.uiDelay = 0;
-    this.loopCpuPc = 0;
-    this.maxCpuCorePc = 0;
-    this.overflows = 0;
 
-    // non visible things
-    this.lastDataTime = 0;
+/*
+    Optional API mapping (only include what you want writable from UI)
+*/
+const sdrApiMap = {
+    gain: { endpoint: "digitiserGain", key: "digitiserGain" },
+    gainMode: { endpoint: "digitiserGainType", key: "digitiserGainType" },
+    dataFormat: { endpoint: "digitiserFormat", key: "digitiserFormat" },
+    frequencyRealHz: { endpoint: "frequency", key: "frequency" }
+};
 
-    // normal UI visible values
-    this.sdrFrequencyHz = 0.0; // what the sdr will be given
-    this.frequencyRealHz = 0.0; // takes account of offset
-    this.frequencyOffsetHz = 0.0; // subtracted from realCentreFrequencyHz
-    this.firstTime = true;
 
-    this.sps = 0;
-    this.sdrBwHz = 0;
-    this.ppmError = 0.0;
-    this.dbmOffset = 0.0;
-    this.dcRemoval = false;
-    this.inputLevel = 0.0;
-    this.streamLength = 0.0;
-    this.streamCurrent = 0.0;
-    
-    this.fftSize = 0;
-    this.psd = "";
-    this.fftOverlap = 0;
-    this.fftOverlaps = [];
-    this.fftSizes = [];
-    this.fftFrameTime = 0;
-    this.window = "";
-    this.windows = [];
-    this.fftRbw = 0;
-    this.fftBin = 0;
+/*
+    Proxy wrapper
+*/
+const sdrState = new Proxy(new SdrState(), {
+    set(target, prop, value) {
+        // auto number conversion
+        if (typeof target[prop] === "number")
+            value = Number(value) || 0;
 
-    this.readMagnitudes = false;
+        target[prop] = value;
 
-    this.source = "";
-    this.sourceParams = "";
-    this.sources = [];
-    this.sourceHelps = [];
-    this.sourceConnected = false;
+        if (!target._silent) {
+            const api = sdrApiMap[prop];
+            if (api) {
+                fetch(`./sdr/${api.endpoint}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ [api.key]: value })
+                });
+            }
+            target._notify(prop, value);
+        }
+        return true;
+    }
+});
 
-    this.gainMode = "";
-    this.gainModes = [];
 
-    this.dataFormat = "";
-    this.dataFormats = [];
-}
+/*
+    Export
+*/
+window.sdrState = sdrState;
