@@ -1464,6 +1464,14 @@ function Main() {
         alert("Error: Sorry - required support not found"+not_supported);
         return;
     }
+    // toggle visibility of controls
+    $('#togglePanel').on('click', function () {
+            $('#metaData').toggleClass('collapsed');
+
+            $('#toggleIcon').text(
+                $('#metaData').hasClass('collapsed') ? '»' : '«'
+            );
+        });
 
     // add the spectrum to the page, set the mouse pointer graphic
     let sp='<canvas id="spectrumanalyser" height="600px" width="1024px" style="cursor: crosshair;"></canvas>';

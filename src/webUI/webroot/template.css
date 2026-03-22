@@ -181,8 +181,8 @@ input[type=number] {
 /* fixing the spectrum/spectrogram size */
 .screen {
     display: flex;
-    height: 100vh;
     width: 100%;
+    height: 100vh;
 }
 /* left spectrogram area */
 .leftPanel {
@@ -192,13 +192,19 @@ input[type=number] {
 }
 /* make spectrogram fill the space */
 #specCanvas {
-    flex: 1;
+    flex: 1 0 0;
 }
 /* right side */
 .rightPanel {
     width: 25%;
     overflow-y: auto;
     border-left: 1px solid #444;
+}
+/* collapsed state */
+.rightPanel.collapsed {
+    flex: 0 0 0;
+    max-width: 0;
+    overflow: hidden;
 }
 #metaZoom {
     transform-origin: top left;
