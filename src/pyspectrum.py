@@ -449,7 +449,7 @@ def setup() -> Tuple[Sdr.Sdr, Snapper.Snapper, pathlib.PurePath]:
 
     :return:
     """
-    setup_logging("SpectrumAnalyser.log")
+    setup_logging("pyspectrum.log")
 
     # sdr configuration
     configuration = Sdr.Sdr()
