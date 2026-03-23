@@ -334,7 +334,7 @@ def set_sample_fetcher(data_source: DataSource, sdr_config: Sdr) -> BlockSampleF
         try:
             # set fft and window on source, source may not have this method
             data_source.change_spectrum(sdr_config.fft_size, sdr_config.window)
-        except NotImplementedError:
+        except (NotImplementedError, AttributeError):
             logger.error(f"{data_source.get_name()} does not support magnitude samples")
             sdr_config.read_magnitudes = False
             fetcher = create_sample_fetch(data_source, sdr_config)
