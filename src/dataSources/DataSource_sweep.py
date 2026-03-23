@@ -76,15 +76,15 @@ class Input(DataSource.DataSource):
 
         self.enbw = 0
         self.enbw_db = 0
-        self.change_spectrum(512)
+        self.change_spectrum(512, 'Hanning')
 
-    def change_spectrum(self, N: int):
-        self._spec = Spectrum.Spectrum(N, 'Hanning')
+    def change_spectrum(self, n: int, window: str) -> None:
+        self._spec = Spectrum.Spectrum(n, window)
         self._enbw_db= 10 * math.log10(self._spec.get_enbw())
         self._enbw = 10 * math.log10(self._spec.get_enbw())
 
-        logger.info(f"Test source with magnitudes {N}, "
-                    f"{self._spec.get_window()} (FIXED), "
+        logger.info(f"Test source with magnitudes {n}, "
+                    f"{self._spec.get_window()}, "
                     f"{self._sample_rate_sps}sps, "
                     f"enbw {self._spec.get_enbw():.3f}, "
                     f"rbw {self._spec.get_rbw(self._sample_rate_sps):.1f}Hz")
@@ -116,10 +116,6 @@ class Input(DataSource.DataSource):
 
         Fs = self._sample_rate_sps
         N = number_samples
-
-        # do we need to update the spectrum, update enbw_db
-        if N != self._spec.get_fft_size():
-            self.change_spectrum(N)
 
         # Phase step for this frequency
         phase_step = np.complex64(np.exp(1j * 2 * np.pi * self._current_freq / Fs))
@@ -164,7 +160,11 @@ class Input(DataSource.DataSource):
         return signal_noisy, rx_time
 
     def read_magnitude_samples(self, number_samples: int) -> Tuple[np.ndarray, float]:
-        rx_time = time.time_ns()
+
+        # do we need to update the spectrum, update enbw_db
+        if number_samples != self._spec.get_fft_size():
+            self.change_spectrum(number_samples, self._spec.get_window())
+
         signal, rx_time = self.read_cplx_samples(number_samples)
         magnitudes_squared = self._spec.mag_spectrum(signal, False)
 
