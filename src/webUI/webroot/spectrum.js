@@ -510,8 +510,12 @@ Spectrum.prototype.setFftSize = function(fftSize) {
     this.fftSize = fftSize;
 }
 
-Spectrum.prototype.getRbw = function() {
-    return( this.sps / this.fftSize);
+Spectrum.prototype.getFftRbw = function() {
+    return this.fftRbw;
+}
+
+Spectrum.prototype.setFftRbw = function(fftRbw) {
+    this.fftRbw = fftRbw;
 }
 
 Spectrum.prototype.setSpanHz = function(hz) {
@@ -888,11 +892,11 @@ Spectrum.prototype.displayConfigOnSpectrum = function() {
     context.fillStyle = this.liveMarkerColour;
     context.textAlign = "left";
     let config_text = "CF:     " + this.convertFrequencyForDisplay(this.getZoomCfHz(), 6);
-    context.fillText(config_text, 1420, 60);
+    context.fillText(config_text, 50, 60);
     config_text = "SPAN: " + this.convertFrequencyForDisplay(this.getZoomSpanHz(), 3);
-    context.fillText(config_text, 1420, 75);
-    config_text = "RBW:  " + this.convertFrequencyForDisplay(this.getRbw(), 0);
-    context.fillText(config_text, 1420, 90);
+    context.fillText(config_text, 50, 75);
+    config_text = "RBW:  " + this.convertFrequencyForDisplay(this.getFftRbw(), 0);
+    context.fillText(config_text, 50, 90);
 }
 
 Spectrum.prototype.getMarkerValuesForAveraging = function() {
@@ -1607,6 +1611,8 @@ function Spectrum(id, options) {
     this.psd = "Off"
     this.fftSize = 0;
     this.updatedAveraging = false;
+    this.fftRbw = 0;
+    this.fftBin = 0;
 
     // markers
     this.markersSet = new Set();

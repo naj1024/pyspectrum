@@ -300,6 +300,7 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
     if (jsonConfig.fftRbw != undefined) {
         this.fftRbw = jsonConfig.fftRbw;
         this.fftBin = this.sps / this.fftSize;
+        spectrum.setFftRbw(this.fftRbw);
     }
 
     if (jsonConfig.fftOverlaps != undefined) {
