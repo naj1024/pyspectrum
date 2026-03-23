@@ -206,6 +206,10 @@ input[type=number] {
     max-width: 0;
     overflow: hidden;
 }
+#togglePanel {
+    height: 10pc;
+    padding: 4px 8px;
+}
 #metaZoom {
     transform-origin: top left;
 }
