@@ -1121,7 +1121,7 @@ function updateSnapFileList() {
         // size with a hover over of a png showing a spectrum image
         // new_row += '<td><span>'+file[1]+'</span><img src="./thumbnails/'+file[0]+'.png"></td>';
         new_row += '<td>'+file[1]+'</td>';
-        new_row += '<td><img src="./thumbnails/'+file[0]+'.png"></td>';
+        new_row += '<td><img src="thumbnails/'+file[0]+'.png"></td>';
 
         let id = row_count;
         new_row += '<td><input type="image" title="play" id="play_'+id+'" src="./icons/play.png"></td>';

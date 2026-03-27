@@ -6,10 +6,11 @@ import pathlib
 import signal
 import time
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_restful import Resource, Api as Rest_Api
 
 from misc import global_vars
+from misc.global_vars import SNAPSHOT_DIRECTORY, THUMBNAILS_DIRECTORY
 
 # root is directory relative to our source file
 web_root = f"{os.path.dirname(__file__)}/webroot/"
@@ -87,9 +88,19 @@ class FlaskInterface(multiprocessing.Process):
                           static_url_path='/',
                           static_folder='webroot')
 
+        @flask_app.route('/snapshots/<path:filename>')
+        def snapshots(filename):
+            return send_from_directory(SNAPSHOT_DIRECTORY, filename)
+
+        @flask_app.route('/thumbnails/<path:filename>')
+        def thumbnails(filename):
+            return send_from_directory(THUMBNAILS_DIRECTORY, filename)
+
         # remove all logging from the flask server, removes prints of urls to console
+        # enable this if you need to see what is being served
         logw = logging.getLogger('werkzeug')
         logw.disabled = True
+
         # don't disable the next one as it stops our logging as well
         # flask_app.logger.disabled = True
 

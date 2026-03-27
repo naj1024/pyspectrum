@@ -46,6 +46,7 @@ from misc import commandLine
 from misc import global_vars
 from misc import sdrStuff
 from misc import snapStuff
+from misc.global_vars import THUMBNAILS_DIRECTORY
 from webUI import FlaskInterface
 from webUI import WebSocketServer
 
@@ -508,22 +509,28 @@ def setup_snap_config() -> Snapper.Snapper:
             pass
         except Exception as msg:
             raise ValueError(f"Failed to create snapshot directory, {msg}")
+    if not os.path.isdir(global_vars.THUMBNAILS_DIRECTORY):
+        try:
+            os.makedirs(global_vars.THUMBNAILS_DIRECTORY)
+        except FileExistsError:
+            pass
+        except Exception as msg:
+            raise ValueError(f"Failed to create thumbnails directory, {msg}")
+
     snap_configuration.directory_list = snapStuff.list_snap_files(global_vars.SNAPSHOT_DIRECTORY)
     return snap_configuration
 
 
 def set_thumbs_dir() -> pathlib.PurePath:
     # web thumbnail directory
-    where = f"{os.path.dirname(__file__)}"
-    thumbs_dir = pathlib.PurePath(f"{where}/webUI/webroot/thumbnails")
-    if not os.path.isdir(thumbs_dir):
+    if not os.path.isdir(THUMBNAILS_DIRECTORY):
         try:
-            os.makedirs(thumbs_dir)
+            os.makedirs(THUMBNAILS_DIRECTORY)
         except FileExistsError:
             pass
         except Exception as msg:
-            raise ValueError(f"Failed to create web thumbnails directory, {msg}")
-    return thumbs_dir
+            raise ValueError(f"Failed to create web thumbnails '{THUMBNAILS_DIRECTORY}' directory, {msg}")
+    return THUMBNAILS_DIRECTORY
 
 
 def initialise(sdr_config: Sdr.Sdr, snap_config: Snapper.Snapper,
