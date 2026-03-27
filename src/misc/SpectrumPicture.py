@@ -47,8 +47,8 @@ class SpectrumPicture:
 
         try:
             file_str = str(filename)
-            # let's assume that it is going to be 16tle
-            source = DataSource_file.Input(file_str, "16tle", 1.0, 0.0, 1.0)
+            # let's assume that it is going to be 16tle and 1Msps, opening the file may be able to correct these values
+            source = DataSource_file.Input(file_str, "16tle", 1.0e6, 0.0, 1.0e6)
             source.set_rewind(False)
             source.set_throttle(False)
             ok = source.open()
@@ -70,8 +70,12 @@ class SpectrumPicture:
                     except OSError:
                         ok = False  # end of file
 
+                    # after so many fft's we probably have a good peak spectrum to make an image of
+                    if count > 300:
+                        ok = False
+
                 if count > 0:
-                    powers = self._spec.get_powers(peaks_squared, 0, False, 0)
+                    powers = self._spec.get_powers(peaks_squared, source.get_sample_rate_sps(), False, 0)
                     average = np.average(powers)
                     maximum = np.max(powers)
                     # set everything below average to the average
