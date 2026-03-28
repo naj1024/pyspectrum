@@ -10,12 +10,13 @@ venv
 .venv/
 
 # logs
+logs/
 *.log
 
-# snapshots and thumbnails in root
+# snapshots and png spewctrums
 snapshots/
 
-# digitised sample files
+# digitised sample files, incase they appwar elsewhere
 *.8t
 *.8o
 *.16tle
