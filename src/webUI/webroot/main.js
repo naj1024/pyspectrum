@@ -1345,7 +1345,8 @@ function connectWebSocket(spec) {
         $('#connection_state').append(new_element);
 
         // do we wish to attempt reconnection, someone else may be streaming spectrums
-        const retry = confirm("Lost spectrum websocket, try reconnecting?");
+        //const retry = confirm("Lost spectrum websocket, try reconnecting?");
+        const retry = true;
         if (retry) {
             setTimeout(function() {
                 connectWebSocket(spec);
