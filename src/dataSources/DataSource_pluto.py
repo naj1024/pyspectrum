@@ -156,7 +156,7 @@ class Input(DataSource.DataSource):
         self._name = module_type
         self._connected = False
         self._gain_modes = ["manual", "fast_attack", "slow_attack", "hybrid"]  # would ask, but can't
-        super().set_gain_mode(self._gain_modes[0])
+        super().set_gain_mode(self._gain_modes[1])
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 

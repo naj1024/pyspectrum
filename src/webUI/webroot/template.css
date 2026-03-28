@@ -207,18 +207,20 @@ input[type=number] {
     overflow: hidden;
 }
 #togglePanel {
-    height: 10pc;
+    height: 5pc;
     padding: 4px 8px;
 }
+#metaZoom {
+    transform-origin: top left;
+}
+
+/* auto scale button on uncollapsed interface */
 #scaleSpectrum {
     width: 2rem;
     white-space: normal;
     word-break: break-all;
     text-align: center;
     line-height: 1.2;
-}
-#metaZoom {
-    transform-origin: top left;
 }
 
 /* Input number suffix support */
