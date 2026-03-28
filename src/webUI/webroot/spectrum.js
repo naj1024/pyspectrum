@@ -456,11 +456,7 @@ Spectrum.prototype.autoRange = function() {
         if (index < 0) {
             break;
         }
-        // only get peak over centre 70%
-        let len = this.spectrums[index].magnitudes.length;
-        let begin = parseInt(len * 0.15)
-        let end = parseInt(len * 0.85)
-        let spec = this.spectrums[index].magnitudes.slice(begin, end);
+        let spec = this.spectrums[index].magnitudes;
         if (spec) {
             let smax = Math.max(...spec);
             let smin = Math.min(...spec);
