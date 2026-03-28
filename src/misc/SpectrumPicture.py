@@ -82,16 +82,14 @@ class SpectrumPicture:
                     np.clip(powers, average, maximum, out=powers)
 
                     plt.clf()
-                    pic_name = pathlib.PurePath(file_str + ".png")
                     fig, ax = plt.subplots()
                     f = np.arange(0, self._fft_size, 1)
                     ax.plot(f, powers)
                     ax.set_xticks([])
                     ax.set_yticks([])
+                    pic_name = pathlib.PurePath(self._thumbnail_dir, os.path.basename(filename) + ".png")
                     fig.savefig(pic_name)
-                    # create a thumbnail for the web
-                    thumb_name = pathlib.PurePath(self._thumbnail_dir, os.path.basename(filename) + ".png")
-                    image.thumbnail(str(pic_name), str(thumb_name), scale=0.10)  # unix won't take pathlib
+                    plt.close(fig)
 
             source.close()
 
