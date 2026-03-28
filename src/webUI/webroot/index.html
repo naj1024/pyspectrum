@@ -36,7 +36,10 @@
     <div id="landscape-only">
         <div class="screen">
             <div id="specCanvas" class="leftPanel"></div>
-            <button id="togglePanel" class="btn btn-sm btn-secondary"><span id="toggleIcon">&laquo;</span></button>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <button id="togglePanel" class="btn btn-sm btn-secondary" title="Show/Hide the controls"><span id="toggleIcon">&laquo;</span></button>
+                <button id="scaleSpectrum" class="btn btn-sm btn-secondary" title="One shot autoscale db range"><span id="Scale">AUTO</span></button>
+            </div>
             <div id="metaData" class="rightPanel">
                 <div id="metaZoom">
                     <ul class="nav nav-tabs">
@@ -458,7 +461,7 @@
                                     <button type="button" id="rangeUpBut" title="increase the dB range"
                                             class="specbuttons btn btn-outline-dark mx-1 my-1">Rng&gt
                                     </button>
-                                    <button type="button" id="autoRangeBut" title="singlie shot autorange on dB across spectrum"
+                                    <button type="button" id="autoRangeBut" title="single shot autorange on dB across spectrum"
                                             class="specbuttons btn btn-outline-dark mx-1 my-1">Auto
                                     </button>
                                 </div>

@@ -1121,7 +1121,7 @@ function updateSnapFileList() {
         // size with a hover over of a png showing a spectrum image
         // new_row += '<td><span>'+file[1]+'</span><img src="./thumbnails/'+file[0]+'.png"></td>';
         new_row += '<td>'+file[1]+'</td>';
-        new_row += '<td><img src="thumbnails/'+file[0]+'.png"></td>';
+        new_row += '<td><img src="thumbnails/'+file[0]+'.png"  width="50"></td>';
 
         let id = row_count;
         new_row += '<td><input type="image" title="play" id="play_'+id+'" src="./icons/play.png"></td>';
@@ -1560,6 +1560,7 @@ function Main() {
     $('#rangeDwnBut').click(function() {spectrum.rangeDecrease();});
     $('#rangeUpBut').click(function() {spectrum.rangeIncrease();});
     $('#autoRangeBut').click(function() {spectrum.autoRange();});
+    $('#scaleSpectrum').click(function() {spectrum.autoRange();});
 
     $('#zoomInBut').click(function() {spectrum.zoomIn();});
     $('#zoomOutBut').click(function() {spectrum.zoomOut();});

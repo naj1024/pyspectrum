@@ -210,6 +210,13 @@ input[type=number] {
     height: 10pc;
     padding: 4px 8px;
 }
+#scaleSpectrum {
+    width: 2rem;
+    white-space: normal;
+    word-break: break-all;
+    text-align: center;
+    line-height: 1.2;
+}
 #metaZoom {
     transform-origin: top left;
 }
@@ -295,4 +302,9 @@ input[type=number] {
 #metaZoom .nav-tabs .nav-link:hover {
     background-color: #e9ecef;
     color: #0056b3;
+}
+
+/* for snapshot tab make spectrum pciture larger on hover */
+img:hover{
+    width: 100px;
 }

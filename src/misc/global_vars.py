@@ -10,4 +10,4 @@ SNAPSHOT_DIRECTORY = pathlib.PurePath(f"{os.path.dirname(__file__)}", "..",
 
 # if the thumbnails directory name is changed then you must edit main.js as well updateSnapFileList()
 THUMBNAILS_DIRECTORY = pathlib.PurePath(f"{os.path.dirname(__file__)}", "..",
-                                      "..", snapshot_directory_name, "thumbnails")
+                                      "..", snapshot_directory_name)
