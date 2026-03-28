@@ -1216,7 +1216,6 @@ function showNewSnap() {
         onfocusout="snapTableFocusOut()"
         title="${snapState.baseFilename}"
         type="text"
-        size="10"
         value="${shortName}"
         data-bind="baseFilename">
     `;
@@ -1229,7 +1228,6 @@ function showNewSnap() {
         onfocusout="snapTableFocusOut()"
         title="${snapState.preTriggerMs}"
         type="number"
-        size="5"
         min=0
         data-bind="preTriggerMs">
         <span class="unit">msec</span>
@@ -1244,7 +1242,6 @@ function showNewSnap() {
         onfocusout="snapTableFocusOut()"
         title="${snapState.postTriggerMs}"
         type="number"
-        size="6"
         min=0
         data-bind="postTriggerMs">
         <span class="unit">msec</span>
@@ -1470,7 +1467,7 @@ function Main() {
             $('#metaData').toggleClass('collapsed');
 
             $('#toggleIcon').text(
-                $('#metaData').hasClass('collapsed') ? '»' : '«'
+                $('#metaData').hasClass('collapsed') ? 'OPEN' : 'CLOSE'
             );
         });
 
