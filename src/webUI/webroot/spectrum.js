@@ -448,14 +448,19 @@ Spectrum.prototype.autoRange = function() {
     let min = 100; // suitably large dB
     // find the max over the last spectrum, held in spectrogram data = this.spectrums[]
     //const t0 = performance.now();
-    let spec = this.spectrums[this.currentSpectrumIndex].magnitudes;
-    if (spec && spec.length) {
-        for (let i = 1; i < spec.length; i++) {
-            if (spec[i] > max)
-                max = spec[i];
-            else
-                if (spec[i] < smin)
-                min = spec[i];
+    // go over last 32 spectrums so that we can auto range on short burst signals
+    let start = this.currentSpectrumIndex;
+    for (let num=0; num<32; num ++) {
+        let index = start - num;
+        let spec = this.spectrums[index].magnitudes;
+        if (spec && spec.length) {
+            for (let i = 1; i < spec.length; i++) {
+                if (spec[i] > max)
+                    max = spec[i];
+                else
+                    if (spec[i] < min)
+                        min = spec[i];
+            }
         }
     }
     //const t1 = performance.now();
