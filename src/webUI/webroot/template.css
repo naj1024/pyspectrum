@@ -217,8 +217,22 @@ input[type=number] {
     transform-origin: top left;
 }
 
-/* auto scale button on uncollapsed interface */
+/* vertical buttons */
 #scaleSpectrum {
+    width: 2rem;
+    white-space: normal;
+    word-break: break-all;
+    text-align: center;
+    line-height: 1.2;
+}
+#holdSpectrum {
+    width: 2rem;
+    white-space: normal;
+    word-break: break-all;
+    text-align: center;
+    line-height: 1.2;
+}
+#peakSpectrum {
     width: 2rem;
     white-space: normal;
     word-break: break-all;

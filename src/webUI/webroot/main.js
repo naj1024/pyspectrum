@@ -1559,6 +1559,8 @@ function Main() {
     $('#rangeUpBut').click(function() {spectrum.rangeIncrease();});
     $('#autoRangeBut').click(function() {spectrum.autoRange();});
     $('#scaleSpectrum').click(function() {spectrum.autoRange();});
+    $('#holdSpectrum').click(function() {handlePauseToggle();});
+    $('#peakSpectrum').click(function() {spectrum.toggleMaxHold();});
 
     $('#zoomInBut').click(function() {spectrum.zoomIn();});
     $('#zoomOutBut').click(function() {spectrum.zoomOut();});
