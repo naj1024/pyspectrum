@@ -446,32 +446,24 @@ Spectrum.prototype.autoRange = function() {
     // Find max and min
     let max = -200; // suitably small dB
     let min = 100; // suitably large dB
-    // find the max over the last N spectrums, held in spectrogram data = this.spectrums[]
-    // need work on what we see at the top of the spectrogram
-    let start=this.currentSpectrumIndex;
-    let numSpectrums = 32;
-    for (let num=0; num<numSpectrums; num++) {
-        // find the index to the correct spectrum
-        let index = start - num;
-        if (index < 0) {
-            break;
-        }
-        let spec = this.spectrums[index].magnitudes;
-        if (spec) {
-            let smax = Math.max(...spec);
-            let smin = Math.min(...spec);
-            if (smin < min)
-                min = smin;
-            if (smax > max)
-                max = smax;
+    // find the max over the last spectrum, held in spectrogram data = this.spectrums[]
+    //const t0 = performance.now();
+    let spec = this.spectrums[this.currentSpectrumIndex].magnitudes;
+    if (spec && spec.length) {
+        for (let i = 1; i < spec.length; i++) {
+            if (spec[i] > max)
+                max = spec[i];
+            else
+                if (spec[i] < smin)
+                min = spec[i];
         }
     }
-    if (max != -100 && min != 100) {
-        // to nearest 10dB
-        this.max_db = this.roundTo10(max+16); // 10dB headroom
-        this.min_db = this.roundTo10(min-6);
-        this.setRange(this.min_db, this.max_db);
-    }
+    //const t1 = performance.now();
+    // fastest to just itterate using for loop
+    //console.log(`${numSpectrums} autorange took ${t1-t0} milliseconds`);
+    this.max_db = this.roundTo10(max+10); // headroom
+    this.min_db = this.roundTo10(min-10);
+    this.setRange(this.min_db, this.max_db);
 }
 
 Spectrum.prototype.setCentreFreqHz = function(hz) {
