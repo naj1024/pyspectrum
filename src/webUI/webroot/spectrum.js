@@ -885,11 +885,11 @@ Spectrum.prototype.displayConfigOnSpectrum = function() {
     context.fillStyle = this.liveMarkerColour;
     context.textAlign = "left";
     let config_text = "CF:     " + this.convertFrequencyForDisplay(this.getZoomCfHz(), 6);
-    context.fillText(config_text, 50, 60);
+    context.fillText(config_text, 50, 15);
     config_text = "SPAN: " + this.convertFrequencyForDisplay(this.getZoomSpanHz(), 3);
-    context.fillText(config_text, 50, 75);
+    context.fillText(config_text, 50, 30);
     config_text = "RBW:  " + this.convertFrequencyForDisplay(this.getFftRbw(), 0);
-    context.fillText(config_text, 50, 90);
+    context.fillText(config_text, 50, 45);
 }
 
 Spectrum.prototype.getMarkerValuesForAveraging = function() {
@@ -1106,6 +1106,7 @@ Spectrum.prototype.drawLiveMarker = function() {
 
     // horizontal db marker on spectrum, or time in spectrogram
     let canvasY = 0;
+    let heightOfMarkerData = 65; // doesn't collide with spectrum data
     if(this.liveMarker.spectrum_flag) {
         canvasY = this.convertdBtoCanvasYOnSpectrum(this.liveMarker.power);  // spectrum
         // we could be in the spectrogram if the dbScale forces us
@@ -1117,6 +1118,9 @@ Spectrum.prototype.drawLiveMarker = function() {
             this.ctx.strokeStyle = this.liveMarkerColour;
             this.ctx.lineWidth = 1;
             this.ctx.stroke();
+            heightOfMarkerData = canvasY - 40; //will follow point on spectrum, can get confusing though
+            if (heightOfMarkerData < 20)
+                heightOfMarkerData = 20;
         }
     } else {
         canvasY = this.convertInputCountToSpectrogramCanvasRow(this.liveMarker.spectrum.inputCount);
@@ -1148,7 +1152,7 @@ Spectrum.prototype.drawLiveMarker = function() {
         } else {
             context.textAlign = "left";
         }
-        context.fillText(marker_text, canvasX, 40);
+        context.fillText(marker_text, canvasX, heightOfMarkerData);
 
         // Difference from the last indexed marker to the live marker
         if (this.markersSet.size > 0) {
@@ -1161,7 +1165,7 @@ Spectrum.prototype.drawLiveMarker = function() {
             let diff_text = " " + this.convertFrequencyForDisplay(freq_diff, 3);
             diff_text += " " + db_diff.toFixed(1) + "dB ";
             diff_text += " " + time_diff.toFixed(3) + "s ";
-            context.fillText(diff_text, canvasX, 52);
+            context.fillText(diff_text, canvasX, heightOfMarkerData+15);
         }
     }
 }
