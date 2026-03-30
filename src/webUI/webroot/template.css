@@ -218,34 +218,10 @@ input[type=number] {
 }
 
 /* vertical buttons */
-#scaleSpectrum {
-    width: 2rem;
-    white-space: normal;
-    word-break: break-all;
-    text-align: center;
-    line-height: 1.2;
-}
-#holdSpectrum {
-    width: 2rem;
-    white-space: normal;
-    word-break: break-all;
-    text-align: center;
-    line-height: 1.2;
-}
-#peakSpectrum {
-    width: 2rem;
-    white-space: normal;
-    word-break: break-all;
-    text-align: center;
-    line-height: 1.2;
-}
-#spectrumInfo {
-    width: 2rem;
-    white-space: normal;
-    word-break: break-all;
-    text-align: center;
-    line-height: 1.2;
-}
+#scaleSpectrum,
+#holdSpectrum,
+#peakSpectrum,
+#spectrumInfo,
 #stopSource {
     width: 2rem;
     white-space: normal;
