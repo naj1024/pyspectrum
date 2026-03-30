@@ -239,6 +239,20 @@ input[type=number] {
     text-align: center;
     line-height: 1.2;
 }
+#spectrumInfo {
+    width: 2rem;
+    white-space: normal;
+    word-break: break-all;
+    text-align: center;
+    line-height: 1.2;
+}
+#stopSource {
+    width: 2rem;
+    white-space: normal;
+    word-break: break-all;
+    text-align: center;
+    line-height: 1.2;
+}
 
 /* Input number suffix support */
 .input-with-unit {

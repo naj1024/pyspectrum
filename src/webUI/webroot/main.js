@@ -1560,7 +1560,9 @@ function Main() {
     $('#autoRangeBut').click(function() {spectrum.autoRange();});
     $('#scaleSpectrum').click(function() {spectrum.autoRange();});
     $('#holdSpectrum').click(function() {handlePauseToggle();});
+    $('#stopSource').click(function() {handleStopToggle();});
     $('#peakSpectrum').click(function() {spectrum.toggleMaxHold();});
+    $('#spectrumInfo').click(function() {spectrum.toggleSpectrumInfo();});
 
     $('#zoomInBut').click(function() {spectrum.zoomIn();});
     $('#zoomOutBut').click(function() {spectrum.zoomOut();});

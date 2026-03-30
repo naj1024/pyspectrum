@@ -594,6 +594,10 @@ Spectrum.prototype.toggleMaxHold = function() {
     this.setMaxHold(!this.maxHold);
 }
 
+Spectrum.prototype.toggleSpectrumInfo = function() {
+    this.displaySpectrumInfo = !this.displaySpectrumInfo;
+}
+
 Spectrum.prototype.pkToTrace1 = function() {
     this.trace1 = Array.from(this.trace0Max);
 }
@@ -883,16 +887,18 @@ Spectrum.prototype.findPeak = function() {
 }
 
 Spectrum.prototype.displayConfigOnSpectrum = function() {
-    var context = this.canvas.getContext('2d');
-    context.font = this.spectrumLiveMarkerFont;
-    context.fillStyle = this.liveMarkerColour;
-    context.textAlign = "left";
-    let config_text = "CF:     " + this.convertFrequencyForDisplay(this.getZoomCfHz(), 6);
-    context.fillText(config_text, 50, 15);
-    config_text = "SPAN: " + this.convertFrequencyForDisplay(this.getZoomSpanHz(), 3);
-    context.fillText(config_text, 50, 30);
-    config_text = "RBW:  " + this.convertFrequencyForDisplay(this.getFftRbw(), 0);
-    context.fillText(config_text, 50, 45);
+    if (this.displaySpectrumInfo) {
+        var context = this.canvas.getContext('2d');
+        context.font = this.spectrumLiveMarkerFont;
+        context.fillStyle = this.liveMarkerColour;
+        context.textAlign = "left";
+        let config_text = "CF:     " + this.convertFrequencyForDisplay(this.getZoomCfHz(), 6);
+        context.fillText(config_text, 50, 15);
+        config_text = "SPAN: " + this.convertFrequencyForDisplay(this.getZoomSpanHz(), 3);
+        context.fillText(config_text, 50, 30);
+        config_text = "RBW:  " + this.convertFrequencyForDisplay(this.getFftRbw(), 0);
+        context.fillText(config_text, 50, 45);
+    }
 }
 
 Spectrum.prototype.getMarkerValuesForAveraging = function() {
@@ -1641,6 +1647,8 @@ function Spectrum(id, options) {
 
     // one up count of all spectrums received when not paused
     this.inputCount = 0;
+
+    this.displaySpectrumInfo = true;
 
     // Setup state
     this.paused = false;
