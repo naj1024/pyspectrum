@@ -1467,7 +1467,7 @@ function Main() {
             $('#metaData').toggleClass('collapsed');
 
             $('#toggleIcon').text(
-                $('#metaData').hasClass('collapsed') ? 'OPEN' : 'CLOSE'
+                $('#metaData').hasClass('collapsed') ? 'SHOW' : 'HIDE'
             );
         });
 

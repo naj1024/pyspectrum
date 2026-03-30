@@ -207,27 +207,17 @@ input[type=number] {
     overflow: hidden;
 }
 #togglePanel {
-    width: 2rem;
-    white-space: normal;
-    word-break: break-all;
-    text-align: center;
-    line-height: 1.2;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
 }
 #metaZoom {
     transform-origin: top left;
 }
 
-/* vertical buttons */
-#scaleSpectrum,
-#holdSpectrum,
-#peakSpectrum,
-#spectrumInfo,
-#stopSource {
-    width: 2rem;
-    white-space: normal;
-    word-break: break-all;
-    text-align: center;
-    line-height: 1.2;
+/* vertical buttons between spectrum and controls */
+.vertical-btn span {
+    writing-mode: vertical-rl;
+    text-orientation: upright;
 }
 
 /* Input number suffix support */
@@ -249,11 +239,6 @@ input[type=number] {
 }
 
 /* sticky tabs at top of right panel */
-#metaData {
-    height: 100%;              /* or 100% / calc(...) depending on your layout */
-    display: flex;
-    flex-direction: column;
-}
 /* Sticky + standout style */
 #metaZoom .nav-tabs {
     position: sticky;
