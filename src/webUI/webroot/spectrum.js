@@ -1139,12 +1139,13 @@ Spectrum.prototype.drawLiveMarker = function() {
     if (marker_value != null) {
         let marker_text = " " + this.convertFrequencyForDisplay(marker_value.freqHz, 6);
         marker_text += " " + marker_value.power.toFixed(1) + ((this.getPsd()=="On")?"dB/Hz ":"dB ");
-        if(this.inSpectrum(canvasY)) {
-            marker_text += " " + marker_value.absTime.toFixed(3) + "s ";
-        } else {
-            // relative to current spectrum time
+        if(!this.inSpectrum(canvasY)) {
+         // relative to current spectrum time
             marker_text += " " + (marker_value.absTime - this.currentTime).toFixed(3) + "s ";
         }
+//        else {
+//            marker_text += " " + marker_value.absTime.toFixed(3) + "s "; // actual time
+//        } 
 
         // are we past half way, then put text on left
         if (canvasX > (this.canvas.clientWidth/2)) {
