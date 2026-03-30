@@ -73,6 +73,9 @@ Spectrum.prototype.addWaterfallRow = function(bins) {
         0, 0, this.wf_size, this.wf_rows - 1,
         0, 1, this.wf_size, this.wf_rows - 1);
 
+    // move the live marker instep with moving the waterfall
+    this.spectrogramLiveMakerY += 1;
+
     // Draw new row at top of back buffer
     this.rowToImageData(bins);
     this.ctx_wf_tmp.putImageData(this.imagedata, 0, 0);
@@ -1145,7 +1148,7 @@ Spectrum.prototype.drawLiveMarker = function() {
         }
 //        else {
 //            marker_text += " " + marker_value.absTime.toFixed(3) + "s "; // actual time
-//        } 
+//        }
 
         // are we past half way, then put text on left
         if (canvasX > (this.canvas.clientWidth/2)) {
