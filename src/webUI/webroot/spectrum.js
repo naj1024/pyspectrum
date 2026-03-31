@@ -592,10 +592,12 @@ Spectrum.prototype.setDiff = function() {
 
 Spectrum.prototype.toggleMaxHold = function() {
     this.setMaxHold(!this.maxHold);
+    return this.maxHold;
 }
 
 Spectrum.prototype.toggleSpectrumInfo = function() {
     this.displaySpectrumInfo = !this.displaySpectrumInfo;
+    return this.displaySpectrumInfo;
 }
 
 Spectrum.prototype.pkToTrace1 = function() {

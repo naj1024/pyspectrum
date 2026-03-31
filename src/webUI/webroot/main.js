@@ -1088,17 +1088,18 @@ function handleStopToggle() {
             clearInterval(updateTimer)
         }
     }
+
+    return stop.value;
+}
+
+function setButtonState(btn, isOn) {
+    btn.classList.toggle('active', isOn);
+    btn.dataset.state = isOn ? 'on' : 'off';
 }
 
 function handlePauseToggle() {
     spectrum.togglePaused();
-    // when we pause we will also set stop if it is not already set
-//    if(spectrum.paused) {
-//        if (!stop.value) {
-//            handleStopToggle();
-//            $("#stopBut").button('toggle'); // update the UI button state
-//        }
-//    }
+    return spectrum.paused;
 }
 
 function showSnapTable() {
@@ -1533,15 +1534,27 @@ function Main() {
     $('#controlButton').click(function() {showControls();});
     $('#markerButton').click(function() {showMarkers();});
 
-    $('#stopBut').click(function() {handleStopToggle();});
+    $('#stopBut').click(function() {
+        const state = handleStopToggle();
+        const stopBtn = document.getElementById('stopSource');
+        setButtonState(stopBtn, state);
+    });
     $('#cfDwnBut4').click(function() {incrementCf(-4);});
     $('#cfDwnBut1').click(function() {incrementCf(-10);});
     $('#cfUpBut1').click(function() {incrementCf(10);});
     $('#cfUpBut4').click(function() {incrementCf(4);});
     $('#zoomToCfBut').click(function() {zoomedToCf();});
 
-    $('#pauseBut').click(function() {handlePauseToggle();});
-    $('#maxHoldBut').click(function() {spectrum.toggleMaxHold();});
+    $('#pauseBut').click(function() {
+        const state = handlePauseToggle();
+        const holdBtn = document.getElementById('holdSpectrum');
+        setButtonState(holdBtn, state);
+    });
+    $('#maxHoldBut').click(function() {
+        const state = spectrum.toggleMaxHold();
+        const peakBtn = document.getElementById('peakSpectrum');
+        setButtonState(peakBtn, state);
+    });
     $('#avgUpBut').click(function() {spectrum.incrementAveraging();});
     $('#avgDwnBut').click(function() {spectrum.decrementAveraging();});
     $('#avgOffBut').click(function() {spectrum.setAveraging(0);});
@@ -1557,13 +1570,12 @@ function Main() {
     $('#refUpBut').click(function() {spectrum.refUp();});
     $('#rangeDwnBut').click(function() {spectrum.rangeDecrease();});
     $('#rangeUpBut').click(function() {spectrum.rangeIncrease();});
-    $('#autoRangeBut').click(function() {spectrum.autoRange();});
-    $('#scaleSpectrum').click(function() {spectrum.autoRange();});
-    $('#holdSpectrum').click(function() {handlePauseToggle();});
-    $('#stopSource').click(function() {handleStopToggle();});
-    $('#peakSpectrum').click(function() {spectrum.toggleMaxHold();});
-    $('#spectrumInfo').click(function() {spectrum.toggleSpectrumInfo();});
-
+    $('#autoRangeBut').click(function() {
+        spectrum.autoRange();
+        const btn = document.getElementById('scaleSpectrum');
+        btn.classList.add('active');
+        setTimeout(() => btn.classList.remove('active'), 350);
+    });
     $('#zoomInBut').click(function() {spectrum.zoomIn();});
     $('#zoomOutBut').click(function() {spectrum.zoomOut();});
     $('#unZoomBut').click(function() {spectrum.resetZoom();});
@@ -1581,6 +1593,37 @@ function Main() {
     $('#peakTrackBut').click(function() {spectrum.toggleTrackPeak();});
 
     $('#snapTriggerBut').click(function() {handleSnapTrigger();});
+
+    // vertical buttons between spectrum and controls
+    $('#scaleSpectrum').click(function() {
+        spectrum.autoRange();
+        this.classList.add('active');
+        setTimeout(() => this.classList.remove('active'), 350);
+        });
+    $('#holdSpectrum').click(function() {
+        const state = handlePauseToggle();
+        setButtonState(this, state);
+        const btn = document.getElementById('pauseBut');
+        btn.classList.toggle('active', state);
+        btn.setAttribute('aria-pressed', state);
+    });
+    $('#stopSource').click(function() {
+        const state = handleStopToggle();
+        setButtonState(this, state);
+        const btn = document.getElementById('stopBut');
+        btn.classList.toggle('active', state);
+        btn.setAttribute('aria-pressed', state);
+    });
+    $('#peakSpectrum').click(function() {
+        const state = spectrum.toggleMaxHold();
+        setButtonState(this, state);
+        const btn = document.getElementById('maxHoldBut');
+        btn.classList.toggle('active', state);
+        btn.setAttribute('aria-pressed', state);
+    });
+    $('#spectrumInfo').click(function() {
+        const state = spectrum.toggleSpectrumInfo();
+        setButtonState(this, state);});
 
     let offset = sessionStorage.getItem("FrequencyOffsetHz");
     if (offset != null) {

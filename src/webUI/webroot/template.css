@@ -219,6 +219,15 @@ input[type=number] {
     writing-mode: vertical-rl;
     text-orientation: upright;
 }
+.vertical-btn.active {
+    background-color: #28a745 !important;
+    border-color: #28a745;
+    color: white;
+}
+.vertical-btn.inactive {
+    background-color: #6c757d; /* default bootstrap grey */
+}
+
 
 /* Input number suffix support */
 .input-with-unit {

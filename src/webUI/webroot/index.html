@@ -39,10 +39,10 @@
             <div style="display: flex; flex-direction: column; gap: 4px;">
                 <button id="togglePanel" class="btn btn-sm btn-secondary vertical-btn" title="Show/Hide the controls"><span id="toggleIcon">HIDE</span></button>
                 <button id="scaleSpectrum" class="btn btn-sm btn-secondary vertical-btn" title="One shot autoscale db range"><span id="Scale">AUTO</span></button>
-                <button id="stopSource" class="btn btn-sm btn-secondary vertical-btn" title="Stop reading the source device"><span id="Stop">STOP</span></button>
-                <button id="holdSpectrum" class="btn btn-sm btn-secondary vertical-btn" title="Toggle hold on the spectrum and spectrogram"><span id="Hold">HOLD</span></button>
-                <button id="peakSpectrum" class="btn btn-sm btn-secondary vertical-btn" title="Toggle peak detect on spectrum"><span id="Peak">PEAK</span></button>
-                <button id="spectrumInfo" class="btn btn-sm btn-secondary vertical-btn" title="Toggle display of information on spectrum"><span id="Info">INFO</span></button>
+                <button id="stopSource" class="btn btn-sm btn-secondary vertical-btn toggle-btn" data-state="off" title="Stop reading the source device"><span id="Stop">STOP</span></button>
+                <button id="holdSpectrum" class="btn btn-sm btn-secondary vertical-btn toggle-btn" data-state="off" title="Toggle hold on the spectrum and spectrogram"><span id="Hold">HOLD</span></button>
+                <button id="peakSpectrum" class="btn btn-sm btn-secondary vertical-btn toggle-btn" data-state="off" title="Toggle peak detect on spectrum"><span id="Peak">PEAK</span></button>
+                <button id="spectrumInfo" class="btn btn-sm btn-secondary vertical-btn toggle-btn active" data-state="on" title="Toggle display of information on spectrum"><span id="Info">INFO</span></button>
             </div>
             <div id="metaData" class="rightPanel">
                 <div id="metaZoom">
@@ -380,7 +380,7 @@
                             <div id="buttons">
                                 <h4>Stream</h4>
                                 <div>
-                                    <button type="button" id="stopBut" title="stop front end sending data" data-toggle="button"
+                                    <button type="button" id="stopBut" title="stop front end sending data"
                                             class="specbuttons btn btn-outline-dark mx-1 my-1">Stop
                                     </button>
                                 </div>
@@ -413,9 +413,9 @@
                                 </div>
                                 <div>
                                     <button type="button" id="pauseBut" title="pause and allow scroll throuh previous spectrums"
-                                            data-toggle="button" class="specbuttons btn btn-outline-dark mx-1 my-1">Hold
+                                            class="specbuttons btn btn-outline-dark mx-1 my-1">Hold
                                     </button>
-                                    <button type="button" id="maxHoldBut" data-toggle="button" title="record max dB level"
+                                    <button type="button" id="maxHoldBut" title="record max dB level"
                                             class="specbuttons btn btn-outline-dark mx-1 my-1">Peak
                                     </button>
                                     <button type="button" id="avgDwnBut" title="decrease the number of averages"
