@@ -1536,6 +1536,8 @@ function Main() {
 
     $('#stopBut').click(function() {
         const state = handleStopToggle();
+        this.classList.toggle('active', state);
+        this.setAttribute('aria-pressed', state);
         const stopBtn = document.getElementById('stopSource');
         setButtonState(stopBtn, state);
     });
@@ -1547,11 +1549,15 @@ function Main() {
 
     $('#pauseBut').click(function() {
         const state = handlePauseToggle();
+        this.classList.toggle('active', state);
+        this.setAttribute('aria-pressed', state);
         const holdBtn = document.getElementById('holdSpectrum');
         setButtonState(holdBtn, state);
     });
     $('#maxHoldBut').click(function() {
         const state = spectrum.toggleMaxHold();
+        this.classList.toggle('active', state);
+        this.setAttribute('aria-pressed', state);
         const peakBtn = document.getElementById('peakSpectrum');
         setButtonState(peakBtn, state);
     });
