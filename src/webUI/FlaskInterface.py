@@ -6,10 +6,11 @@ import pathlib
 import signal
 import time
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_restful import Resource, Api as Rest_Api
 
 from misc import global_vars
+from misc.global_vars import SNAPSHOT_DIRECTORY, THUMBNAILS_DIRECTORY
 
 # root is directory relative to our source file
 web_root = f"{os.path.dirname(__file__)}/webroot/"
@@ -55,7 +56,8 @@ class FlaskInterface(multiprocessing.Process):
                            'spectrum': Spectrum,
                            'control': Control,
                            'snapshot': Snapshot,
-                           'tuning': Tuning}
+                           'tuning': Tuning,
+                           'status': Status}
 
     def shutdown(self):
         logger.debug("FlaskServer Shutting down")
@@ -86,9 +88,19 @@ class FlaskInterface(multiprocessing.Process):
                           static_url_path='/',
                           static_folder='webroot')
 
+        @flask_app.route('/snapshots/<path:filename>')
+        def snapshots(filename):
+            return send_from_directory(SNAPSHOT_DIRECTORY, filename)
+
+        @flask_app.route('/thumbnails/<path:filename>')
+        def thumbnails(filename):
+            return send_from_directory(THUMBNAILS_DIRECTORY, filename)
+
         # remove all logging from the flask server, removes prints of urls to console
+        # enable this if you need to see what is being served
         logw = logging.getLogger('werkzeug')
         logw.disabled = True
+
         # don't disable the next one as it stops our logging as well
         # flask_app.logger.disabled = True
 
@@ -233,10 +245,11 @@ class Digitiser(Resource):
                                        'digitiserGainType', 'digitiserGain',
                                        'digitiserDcRemoval', 'digitiserDcRemovals',
                                        'digitiserDbmOffset', 'digitiserInputLevel',
-                                       'streamLength', 'streamCurrent']
+                                       'streamLength', 'streamCurrent',
+                                       'readMagnitudes']
         self._allowed_put_endpoints = ['digitiserFormat', 'digitiserSampleRate', 'digitiserBandwidth',
                                        'digitiserPartsPerMillion', 'digitiserGainType', 'digitiserGain',
-                                       'digitiserDcRemoval', 'digitiserDbmOffset']
+                                       'digitiserDcRemoval', 'digitiserDbmOffset', 'readMagnitudes']
 
     def api(self):
         points = {}
@@ -320,6 +333,12 @@ class Digitiser(Resource):
                             "type": thing,
                             "set": gn,
                     })
+                elif thing == 'readMagnitudes':
+                    gt = request.json[thing]
+                    self._updateQ.put({
+                            "type": thing,
+                            "set": gt,
+                    })
                 return "ok"
             except Exception:
                 return "Failed to parse {thing} endpoint", 400
@@ -333,7 +352,7 @@ class Spectrum(Resource):
         self._status = kwargs['status']
         self._updateQ = kwargs['updateQ']
         self._allowed_get_endpoints = ['fftSizes', 'fftSize', 'psd', 'fftOverlap', 'fftOverlaps',
-                                       'fftFrameTime', 'fftWindows', 'fftWindow']
+                                       'fftFrameTime', 'fftWindows', 'fftWindow', 'fftRbw']
         self._allowed_put_endpoints = ['fftSize', 'fftOverlap', 'psd', 'fftWindow']
 
     def api(self):
@@ -593,6 +612,68 @@ class Tuning(Resource):
                         "set": f,
                         "conversion": c,
                     })
+                return "ok"
+            except Exception:
+                return f"Failed to parse {thing} command", 400
+        return f"Endpoint {thing} not supported", 403
+
+
+class Status(Resource):
+    # Handle all web requests on the /status endpoint
+
+    def __init__(self, **kwargs):
+        # set the dictionary we use for updating things
+        self._status = kwargs['status']
+        self._updateQ = kwargs['updateQ']
+        self._allowed_get_endpoints = ['fastStatus', 'currentStatus']
+        self._allowed_put_endpoints = []
+
+    def api(self):
+        points = {}
+        for ep in self._allowed_get_endpoints:
+            try:
+                points[ep] = self._status[ep]
+            except Exception:
+                points[ep] = "tbd"  # not present in status yet
+        return points
+
+    def get(self, thing):
+        if thing == "api":
+            return jsonify({"fastStatus": self.api()})
+
+        if thing in self._allowed_get_endpoints:
+            try:
+                if thing == 'fastStatus':
+                    stats = ['delay', 'loopCpuPc', 'maxCpuCorePc', 'overflows', 'fps', 'oneInN',
+                            'digitiserInputLevel', 'digitiserGain', 'streamLength', 'streamCurrent',
+                            'snapSize', 'snapTriggerState',
+                            ]
+                    status = {}
+                    for stat in stats:
+                       status[stat] = self._status[stat]
+                    return jsonify(status)
+
+                elif thing == 'currentStatus':
+                    stats = ['source',
+                             'frequency',
+                             'digitiserFrequency', 'digitiserFormat', 'digitiserSampleRate',
+                             'digitiserBandwidth', 'digitiserPartsPerMillion', 'digitiserDcRemoval',
+                             'digitiserInputLevel', 'digitiserDbmOffset', 'digitiserGainType',
+                             'fftSize', 'fftOverlap', 'psd', 'fftFrameTime', 'fftWindow', 'fftRbw',
+                             'snapTriggerSource', 'snapName', 'snapFormat',
+                             'snapPreTrigger', 'snapPostTrigger', 'readMagnitudes'
+                            ]
+                    status = {}
+                    for stat in stats:
+                       status[stat] = self._status[stat]
+                    return jsonify(status)
+            except Exception:
+                logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
+        return f"Endpoint {thing} not supported", 403
+
+    def put(self, thing):
+        if thing in self._allowed_put_endpoints:
+            try:
                 return "ok"
             except Exception:
                 return f"Failed to parse {thing} command", 400

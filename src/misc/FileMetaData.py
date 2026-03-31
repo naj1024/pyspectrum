@@ -244,13 +244,13 @@ class FileMetaData:
                     # logger.warning(msgs)
 
             except OSError as e:
-                msgs = f"Failed to open file {self._filename}, {e}"
+                msgs = f"Failed to open file, {e}"
                 logger.error(msgs)
                 raise ValueError(msgs)
 
         except OSError as e:
             # catches things like file not found
-            msgs = f"Failed to open file {self._filename}, {e}"
+            msgs = f"Failed to open file, {e}"
             logger.error(msgs)
             raise ValueError(msgs)
 

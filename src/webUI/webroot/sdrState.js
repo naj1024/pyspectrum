@@ -46,6 +46,9 @@ sdrState.prototype.setFftWindow = function(window) {
 sdrState.prototype.setFftWindows = function(windows) {
     this.windows = windows;
 }
+sdrState.prototype.setReadMagnitudes = function(magnitudes) {
+    this.readMagnitudes = magnitudes;
+}
 sdrState.prototype.setInputSource = function(source) {
     this.source = source;
 }
@@ -125,6 +128,15 @@ sdrState.prototype.getFftOverlap = function() {
 sdrState.prototype.getPsd = function() {
     return this.psd;
 }
+sdrState.prototype.getFftRbw = function() {
+    return this.fftRbw;
+}
+sdrState.prototype.getFftBin = function() {
+    return this.fftBin;
+}
+sdrState.prototype.getReadMagnitudes = function() {
+    return this.readMagnitudes;
+}
 sdrState.prototype.getFftFrameTime = function() {
     return this.fftFrameTime;
 }
@@ -191,6 +203,9 @@ sdrState.prototype.getUiDelay = function() {
 sdrState.prototype.getLoopCpuPc = function() {
     return this.loopCpuPc;
 }
+sdrState.prototype.getMaxCpuCorePc = function() {
+    return this.maxCpuCorePc;
+}
 sdrState.prototype.getOverflows = function() {
     return this.overflows;
 }
@@ -227,6 +242,9 @@ sdrState.prototype.setUiDelay = function(delay) {
 }
 sdrState.prototype.setLoopCpuPc = function(loopCpuPc) {
     this.loopCpuPc = loopCpuPc;
+}
+sdrState.prototype.setMaxCpuCorePc = function(maxCpuCorePc) {
+    this.maxCpuCorePc = maxCpuCorePc;
 }
 sdrState.prototype.setOverflows = function(overflows) {
     this.overflows = overflows;
@@ -279,6 +297,12 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         this.fftSize = jsonConfig.fftSize;
     }
 
+    if (jsonConfig.fftRbw != undefined) {
+        this.fftRbw = jsonConfig.fftRbw;
+        this.fftBin = this.sps / this.fftSize;
+        spectrum.setFftRbw(this.fftRbw);
+    }
+
     if (jsonConfig.fftOverlaps != undefined) {
         this.fftOverlaps = jsonConfig.fftOverlaps;
     }
@@ -288,11 +312,11 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
     }
 
     if (jsonConfig.psd != undefined) {
-        if (jsonConfig.psd == false) {
-            this.psd = "Off";
+        if (jsonConfig.psd == "On") {
+            this.psd = "On";
         }
         else{
-            this.psd = "On";
+            this.psd = "Off";
         }
     }
 
@@ -304,14 +328,18 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         this.windows = jsonConfig.fftWindows;
     }
 
+    if(jsonConfig.readMagnitudes != undefined) {
+        this.readMagnitudes = jsonConfig.readMagnitudes;
+    }
+
     if (jsonConfig.sources != undefined) {
         // todo: keep the source and help paired up
         let sourceArray = Object.entries(jsonConfig.sources);
         let sources = [];
-        let sourceHelps = [];
+        let sourceHelps = {};  /* map/dict */
         for (var src = 0; src < sourceArray.length; src++) {
             sources.push(sourceArray[src][0]);
-            sourceHelps.push(sourceArray[src][1]);
+            sourceHelps[sourceArray[src][0]] = sourceArray[src][1];
         }
         this.sources = sources;
         this.sourceHelps = sourceHelps;
@@ -386,6 +414,9 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
     if (jsonConfig.loopCpuPc != undefined) {
         this.loopCpuPc = parseFloat(jsonConfig.loopCpuPc);
     }
+    if (jsonConfig.maxCpuCorePc != undefined) {
+        this.maxCpuCorePc = parseFloat(jsonConfig.maxCpuCorePc);
+    }
     if (jsonConfig.overflows != undefined) {
         this.overflows = parseInt(jsonConfig.overflows);
     }
@@ -398,7 +429,7 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
     
     if (jsonConfig.fps != undefined) {
         this.fps = parseInt(jsonConfig.fps.set);
-        this.measuredFps = parseFloat(jsonConfig.fps.measired);
+        this.measuredFps = parseFloat(jsonConfig.fps.measured);
     }
 }
 
@@ -409,6 +440,7 @@ function sdrState() {
     this.fps = 0;
     this.uiDelay = 0;
     this.loopCpuPc = 0;
+    this.maxCpuCorePc = 0;
     this.overflows = 0;
 
     // non visible things
@@ -437,6 +469,10 @@ function sdrState() {
     this.fftFrameTime = 0;
     this.window = "";
     this.windows = [];
+    this.fftRbw = 0;
+    this.fftBin = 0;
+
+    this.readMagnitudes = false;
 
     this.source = "";
     this.sourceParams = "";

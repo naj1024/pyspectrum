@@ -105,6 +105,8 @@ class Input(DataSource.DataSource):
         if not parameters or parameters == "":
             parameters = "0"  # default
 
+        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
+
         # add this classes own variables before calling super() in case we get called back and don't have them
         self._sdr = None
         self._tuner_type = 0
@@ -114,7 +116,6 @@ class Input(DataSource.DataSource):
         self._min_frequency_gap = None
         self._max_frequency_gap = None
 
-        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
         self._name = module_type
         self._connected = False
         

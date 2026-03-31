@@ -102,6 +102,7 @@ class DataSource:
         self._error = ""
 
         self._rx_time = 0
+        self._last_time = time.time_ns()  # used in simulating elapsed samples time
 
         self._min_frequency = None
         self._max_frequency = None
@@ -366,3 +367,20 @@ class DataSource:
         #   iq -= (1 + 1j)
 
         return complex_data
+
+    def read_cplx_samples(self, number_samples: int) -> Tuple[np.array, float]:
+        raise NotImplementedError("Derived class has to provide read_cplx_samples()")
+
+    def read_magnitude_samples(self, number_samples: int) -> Tuple[np.array, float]:
+        # used for reading say fft spectrum magnitudes instead of complex samples
+        raise NotImplementedError("Derived class has to provide read_magnitude_samples()")
+
+    def simulate_sample_wait_time(self, number_samples: int) -> float:
+        elapsed = (time.time_ns() - self._last_time)
+        if elapsed > 0:
+            expected_time = 1e9 * number_samples / self._sample_rate_sps
+            wait = (expected_time - elapsed) / 1e9
+            if wait > 0.0:
+                time.sleep(wait)
+        self._last_time = time.time_ns()
+        return self._last_time

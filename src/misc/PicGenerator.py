@@ -71,6 +71,9 @@ class PicGenerator(multiprocessing.Process):
                 try:
                     # get all the non-hidden and non png and meta files in snapshot dir
                     for path in pathlib.Path(self._snap_dir).iterdir():
+                        if not path.is_file():
+                            continue
+
                         filename = os.path.basename(path)
                         if not filename.startswith("."):
                             ignore_extensions = ['png', 'sigmf-meta']

@@ -27,7 +27,8 @@ import queue
 import signal
 import sys
 import time
-from typing import Tuple
+import psutil
+from typing import Tuple, Any
 
 import numpy as np
 
@@ -35,7 +36,7 @@ from dataProcessing import ProcessSamples
 from dataSink import DataSink_file
 from dataSources import DataSource
 from dataSources import DataSourceFactory
-from dataSources.SampleFetch import create_sample_fetch
+from dataSources.SampleFetch import create_sample_fetch, BlockSampleFetch, OverlapSampleFetch
 from misc import TimesAndAverages
 from misc import PicGenerator
 from misc import PluginManager
@@ -45,6 +46,7 @@ from misc import commandLine
 from misc import global_vars
 from misc import sdrStuff
 from misc import snapStuff
+from misc.global_vars import THUMBNAILS_DIRECTORY
 from webUI import FlaskInterface
 from webUI import WebSocketServer
 
@@ -101,7 +103,7 @@ def main() -> None:
     # Some info on the amount of time to get samples
     expected_samples_receive_time = sdr_config.fft_size / sdr_config.sample_rate
     logger.info(f"SPS: {sdr_config.sample_rate / 1e6:0.3}MHzs "
-                f"RBW: {(sdr_config.sample_rate / (sdr_config.fft_size * 1e3)):0.1f}kHz")
+                f"RBW: {(sdr_config.sample_rate * processor.get_rbw_per_sps()):0.1f}Hz")
     logger.info(f"Samples {sdr_config.fft_size}: {(1000000 * expected_samples_receive_time):.0f}usec")
     logger.info(f"Required FFT per second: {sdr_config.sample_rate / sdr_config.fft_size:.0f}")
 
@@ -120,7 +122,9 @@ def main() -> None:
     samples = None
     config_changed = None
     hop = None
-    fetcher = create_sample_fetch(data_source, sdr_config)
+
+    # do we need to get samples or magnitudes
+    fetcher = set_sample_fetcher(data_source, sdr_config)  # fetcher is set if samples required
 
     # keep processing until told to stop or an error occurs
     while processing:
@@ -143,7 +147,7 @@ def main() -> None:
                                                                                                  shared_status,
                                                                                                  update_queue)
             if config_changed:
-                fetcher = create_sample_fetch(data_source, sdr_config)
+                fetcher = set_sample_fetcher(data_source, sdr_config)
         time_end = time.perf_counter()
         times_and_averages.sync_from_ui.average(time_end - time_start)
 
@@ -155,7 +159,12 @@ def main() -> None:
             time.sleep(sdr_config.fft_size / sdr_config.sample_rate)
         else:
             try:
-                samples, time_rx_nsec, hop = fetcher.get_next_block()
+                # do we get complex samples or magnitudes from the source
+                if fetcher is None:
+                    samples, time_rx_nsec = data_source.read_magnitude_samples(sdr_config.fft_size)
+                else:
+                    samples, time_rx_nsec, hop = fetcher.get_next_block()
+
                 sdr_config.input_overflows = data_source.get_overflows()
 
             except ValueError as mm:
@@ -169,60 +178,23 @@ def main() -> None:
                     sdr_config.input_source = "null"
                     sdr_config.input_params = ""
                     data_source = sdrStuff.update_source(sdr_config, source_factory)
-                    fetcher = create_sample_fetch(data_source, sdr_config)
+                    fetcher = set_sample_fetcher(data_source, sdr_config)
                     fill_shared_status_to_ui(shared_status, sdr_config, snap_config)
                     samples = None
         time_end = time.perf_counter()
         times_and_averages.capture_time.average(time_end - time_start)
 
         ###########################################
-        # Get and process the complex samples we will work on
+        # Get and process the complex/magnitude samples we will work on
         ######################
         if samples is not None:
-            ##########################
-            # save the samples for snapshots
-            ##########################
-            time_start = time.perf_counter()
-            patched_rx_time_nsec = time_rx_nsec + int((hop * 1e9) / sdr_config.sample_rate)
-            snap_finished = save_samples(data_sink, samples[-hop:], snap_config, patched_rx_time_nsec, times_and_averages)
-            snap_config.currentSizeMbytes = data_sink.get_current_size_mbytes()
-            snap_config.expectedSizeMbytes = data_sink.get_size_mbytes()
-            time_end = time.perf_counter()
-            times_and_averages.save_samples.average(time_end - time_start)
-
-            ##########################
-            # dc input offset calculation
-            ##########################
-            time_start = time.perf_counter()
-            if sdr_config.dc_removal != "Off":
-                # remove the average value to reduce the dc component
-                # weighted towards newest average quickly with previous error less significant than current
-                sdr_config.dc_error = sdr_config.dc_error * 0.3 \
-                                      + np.average(samples) * 0.7
-                # check we can write to the array
-                if samples.flags.writeable:
-                    samples -= sdr_config.dc_error
-                else:
-                    # copy it
-                    samples = samples - sdr_config.dc_error
-            time_end = time.perf_counter()
-            times_and_averages.dc_offset.average(time_end - time_start)
-
-            ##########################
-            # Calculate the spectrum
-            #################
-            time_start = time.perf_counter()
-            processor.process(samples, sdr_config.sample_rate, sdr_config.psd, sdr_config.dbm_offset)
-            time_end = time.perf_counter()
-            times_and_averages.process_time.average(time_end - time_start)
-
-            ##########################
-            # plugins
-            #################
-            time_start = time.perf_counter()
-            call_plugins(plugin_manager, processor, sdr_config, times_and_averages, time_rx_nsec)
-            time_end = time.perf_counter()
-            times_and_averages.plugins.average(time_end - time_start)
+            # samples will be dtype=np.complex64
+            if fetcher is None:
+                # samples are magnitudes_squared values
+                processor.set_powers(samples, sdr_config.sample_rate, sdr_config.psd, sdr_config.dbm_offset)
+            else:
+                samples, snap_finished = handle_samples(data_sink, hop, plugin_manager, processor, samples, sdr_config,
+                                                        snap_config, time_rx_nsec, times_and_averages)
 
             ##########################
             # the snap may of changed
@@ -307,6 +279,71 @@ def main() -> None:
     logger.error("SpectrumAnalyser exit")
 
 
+def handle_samples(data_sink: DataSink_file, hop: Any | None, plugin_manager: PluginManager, processor: ProcessSamples,
+                   samples: complex | Any, sdr_config: Sdr, snap_config: Snapper, time_rx_nsec: int | float | Any,
+                   times_and_averages: TimesAndAverages) -> tuple[complex | Any, bool]:
+    ##########################
+    # save the samples for snapshots
+    ##########################
+    time_start = time.perf_counter()
+    patched_rx_time_nsec = time_rx_nsec + int((hop * 1e9) / sdr_config.sample_rate)
+    snap_finished = save_samples(data_sink, samples[-hop:], snap_config, patched_rx_time_nsec, times_and_averages)
+    snap_config.currentSizeMbytes = data_sink.get_current_size_mbytes()
+    snap_config.expectedSizeMbytes = data_sink.get_size_mbytes()
+    time_end = time.perf_counter()
+    times_and_averages.save_samples.average(time_end - time_start)
+
+    ##########################
+    # dc input offset calculation
+    ##########################
+    time_start = time.perf_counter()
+    if sdr_config.dc_removal != "Off":
+        # remove the average value to reduce the dc component
+        # weighted towards newest average quickly with previous error less significant than current
+        sdr_config.dc_error = sdr_config.dc_error * 0.3 \
+                              + np.average(samples) * 0.7
+        # check we can write to the array
+        if samples.flags.writeable:
+            samples -= sdr_config.dc_error
+        else:
+            # copy it
+            samples = samples - sdr_config.dc_error
+    time_end = time.perf_counter()
+    times_and_averages.dc_offset.average(time_end - time_start)
+
+    ##########################
+    # Calculate the spectrum
+    #################
+    time_start = time.perf_counter()
+    processor.process(samples, sdr_config.sample_rate, sdr_config.psd, sdr_config.dbm_offset)
+    time_end = time.perf_counter()
+    times_and_averages.process_time.average(time_end - time_start)
+
+    ##########################
+    # plugins
+    #################
+    time_start = time.perf_counter()
+    call_plugins(plugin_manager, processor, sdr_config, times_and_averages, time_rx_nsec)
+    time_end = time.perf_counter()
+    times_and_averages.plugins.average(time_end - time_start)
+    return samples, snap_finished
+
+
+def set_sample_fetcher(data_source: DataSource, sdr_config: Sdr) -> BlockSampleFetch | OverlapSampleFetch:
+    fetcher = None
+    if sdr_config.read_magnitudes:
+        try:
+            # set fft and window on source, source may not have this method
+            data_source.change_spectrum(sdr_config.fft_size, sdr_config.window)
+        except (NotImplementedError, AttributeError):
+            logger.error(f"{data_source.get_name()} does not support magnitude samples")
+            sdr_config.read_magnitudes = False
+            fetcher = create_sample_fetch(data_source, sdr_config)
+    else:
+        fetcher = create_sample_fetch(data_source, sdr_config)
+    return fetcher
+
+
 def check_on_snap_config(data_sink: DataSink_file.FileOutput, sdr_config: Sdr.Sdr, snap_config: Snapper.Snapper):
     # has underlying sps or cf changed for the snap
     changed = False
@@ -331,6 +368,9 @@ def update_source_stats(data_source: DataSource.DataSource, now: float, samples:
         times_and_averages.config_time = now + 1
         data_time = (sdr_config.fft_size / sdr_config.sample_rate)
         sdr_config.loop_cpu_pc = 100.0 * (times_and_averages.loop_time.get_ewma() / data_time)
+
+        # cpu load
+        sdr_config.max_cpu_core_pc = max(psutil.cpu_percent(percpu=True))
 
         # update the input level
         if samples is not None:
@@ -410,7 +450,7 @@ def setup() -> Tuple[Sdr.Sdr, Snapper.Snapper, pathlib.PurePath]:
 
     :return:
     """
-    setup_logging("SpectrumAnalyser.log")
+    setup_logging("pyspectrum.log")
 
     # sdr configuration
     configuration = Sdr.Sdr()
@@ -428,6 +468,7 @@ def setup() -> Tuple[Sdr.Sdr, Snapper.Snapper, pathlib.PurePath]:
     configuration.window_types = ProcessSamples.get_windows()
     configuration.window = configuration.window_types[0]
 
+    # processing
     snap_configuration = setup_snap_config()
     thumbs_dir = set_thumbs_dir()
 
@@ -468,22 +509,28 @@ def setup_snap_config() -> Snapper.Snapper:
             pass
         except Exception as msg:
             raise ValueError(f"Failed to create snapshot directory, {msg}")
+    if not os.path.isdir(global_vars.THUMBNAILS_DIRECTORY):
+        try:
+            os.makedirs(global_vars.THUMBNAILS_DIRECTORY)
+        except FileExistsError:
+            pass
+        except Exception as msg:
+            raise ValueError(f"Failed to create thumbnails directory, {msg}")
+
     snap_configuration.directory_list = snapStuff.list_snap_files(global_vars.SNAPSHOT_DIRECTORY)
     return snap_configuration
 
 
 def set_thumbs_dir() -> pathlib.PurePath:
     # web thumbnail directory
-    where = f"{os.path.dirname(__file__)}"
-    thumbs_dir = pathlib.PurePath(f"{where}/webUI/webroot/thumbnails")
-    if not os.path.isdir(thumbs_dir):
+    if not os.path.isdir(THUMBNAILS_DIRECTORY):
         try:
-            os.makedirs(thumbs_dir)
+            os.makedirs(THUMBNAILS_DIRECTORY)
         except FileExistsError:
             pass
         except Exception as msg:
-            raise ValueError(f"Failed to create web thumbnails directory, {msg}")
-    return thumbs_dir
+            raise ValueError(f"Failed to create web thumbnails '{THUMBNAILS_DIRECTORY}' directory, {msg}")
+    return THUMBNAILS_DIRECTORY
 
 
 def initialise(sdr_config: Sdr.Sdr, snap_config: Snapper.Snapper,
@@ -545,6 +592,7 @@ def initialise(sdr_config: Sdr.Sdr, snap_config: Snapper.Snapper,
 
         # The main processor for producing ffts etc
         processor = ProcessSamples.ProcessSamples(sdr_config)
+        sdr_config.fft_rbw = processor.get_rbw_per_sps() * sdr_config.sample_rate
 
         # thumbnail and pic generator process
         pic_generator = PicGenerator.PicGenerator(global_vars.SNAPSHOT_DIRECTORY, thumbs_dir, logger.level)
@@ -571,11 +619,14 @@ def fill_status_fast_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_config
     shared_status['stop'] = sdr_config.stop
     shared_status['delay'] = sdr_config.ui_delay
     shared_status['loopCpuPc'] = sdr_config.loop_cpu_pc
+    shared_status['maxCpuCorePc'] = sdr_config.max_cpu_core_pc
     shared_status['overflows'] = sdr_config.input_overflows
     shared_status['oneInN'] = sdr_config.one_in_n
 
     # snapshot stuff
     shared_status['snapTriggerState'] = snap_config.triggerState
+    shared_status['snapSize'] = ({'current': snap_config.currentSizeMbytes,
+                                  'limit': snap_config.expectedSizeMbytes})
 
 
 def fill_shared_status_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_config: Snapper.Snapper) -> None:
@@ -615,9 +666,10 @@ def fill_shared_status_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_conf
     shared_status['fftSize'] = sdr_config.fft_size
     shared_status['fftOverlaps'] = sdr_config.fft_overlaps
     shared_status['fftOverlap'] = sdr_config.fft_overlap
-    shared_status['psd'] = sdr_config.psd
+    shared_status['psd'] = "On" if sdr_config.psd else "Off"
     sdr_config.fft_frame_time = 1e6 * (sdr_config.fft_size / sdr_config.sample_rate)
     shared_status['fftFrameTime'] = sdr_config.fft_frame_time
+    shared_status['fftRbw'] = sdr_config.fft_rbw
     # spectrogram does not work with 32768 points
     # 256 points never keeps up due to overheads
     shared_status['fftSizes'] = [512, 1024, 2048, 4096, 8192, 16384]
@@ -635,6 +687,8 @@ def fill_shared_status_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_conf
     shared_status['overflows'] = sdr_config.input_overflows
     shared_status['ackTime'] = sdr_config.ackTime
     shared_status['oneInN'] = sdr_config.one_in_n
+
+    shared_status['readMagnitudes'] = "magnitudes" if sdr_config.read_magnitudes else "samples"
 
     # snapshot stuff
     shared_status['snapTrigger'] = snap_config.triggered
@@ -721,6 +775,12 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                     config_changed = True
                     snap_changed = True
 
+            if message_name == 'readMagnitudes':
+                mags = True if message_value == "magnitudes" else False
+                if mags != sdr_config.read_magnitudes:
+                    sdr_config.read_magnitudes = mags
+                    config_changed = True
+
             if message_name == 'fps':
                 if message_value != sdr_config.fps:
                     sdr_config.fps = message_value
@@ -800,13 +860,16 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                 if message_value != sdr_config.window:
                     processor.set_window(message_value)
                     sdr_config.window = processor.get_window()
+                    sdr_config.fft_rbw = processor.get_rbw_per_sps() * sdr_config.sample_rate
                     config_changed = True
 
             if message_name == 'fftSize':
                 if message_value != sdr_config.fft_size:
                     sdr_config.fft_size = message_value
+                    processor.set_fft_size(sdr_config.fft_size)
                     fudge = (100 - sdr_config.fft_overlap) / 100
                     sdr_config.one_in_n = int(sdr_config.sample_rate / (fudge * sdr_config.fps * sdr_config.fft_size))
+                    sdr_config.fft_rbw = processor.get_rbw_per_sps() * sdr_config.sample_rate
                     config_changed = True
 
             if message_name == 'fftOverlap':
@@ -817,8 +880,9 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                     config_changed = True
 
             if message_name == 'psd':
-                if message_value != sdr_config.psd:
-                    sdr_config.psd = message_value
+                psd = True if message_value == "On" else False
+                if psd != sdr_config.psd:
+                    sdr_config.psd = psd
                     config_changed = True
 
             if message_name == 'digitiserGain':
@@ -835,11 +899,6 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                     data_source.set_gain_mode(sdr_config.gain_mode)
                     Sdr.add_to_error(sdr_config, data_source.get_and_reset_error())
                     sdr_config.gain_mode = data_source.get_gain_mode()
-                    config_changed = True
-
-            if message_name == 'digitiserFormat':
-                if message_value != sdr_config.sample_type:
-                    sdr_config.sample_type = message_value
                     config_changed = True
 
             if message_name == 'snapDelete':
@@ -924,7 +983,6 @@ def send_spectrums_to_ui(sdr_config: Sdr.Sdr,
     :param time_spectrum: Time of this spectrum in nanoseconds
     :return: array of updated peak powers
     """
-
     peak_detect = False
     if sdr_config.stop:
         # drop things on the floor if we are told to stop

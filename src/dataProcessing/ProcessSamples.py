@@ -1,12 +1,11 @@
 import logging
-from typing import List
+from typing import List, Any
 
 import numpy as np
+from numpy import dtype, ndarray
 
 from dataProcessing import Spectrum
 from misc import Sdr
-
-# import line_profiler
 
 logger = logging.getLogger('spectrum_logger')
 
@@ -54,12 +53,17 @@ class ProcessSamples:
         :return: None
         """
         magnitudes_squared = self._spec.mag_spectrum(samples, False)
-        self._powers = Spectrum.get_powers(magnitudes_squared, sps, psd, dbm_offset)
+        self.set_powers(magnitudes_squared, sps, psd, dbm_offset)
 
+    def set_powers(self, magnitudes_squared: ndarray[tuple[Any, ...], dtype[Any]],
+                   sps: float, psd: bool, dbm_offset: float):
+        # we can also arrive here when our data source produces fft magnitudes not samples
+        powers = magnitudes_squared
+        self._powers = self._spec.get_powers(magnitudes_squared, sps, psd, dbm_offset)
         # check that the size of the arrays have not changed, i.e. FFT size changed
-        if samples.size != self._long_average.size:
-            self._long_average = np.zeros(samples.size)
-            self._powers = np.zeros(samples.size)
+        if powers.size != self._long_average.size:
+            self._long_average = np.zeros(powers.size)
+            self._powers = np.zeros(powers.size)
 
         # Update a noise riding average
         # long term average on each bin to give a per bin noise floor
@@ -96,3 +100,9 @@ class ProcessSamples:
 
     def get_fft_used(self) -> str:
         return self._spec.get_fft_used()
+
+    def get_rbw_per_sps(self) -> float:
+        return self._spec.get_rbw(1)
+
+    def set_fft_size(self, fft_size: int):
+        self._spec.set_fft_size(fft_size)

@@ -66,7 +66,7 @@ hr {
 
 /* snapshot file table, max height and scroll */
 .fileListTable {
-    height:300px;
+    height:500px;
     overflow-y:auto;
 }
 
@@ -82,16 +82,56 @@ input[type=number] {
   -moz-appearance: textfield;
 }
 
+/* small button for marker to centre frequency*/
+.mini-btn {
+  width: 12px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #555;
+  background-color: #ccc;
+  cursor: pointer;
+}
+.mini-btn:active {
+  background-color: #888;
+}
+
 /* hide submit buttons */
 #submitbtnFreq{display:none;}
 #submitbtnFreqOffset{display:none;}
 #submitbtnGain{display:none;}
 
-/* the font for our buttons */
-.specbuttons{
-    font-weight: 600;
-    font-size: 10pt;
-    font-family: 'Courier New';
+/* buton grid layout */
+#buttons > div {
+    display: grid;
+    grid-auto-flow: row; /* stack buttons horizontally by default */
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); /* all buttons same width */
+    gap: 0.5rem; /* spacing between buttons */
+}
+
+/* the font and button size */
+.specbuttons {
+    flex: 0;
+    width: 80%;
+    height: 40px;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    background-color: #f0f0f0;  /* light gray background */
+    color: #333;                /* text color */
+    border: 2px solid #999;     /* visible border */
+    border-radius: 6px;         /* rounded corners */
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.2); /* subtle shadow */
+    cursor: pointer;            /* pointer on hover */
+    transition: all 0.2s ease; /* smooth hover animation */
+}
+.specbuttons:hover {
+    background-color: #e0e0e0;  /* slightly darker on hover */
+    box-shadow: 4px 4px 8px rgba(0,0,0,0.3); /* pop-up effect */
+    transform: translateY(-2px); /* lift effect */
+}
+#marker-buttons {
+    display: flex;
+    gap: 8px;      /* space between buttons */
+    flex-wrap: wrap; /* allows wrapping if screen is too narrow */
 }
 
 /* for the average beside the H4 on the Trace 0 buttons */
@@ -138,3 +178,136 @@ input[type=number] {
     background: red;
 }
 
+/* fixing the spectrum/spectrogram size */
+.screen {
+    display: flex;
+    width: 100%;
+    height: 100vh;
+}
+/* left spectrogram area */
+.leftPanel {
+    width: 75%;
+    display: flex;
+    flex-direction: column;
+}
+/* make spectrogram fill the space */
+#specCanvas {
+    flex: 1 0 0;
+}
+/* right side */
+.rightPanel {
+    width: 25%;
+    overflow-y: auto;
+    border-left: 1px solid #444;
+}
+/* collapsed state */
+.rightPanel.collapsed {
+    flex: 0 0 0;
+    max-width: 0;
+    overflow: hidden;
+}
+#togglePanel {
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+}
+#metaZoom {
+    transform-origin: top left;
+}
+
+/* vertical buttons between spectrum and controls */
+.vertical-btn span {
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+}
+.vertical-btn.active {
+    background-color: #28a745 !important;
+    border-color: #28a745;
+    color: white;
+}
+.vertical-btn.inactive {
+    background-color: #6c757d; /* default bootstrap grey */
+}
+
+
+/* Input number suffix support */
+.input-with-unit {
+  position: relative;
+  display: inline-block;
+}
+.input-with-unit input {
+  padding-right: 30px; /* make space inside box */
+}
+.input-with-unit .unit {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #666;
+  font-size: 0.9em;
+}
+
+/* sticky tabs at top of right panel */
+/* Sticky + standout style */
+#metaZoom .nav-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f8f9fa;   /* light gray background for contrast */
+    border-bottom: 2px solid #dee2e6; /* subtle bottom border */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* slight shadow for depth */
+}
+/* Active tab highlight */
+/* Container setup */
+#metaData {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+#metaZoom {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+/* Sticky tabs with card-style */
+#metaZoom .nav-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #ffffff;
+    border-bottom: none;           /* remove default line */
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1); /* subtle lift */
+    margin-bottom: 0;              /* align with content */
+    border-radius: 0.5rem 0.5rem 0 0; /* rounded top corners */
+    padding: 0.25rem 1rem;
+}
+/* Tab items */
+#metaZoom .nav-tabs .nav-item {
+    margin-bottom: 0;
+}
+#metaZoom .nav-tabs .nav-link {
+    border: 1px solid transparent;
+    border-radius: 0.5rem 0.5rem 0 0; /* match tab container */
+    margin-right: 0.25rem;
+    transition: all 0.2s ease-in-out;
+    background-color: #f8f9fa; /* subtle gray for inactive */
+    color: #495057;
+}
+/* Active tab style */
+#metaZoom .nav-tabs .nav-link.active {
+    background-color: #ffffff;
+    color: #007bff;             /* Bootstrap primary */
+    border-color: #dee2e6 #dee2e6 #fff; /* blend bottom with content */
+    font-weight: 500;
+    box-shadow: 0 -1px 0 #fff inset; /* subtle separation */
+}
+/* Hover effect */
+#metaZoom .nav-tabs .nav-link:hover {
+    background-color: #e9ecef;
+    color: #0056b3;
+}
+
+/* for snapshot tab make spectrum pciture larger on hover */
+img:hover{
+    width: 100px;
+}

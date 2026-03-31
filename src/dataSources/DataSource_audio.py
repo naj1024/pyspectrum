@@ -97,6 +97,8 @@ class Input(DataSource.DataSource):
         if not parameters or parameters == "0":
             parameters = "0"  # default
 
+        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
+
         # add this classes own variables before calling super() in case we get called back and don't have them
         self._channels = 2  # we are really expecting stereo
         self._device_number = 0  # will be set in open
@@ -105,8 +107,6 @@ class Input(DataSource.DataSource):
         # so that we can divorce one from the other, need index to tell where we are
         self._complex_data = None
         self._read_block_size = 2048  #
-
-        super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
 
         self._name = module_type
         self._connected = False

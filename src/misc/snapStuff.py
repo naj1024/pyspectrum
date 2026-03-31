@@ -48,6 +48,9 @@ def list_snap_files(directory: pathlib.PurePath) -> list[str]:
     directory_list = []
     for path in pathlib.Path(directory).iterdir():
         if not path.name.startswith("."):
+            if not path.is_file():
+                continue
+
             ignore_extensions = ['png', 'sigmf-meta']
             excluded = False
             for ext in ignore_extensions:

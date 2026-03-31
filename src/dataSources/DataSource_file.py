@@ -44,21 +44,21 @@ class Input(DataSource.DataSource):
         :param centre_frequency: The centre frequency this input is supposed to be at, in Hz
         :param input_bw: The filtering of the input, may not be configurable
         """
-        self._is_wav_file = False  # until we work it out
-
         if not parameters or parameters == "":
             parameters = "not-given"  # default
 
-        # add this classes own variables before calling super() in case we get called back and don't have them
         self._file = None
-        self._rewind = True  # true if we will rewind the file each time it ends
         self._full_path = ""
-        self._file_time = 0
-        self._sleep = True  # may want to read file as fast as possible
-        self._file_in_seconds = 0.0  # how long is the file
-        self._file_current_seconds = 0.0
 
         super().__init__(parameters, data_type, sample_rate, centre_frequency, input_bw)
+
+        # add this classes own variables before calling super() in case we get called back and don't have them
+        self._is_wav_file = False  # until we work it out
+        self._rewind = True  # true if we will rewind the file each time it ends
+        self._file_time = 0
+        self._throttle = True  # may want to read file as fast as possible
+        self._file_in_seconds = 0.0  # how long is the file
+        self._file_current_seconds = 0.0
 
         self._name = module_type
         self._connected = False
@@ -73,11 +73,11 @@ class Input(DataSource.DataSource):
         super().set_web_help(web_help_string)
 
     def __del__(self):
-        if self._file:
+        if self._file is not None and self._file:
             self._file.close()
 
-    def set_sleep(self, sleep: bool) -> None:
-        self._sleep = sleep
+    def set_throttle(self, throttle: bool) -> None:
+        self._throttle = throttle
 
     def set_file_in_seconds(self):
         if os.path.exists(self._full_path):
@@ -207,11 +207,8 @@ class Input(DataSource.DataSource):
                         else:
                             raise ValueError("end-of-file")
 
-                    if self._sleep:
-                        sleep_time = number_samples / self._sample_rate_sps
-                        if sleep_time > 0.0001:
-                            # wait how long these samples would of taken to arrive
-                            time.sleep(sleep_time * 0.7)  # bodge to allow for time it took to get here
+                    if self._throttle:
+                        _ = self.simulate_sample_wait_time(number_samples)
 
                 except OSError as msg:
                     msgs = f'OSError, {msg}'
@@ -231,3 +228,4 @@ class Input(DataSource.DataSource):
                 complex_data = self.unpack_data(raw_bytes)
 
         return complex_data, rx_time
+

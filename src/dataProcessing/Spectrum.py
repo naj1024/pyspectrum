@@ -87,35 +87,12 @@ def convert_to_frequencies(bins: List[int], sample_rate: float, fft_size: int) -
     freqs = [(bin_value - fft_size // 2) * bin_hz for bin_value in bins]
     return freqs
 
-
-def get_powers(mag_squared: np.ndarray, sps: float, psd: bool, offset: float) -> np.ndarray:
-    """
-    Return the dB powers of a magnitude squared fft output
-
-    :param mag_squared:
-    :param sps: The sample rate in Hz
-    :param psd: True is output is to be psd, db/Hz
-    :param offset: dbm offset
-    :return: dB array of the magnitudes squared
-    """
-    # convert to dB and normalise,
-
-    scale = 10 * np.log10(mag_squared.size) - offset
-    if psd:
-        scale += 10 * np.log10(sps)
-
-    # should be 5 not 10 on the power as we have mag^2 not mag so 1/2 of 10
-    # but that doesn't tie up with real spec analyser or other sdr ones
-    powers = 10 * np.log10(mag_squared) - scale  # dB and normalisation by fft size
-    return powers
-
-
 def get_windows() -> list[str]:
     if fftpack:
-        return ['Hanning', 'Hamming', 'Blackman', 'Bartlett', 'Kaiser_16', 'rectangular', 'flattop']
+        return ['Hanning', 'Hamming', 'Blackman', 'Bartlett', 'Kaiser_16', 'Rectangular', 'Flattop']
     else:
         # no flat top
-        return ['Hanning', 'Hamming', 'Blackman', 'Bartlett', 'Kaiser_16', 'rectangular']
+        return ['Hanning', 'Hamming', 'Blackman', 'Bartlett', 'Kaiser_16', 'Rectangular']
 
 
 class Spectrum:
@@ -127,54 +104,71 @@ class Spectrum:
         self._win = None
         self._use_scipy_fft = False
         self._use_fftw_fft = False
+
+        self._window_gain_compensation = 1.0
+        self._effective_noise_bw = 1.0
+
         self._window_type = None
         self.set_window(window)
+        self.set_fft()
+
+        logger.info(f"Spectrum {self._fft_size}, "
+                    f"{self._window_type}, "
+                    f"{1.0}sps, "
+                    f"enbw {self.get_enbw():.3f}, "
+                    f"rbw {self.get_rbw(1):.6f}Hz per sps")
+
+    def set_fft_size(self, fft_size: int):
+        self._fft_size = fft_size
         self.set_fft()
 
     def set_window(self, window: str) -> None:
         # window_gain_compensation values adjusted by matching the
         # rectangular window average power on the spectrum
-        window_gain_compensation = 1.0
         try:
-            if window in get_windows():
+            N = self._fft_size
+            win = window.lower()
+            if win in (w.lower() for w in get_windows()):
                 self._window_type = window
-                if self._window_type == 'rectangular':
-                    self._win = None
-                elif self._window_type == 'flattop':
+                if self._window_type == 'Rectangular':
+                    self._win = np.ones(N)
+                elif self._window_type == 'Flattop':
                     if signal:
-                        window_gain_compensation = 1.0 / 0.4
-                        self._win = signal.windows.flattop(self._fft_size, False)
+                        self._win = signal.windows.flattop(N, False)
                     else:
                         raise ValueError()
                 elif self._window_type == 'Hanning':
-                    window_gain_compensation = 1.0 / 0.68
-                    self._win = np.hanning(self._fft_size)
+                    self._win = np.hanning(N)
                 elif self._window_type == 'Hamming':
-                    window_gain_compensation = 1.0 / 0.67
-                    self._win = np.hamming(self._fft_size)
+                    self._win = np.hamming(N)
                 elif self._window_type == 'Blackman':
-                    window_gain_compensation = 1.0 / 0.55
-                    self._win = np.blackman(self._fft_size)
+                    self._win = np.blackman(N)
                 elif self._window_type == 'Kaiser_16':
-                    window_gain_compensation = 1.0 / 0.48
-                    self._win = np.kaiser(self._fft_size, 16)
+                    self._win = np.kaiser(N, 16)
                 elif self._window_type == 'Bartlett':
-                    window_gain_compensation = 1.0 / 0.55
-                    self._win = np.bartlett(self._fft_size)
+                    self._win = np.bartlett(N)
                 else:
                     raise ValueError()
+
+                if self._win is not None:
+                    self._window_gain_compensation = np.mean(self._win)
+                    self._effective_noise_bw = N * np.sum(self._win ** 2) / (np.sum(self._win) ** 2)
+
             else:
                 raise ValueError()
         except ValueError:
             # default window is hanning
-            window_gain_compensation = 1.0 / 0.68
             self._win = np.hanning(self._fft_size)
+            self._window_gain_compensation = np.mean(self._win)
+            self._effective_noise_bw = N * np.sum(self._win ** 2) / (np.sum(self._win) ** 2)
             self._window_type = "Hanning"
+            logging.error(f"Unavailable window {window}, defaulting to Hanning")
 
-        # a window compensation value based on the sum of the windows terms does not work
-        # self._window_gain_compensation = 1 /(sum(self._win)/self._fft_size)
-        if self._win is not None:
-            self._win *= window_gain_compensation
+        logger.info(f"Spectrum {self._fft_size}, "
+                    f"{self._window_type}, "
+                    f"{1.0}sps, "
+                    f"enbw {self.get_enbw():.3f}, "
+                    f"rbw {self.get_rbw(1):.6f}Hz per sps")
 
     def get_window(self) -> str:
         return self._window_type
@@ -189,6 +183,12 @@ class Spectrum:
             return "fftw"
         else:
             return "numpy"
+
+    def get_enbw(self) -> float:
+        return self._effective_noise_bw
+
+    def get_rbw(self, sps: float) -> float:
+        return (sps /  self._fft_size) * self._effective_noise_bw
 
     def set_fft(self) -> None:
         """
@@ -250,6 +250,7 @@ class Spectrum:
 
         if reorder:
             # this is quite expensive, longer than the fft() numpy and scipy are the same
+            # do it once when we send data to UI, on peak detected multiple fft results
             signals_fft = np.fft.fftshift(signals_fft)
             # pyfftw is marginally faster but the test would blow away the gain
             # signals_fft = pyfftw.interfaces.numpy_fft.fftshift(signals_fft)
@@ -257,8 +258,37 @@ class Spectrum:
         # profiled and timed to find fastest way to get magnitude
         # magnitudes = abs(np.fft.fftshift(signals_fft))  # note this updates signals_fft as well
         # magnitudes = abs(signals_fft)  # note this updates signals_fft as well
-
-        # normalisation in get_powers()
         magnitudes_squared = signals_fft.real**2 + signals_fft.imag**2
 
         return magnitudes_squared
+
+    def get_powers(self, mag_squared: np.ndarray, sps: float, psd: bool, offset: float) -> np.ndarray:
+        """
+        Return the dB powers of a magnitude squared fft output
+
+        Plot type	                                Signal peak effect	        Noise floor effect
+        =============================================================================================
+        Bin power (dB per FFT bin, RBW corrected)	unchanged with FFT/window	changes with RBW
+        PSD (dB/Hz)	                                changes with FFT/window	    unchanged per Hz
+
+        :param mag_squared:
+        :param sps: The sample rate in Hz
+        :param psd: True is output is to be psd, db/Hz
+        :param offset: dbm offset
+        :return: dB array of the magnitudes squared
+        """
+        # convert to dB and normalise,
+        N = len(mag_squared)
+        if psd:
+            # normalize for PSD (dB/Hz)
+            psd_vals = mag_squared / (N * sps * self._window_gain_compensation** 2 * self._effective_noise_bw)
+        else:
+            # normalize for bin power (dB per FFT bin)
+            rbw = sps / N * self._effective_noise_bw
+            psd_vals = rbw * mag_squared / (N * self._window_gain_compensation** 2)  # linear bin power
+
+        psd_vals = 10 * np.log10(psd_vals + 1e-20) - offset  # avoid log(0) with 1e-20
+
+        return psd_vals
+
+
