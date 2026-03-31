@@ -26,7 +26,7 @@ If you have some sort of sdr working with other tools then after installing the 
 dependencies it should just work, mmmmm.
 
 This project is a bit like the Krikkit One spaceship in The Hitchhiker's Guide to the Galaxy. 
-It does the job, but not something you want to rely on.
+It does the job, so you may want to rely on it.
 
 Performance will depend on your machine and how the supporting fft libraries were compiled.
 
@@ -38,6 +38,7 @@ Performance will depend on your machine and how the supporting fft libraries wer
 * Useful for detecting short bursting signals.
 * Plugin architecture for sources and analysis of spectrums.
 * Snapshot file upon an event, currently a manual trigger.
+* Ability to take spectral data instead of raw samples, have to get maria working.
 * Has a web based UI that can be used to take measurements on the spectrum.
 * Processing runs with no web client attached.
 * Useful for seeing how to get samples from different sdr devices with python.
@@ -47,16 +48,17 @@ Performance will depend on your machine and how the supporting fft libraries wer
 * If the program exceptions immediately, check the dependencies.
 * funcube will exception under Windows when closed, which we do when changing the source
 * Runnning out of processing time and dropping samples
-* FFTs are not overlapping - so you can miss things.
 * There is a real problem in determining if samples are being dropped by underlying libraries or not.
-* Anything over around 1Msps is difficult to guarantee that samples are not being dropped somewhere. 
+Anything over around 1Msps is difficult to guarantee that samples are not being dropped somewhere. 
 The soapy interface can detect dropped samples (overflows) but sources such as the ADALM pluto 
 will silently drop samples. Monitoring network or usb transfer rates will show that the rate 
 does not scale with increasing sample rate - indicative of the source just dropping samples.
+
+## Notes
 * On a raspberry Pi-5 things work quite well. You can run a desktop with a web browser at the same 
 time if you are careful.
-* A raspberry Pi-4 can sometimes keep up if there is no local desktop. A local dsktop and browser 
-will instantly take 100% of a core and everything will start to fail. See the notes and spreadsheet 
+* A raspberry Pi-4 will work if there is no local desktop. I tried it on Pi4 with 1Gbyte ram. A local desktop and browser 
+will instantly take 100% of a core and swap will ramp up quickly, everything will start to fail. See the notes and spreadsheet 
 in the docs directory for some insight into how things run.
 * The "loop %" can be used to check if things are running with no problems. Percentages over 100% 
 generally indicate problems. This % is expected to hit 100% as it is the total time around the main loop.
@@ -80,6 +82,8 @@ These should be installed into a virtual environment to not clash with system in
         numpy
         websockets
         matplotlib
+        Flask
+        flask_resful
         
     Testing:
         pytest
@@ -100,12 +104,13 @@ These should be installed into a virtual environment to not clash with system in
 ### Data sources
 * audio - Useful for testing, in linux requires 'sudo apt-get install libportaudio2'
 * file - wav and raw binary supported, all files must be in the snapshot directory
-* pluto (IP)  - Analog devices pluto SDR, 70MHz to 6GHz with wide open front end
+* pluto (IP)  - Analog devices pluto SDR and clones, 70MHz to 6GHz with wide open front end
 * rtlsdr - USB source
 * rtltcp - rtl over tcp
-* socket - A stream of IQ samples
+* socket - A stream of IQ samples, you ahve to set the sample type from the dropdown.
 * funcube - Pro and pro+ as audio devices, hid control supported in Linux only
 * soapy - Support for sdrplay under Linux
+* sweep - A test source giving a sweeping tone. Also supports testign spectrum input.
 
 ### Data types
 * 8bit offset binary
@@ -397,11 +402,13 @@ Some default input selections, you normally select through web interface:
     nmon    - monitoring tool
 
 
-## AD936x pluto XO support
+## Extra AD936x support
 
 We can add support for pluto frequency correction in ppm by adding the following to the file ad936x.py when pyadi-iio is
 installed. You should find the ad936x.py file under the adi directory in the site packages traversed by your
-environment. Insert the lines in the ad9364 class definitions.
+environment. Insert the lines in the ad9364 class definitions. 
+
+Check the DataSource_pluto.py source for other additions that can be added.
 
     @property
     def xo_correction(self):
