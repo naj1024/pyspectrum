@@ -817,7 +817,6 @@ function incrementCf(divisor) {
     let newCfHz = sdrState.getFrequencyHz();
     let step = (sdrState.getSps() / spectrum.zoom) / divisor;
     newCfHz += step;
-    console.log("incrementCf", divisor, newCfHz, sdrState.getFrequencyHz())
     handleCfChangeMHz(newCfHz/1e6);
 }
 
@@ -1518,11 +1517,11 @@ function Main() {
     }, false);
     canvas.addEventListener('touchmove', function(evt) {
        $('body').addClass('stop-scrolling');
-       console.log("stop scrolling");
+       //console.log("touch move");
     }, false);
     canvas.addEventListener('touchend', function(evt) {
        $('body').removeClass('stop-scrolling');
-       console.log("scrolling");
+       //console.log("touch end");
     }, false);
 
     // remove default canvas context menu if need to handle right mouse click
