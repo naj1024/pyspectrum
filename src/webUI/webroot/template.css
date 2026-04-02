@@ -28,7 +28,9 @@ html, body {
   overflow: hidden;
 }
 
-/* force canvas to be 100% wide, auto scale height */
+/* force canvas to be 100% wide, auto scale height,
+   max-height seems to work in makjng  sure we don't loose bottom part of the canvas
+*/
 canvas {
     width: 100%;
     max-height: 99%;
