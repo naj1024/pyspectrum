@@ -1535,6 +1535,7 @@ function Main() {
        //console.log("touch end");
     }, false);
 
+    // attempt at handling different screen sizes, doesn't appear to work
     resizeCanvas(canvas);
     window.addEventListener("resize", () => resizeCanvas(canvas));
 
