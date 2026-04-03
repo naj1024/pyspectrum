@@ -1444,17 +1444,6 @@ function showMarkers() {
   }
 }
 
-function resizeCanvas(canvas) {
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-
-    const ctx = canvas.getContext("2d");
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
-
 function startAsyncLoop(pollFn, intervalMs) {
     async function loop() {
         try {
@@ -1534,10 +1523,6 @@ function Main() {
        $('body').removeClass('stop-scrolling');
        //console.log("touch end");
     }, false);
-
-    // attempt at handling different screen sizes, doesn't appear to work
-    resizeCanvas(canvas);
-    window.addEventListener("resize", () => resizeCanvas(canvas));
 
     // remove default canvas context menu if need to handle right mouse click
     // then you can add an event listener for contextmenu as the right mouse click
