@@ -6,6 +6,7 @@ Produce a small png file that can be displayed in the web UI
 The png filename will be the input filename with .png appended
 
 """
+import logging
 import os
 import pathlib
 from matplotlib import image
@@ -35,6 +36,8 @@ class SpectrumPicture:
 
     def __init__(self, thumbnail_dir: str):
         self._fft_size = 2048
+        self._number_ffts = 500
+        self._spectrogram_pic = True
         self._thumbnail_dir = thumbnail_dir
         if matplotlib:
             matplotlib.use('Agg')
@@ -58,38 +61,50 @@ class SpectrumPicture:
             if True:  # source.has_meta_data():
                 spec = Spectrum.Spectrum(self._fft_size, Spectrum.get_windows()[0])
                 peaks_squared = np.full(self._fft_size, -200)
+                powers = []
                 count = 0
                 while ok:
                     try:
                         samples, _ = source.read_cplx_samples(self._fft_size)
+                        mag = spec.mag_spectrum(samples, True)
+                        powers.append(self._spec.get_powers(mag, source.get_sample_rate_sps(), False, 0))
+                        peaks_squared = np.maximum.reduce([mag, peaks_squared])
                         count += 1
-                        mags_squared = spec.mag_spectrum(samples, True)
-                        peaks_squared = np.maximum.reduce([mags_squared, peaks_squared])
                     except ValueError:
                         ok = False  # end of file
                     except OSError:
                         ok = False  # end of file
 
-                    # after so many fft's we probably have a good peak spectrum to make an image of
-                    if count > 300:
+                    # after x many fft's we probably have a good peak spectrum to make an image of
+                    if count > self._number_ffts:
                         ok = False
 
                 if count > 0:
-                    powers = self._spec.get_powers(peaks_squared, source.get_sample_rate_sps(), False, 0)
-                    average = np.average(powers)
-                    maximum = np.max(powers)
-                    # set everything below average to the average
-                    np.clip(powers, average, maximum, out=powers)
-
-                    plt.clf()
-                    fig, ax = plt.subplots()
-                    f = np.arange(0, self._fft_size, 1)
-                    ax.plot(f, powers)
-                    ax.set_xticks([])
-                    ax.set_yticks([])
                     pic_name = pathlib.PurePath(self._thumbnail_dir, os.path.basename(filename) + ".png")
-                    fig.savefig(pic_name)
-                    plt.close(fig)
+
+                    if self._spectrogram_pic:
+                        powers = np.array(powers)
+                        spec = powers.T
+                        max_db = np.max(spec)
+                        spec = np.clip(spec, max_db - 40, max_db)  # dB range
+                        plt.imshow(spec, aspect='auto', origin='lower', cmap='gray_r')
+                        plt.axis('off')
+                        plt.savefig(pic_name, dpi=50, bbox_inches='tight', pad_inches=0)
+                    else:
+                        powers = self._spec.get_powers(peaks_squared, source.get_sample_rate_sps(), False, 0)
+                        average = np.average(powers)
+                        maximum = np.max(powers)
+                        # set everything below average to the average
+                        np.clip(powers, average, maximum, out=powers)
+
+                        plt.clf()
+                        fig, ax = plt.subplots()
+                        f = np.arange(0, self._fft_size, 1)
+                        ax.plot(f, powers)
+                        ax.set_xticks([])
+                        ax.set_yticks([])
+                        fig.savefig(pic_name)
+                        plt.close(fig)
 
             source.close()
 
