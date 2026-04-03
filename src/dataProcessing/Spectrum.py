@@ -237,7 +237,8 @@ class Spectrum:
         # normalisation by dividing by fft size not done here,
         # do it when we convert to dB in get_powers()
         if self._win is not None:
-            # illegal values in array will cause problems
+            # illegal values in array will cause problems, which we may have as the wrong input type could be selected
+            # e.g. 16bit selected as floats
             complex_samples = np.nan_to_num(complex_samples_in.astype(np.complex64)) * \
                               np.nan_to_num(self._win.astype(np.complex64))
         else:
