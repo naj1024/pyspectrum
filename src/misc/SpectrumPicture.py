@@ -36,11 +36,12 @@ class SpectrumPicture:
 
     def __init__(self):
         self._fft_size = 512
-        self._number_ffts = 2000
+        self._number_ffts = 4000
+        self._window = 'Hanning'
         if matplotlib:
             matplotlib.use('Agg')
 
-        self._spec = Spectrum.Spectrum(512, 'Hanning')
+        self._spec = Spectrum.Spectrum(self._fft_size, self._window)
 
     def create_picture(self,
                        full_data_filename: pathlib.PurePath,
@@ -59,14 +60,13 @@ class SpectrumPicture:
             # Produce spectrum even if we don't know what the file samples are in
             # Otherwise we will continually try again
             if True:  # source.has_meta_data():
-                spec = Spectrum.Spectrum(self._fft_size, Spectrum.get_windows()[0])
                 peaks_squared = np.full(self._fft_size, -200)
                 powers = []
                 count = 0
                 while ok:
                     try:
                         samples, _ = source.read_cplx_samples(self._fft_size)
-                        mag = spec.mag_spectrum(samples, True)
+                        mag = self._spec.mag_spectrum(samples, True)
                         powers.append(self._spec.get_powers(mag, source.get_sample_rate_sps(), False, 0))
                         peaks_squared = np.maximum.reduce([mag, peaks_squared])
                         count += 1
@@ -83,7 +83,13 @@ class SpectrumPicture:
                     pic_name = pathlib.PurePath(destination_path, os.path.basename(full_data_filename) + ".png")
 
                     plt.clf()
-                    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 4))
+                    # sharex for spectrum and spectrogram to align
+                    fig, (ax1, ax2) = plt.subplots(
+                        2, 1,
+                        figsize=(6, 4),
+                        gridspec_kw={'height_ratios': [1, 2]},
+                        sharex=True
+                    )
 
                     # --- TOP: Spectrum ---
                     powers_spec = self._spec.get_powers(peaks_squared, source.get_sample_rate_sps(), False, 0)
@@ -91,21 +97,27 @@ class SpectrumPicture:
                     maximum = np.max(powers_spec)
                     np.clip(powers_spec, average, maximum, out=powers_spec)
 
-                    f = np.arange(0, self._fft_size, 1)
-                    ax1.plot(f, powers_spec)
+                    # use freqs to align spectrum and spectrogram
+                    freqs = np.linspace(0, source.get_sample_rate_sps(), len(powers_spec))
+                    ax1.plot(freqs, powers_spec)
                     ax1.set_xticks([])
                     ax1.set_yticks([])
 
                     # --- BOTTOM: Spectrogram ---
                     powers = np.array(powers)
-                    spec = powers.T
-
-                    max_db = np.max(spec)
-                    avg_db = np.average(spec)
+                    max_db = np.max(powers)
+                    avg_db = np.average(powers)
                     range_db = max_db - avg_db - 5
-                    spec = np.clip(spec, max_db - range_db, max_db)
+                    powers = np.clip(powers, max_db - range_db, max_db)
 
-                    ax2.imshow(spec, aspect='auto', origin='lower', cmap='Blues')
+                    time_bins = powers.shape[0]
+                    ax2.imshow(
+                        powers,
+                        aspect='auto',
+                        origin='lower',
+                        cmap='Blues',
+                        extent=[0, source.get_sample_rate_sps(), 0, time_bins]
+                    )
                     ax2.set_xticks([])
                     ax2.set_yticks([])
 
