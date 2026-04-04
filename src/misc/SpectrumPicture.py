@@ -34,22 +34,23 @@ def can_create_pictures() -> bool:
 
 class SpectrumPicture:
 
-    def __init__(self, thumbnail_dir: str):
+    def __init__(self):
         self._fft_size = 2048
         self._number_ffts = 500
-        self._spectrogram_pic = True
-        self._thumbnail_dir = thumbnail_dir
         if matplotlib:
             matplotlib.use('Agg')
 
         self._spec = Spectrum.Spectrum(512, 'Hanning')
 
-    def create_picture(self, filename: pathlib.PurePath) -> bool:
+    def create_picture(self,
+                       full_datafilename: pathlib.PurePath,
+                       destination_path: pathlib.PurePath,
+                       spectrogram: bool) -> bool:
         if not matplotlib:
             return False
 
         try:
-            file_str = str(filename)
+            file_str = str(full_datafilename)
             # let's assume that it is going to be 16tle and 1Msps, opening the file may be able to correct these values
             source = DataSource_file.Input(file_str, "16tle", 1.0e6, 0.0, 1.0e6)
             source.set_rewind(False)
@@ -57,7 +58,7 @@ class SpectrumPicture:
             ok = source.open()
 
             # Produce spectrum even if we don't know what the file samples are in
-            # Otherwise we will continualy try again
+            # Otherwise we will continually try again
             if True:  # source.has_meta_data():
                 spec = Spectrum.Spectrum(self._fft_size, Spectrum.get_windows()[0])
                 peaks_squared = np.full(self._fft_size, -200)
@@ -80,9 +81,9 @@ class SpectrumPicture:
                         ok = False
 
                 if count > 0:
-                    pic_name = pathlib.PurePath(self._thumbnail_dir, os.path.basename(filename) + ".png")
+                    pic_name = pathlib.PurePath(destination_path, os.path.basename(full_datafilename) + ".png")
 
-                    if self._spectrogram_pic:
+                    if spectrogram:
                         powers = np.array(powers)
                         spec = powers.T
                         max_db = np.max(spec)

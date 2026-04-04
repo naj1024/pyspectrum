@@ -595,7 +595,7 @@ def initialise(sdr_config: Sdr.Sdr, snap_config: Snapper.Snapper,
         sdr_config.fft_rbw = processor.get_rbw_per_sps() * sdr_config.sample_rate
 
         # thumbnail and pic generator process
-        pic_generator = PicGenerator.PicGenerator(global_vars.SNAPSHOT_DIRECTORY, thumbs_dir, logger.level)
+        pic_generator = PicGenerator.PicGenerator(logger.level)
         pic_generator.start()
         logger.debug(f"Started PicGenerator")
 
