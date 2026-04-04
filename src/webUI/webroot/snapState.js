@@ -38,14 +38,14 @@ class SnapState {
             this.triggers = cfg.snapTriggerSources;
 
         if (cfg.snapPreTrigger !== undefined)
-            this.preTriggerMs = parseInt(cfg.snapPreTrigger, 10) || 0;
+            this.preTriggerMs = parseFloat(cfg.snapPreTrigger, 10) || 0;
 
         if (cfg.snapPostTrigger !== undefined)
-            this.postTriggerMs = parseInt(cfg.snapPostTrigger, 10) || 0;
+            this.postTriggerMs = parseFloat(cfg.snapPostTrigger, 10) || 0;
 
         if (cfg.snapSize !== undefined) {
-            this.currentSize = parseInt(cfg.snapSize.current, 10) || 0;
-            this.expectedSize = parseInt(cfg.snapSize.limit, 10) || 0;
+            this.currentSize = parseFloat(cfg.snapSize.current, 10) || 0;
+            this.expectedSize = parseFloat(cfg.snapSize.limit, 10) || 0;
         }
 
         if (cfg.snapTriggerState !== undefined)
