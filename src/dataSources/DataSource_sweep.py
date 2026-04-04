@@ -69,7 +69,7 @@ class Input(DataSource.DataSource):
             logger.error(f"Test data source defaulting snr as '{self._parameters}' not a number")
         logger.info(f"Test source using snr of {self._snr_db}dB")
 
-        self._max_amp = 0.001    # dont really want +-1.0 for the samples
+        self._max_amp = 0.0001    # dont really want +-1.0 for the samples
 
         self._current_freq = -sample_rate / 8.0  # starts 1/8 of way from negative extreme
         self._osc_phase = np.complex64(1 + 0j)
