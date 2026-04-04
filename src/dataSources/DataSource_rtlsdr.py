@@ -373,9 +373,9 @@ class Input(DataSource.DataSource):
 
         if self._sdr and self._connected:
             try:
-                complex_data = self._sdr.read_samples(number_samples)  # will return np.complex128
+                raw_data = self._sdr.read_samples(number_samples)  # will return np.complex128
                 rx_time = self.get_time_ns(number_samples)
-                complex_data = np.array(complex_data, dtype=np.complex64)  # (?) we need all values to be 32bit floats
+                complex_data = raw_data.astype(np.complex64)  # (?) we need all values to be 32bit floats
             except Exception as err:
                 print(f"read_cplx_samples() exception, {err}, {len(complex_data)}")
                 self._connected = False
