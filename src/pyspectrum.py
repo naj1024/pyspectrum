@@ -300,8 +300,8 @@ def handle_samples(data_sink: DataSink_file, hop: Any | None, plugin_manager: Pl
     if sdr_config.dc_removal != "Off":
         # remove the average value to reduce the dc component
         # weighted towards newest average quickly with previous error less significant than current
-        sdr_config.dc_error = sdr_config.dc_error * 0.3 \
-                              + np.average(samples) * 0.7
+        sdr_config.dc_error = sdr_config.dc_error * 0.001 \
+                              + np.average(samples) * 0.999
         # check we can write to the array
         if samples.flags.writeable:
             samples -= sdr_config.dc_error
