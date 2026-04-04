@@ -63,6 +63,7 @@ class PicGenerator(multiprocessing.Process):
 
         if SpectrumPicture.can_create_pictures():
             gen = SpectrumPicture.SpectrumPicture()
+
             while not self._shutdown:
                 try:
                     # get all the non-hidden and non png and meta files in snapshot dir
@@ -85,7 +86,7 @@ class PicGenerator(multiprocessing.Process):
                                                                 + ".png")
                                 if not os.path.isfile(png_filename):
                                     try:
-                                        _ = gen.create_picture(full_path, global_vars.THUMBNAILS_DIRECTORY, True)
+                                        _ = gen.create_picture(full_path, global_vars.THUMBNAILS_DIRECTORY)
                                     except ValueError as msg:
                                         logger.error(f"PicGenerator failed on {full_path}, {msg}")
 

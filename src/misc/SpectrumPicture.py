@@ -35,22 +35,21 @@ def can_create_pictures() -> bool:
 class SpectrumPicture:
 
     def __init__(self):
-        self._fft_size = 2048
-        self._number_ffts = 500
+        self._fft_size = 512
+        self._number_ffts = 2000
         if matplotlib:
             matplotlib.use('Agg')
 
         self._spec = Spectrum.Spectrum(512, 'Hanning')
 
     def create_picture(self,
-                       full_datafilename: pathlib.PurePath,
-                       destination_path: pathlib.PurePath,
-                       spectrogram: bool) -> bool:
+                       full_data_filename: pathlib.PurePath,
+                       destination_path: pathlib.PurePath) -> bool:
         if not matplotlib:
             return False
 
         try:
-            file_str = str(full_datafilename)
+            file_str = str(full_data_filename)
             # let's assume that it is going to be 16tle and 1Msps, opening the file may be able to correct these values
             source = DataSource_file.Input(file_str, "16tle", 1.0e6, 0.0, 1.0e6)
             source.set_rewind(False)
@@ -81,31 +80,39 @@ class SpectrumPicture:
                         ok = False
 
                 if count > 0:
-                    pic_name = pathlib.PurePath(destination_path, os.path.basename(full_datafilename) + ".png")
+                    pic_name = pathlib.PurePath(destination_path, os.path.basename(full_data_filename) + ".png")
 
-                    if spectrogram:
-                        powers = np.array(powers)
-                        spec = powers.T
-                        max_db = np.max(spec)
-                        spec = np.clip(spec, max_db - 40, max_db)  # dB range
-                        plt.imshow(spec, aspect='auto', origin='lower', cmap='gray_r')
-                        plt.axis('off')
-                        plt.savefig(pic_name, dpi=50, bbox_inches='tight', pad_inches=0)
-                    else:
-                        powers = self._spec.get_powers(peaks_squared, source.get_sample_rate_sps(), False, 0)
-                        average = np.average(powers)
-                        maximum = np.max(powers)
-                        # set everything below average to the average
-                        np.clip(powers, average, maximum, out=powers)
+                    plt.clf()
+                    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 4))
 
-                        plt.clf()
-                        fig, ax = plt.subplots()
-                        f = np.arange(0, self._fft_size, 1)
-                        ax.plot(f, powers)
-                        ax.set_xticks([])
-                        ax.set_yticks([])
-                        fig.savefig(pic_name)
-                        plt.close(fig)
+                    # --- TOP: Spectrum ---
+                    powers_spec = self._spec.get_powers(peaks_squared, source.get_sample_rate_sps(), False, 0)
+                    average = np.average(powers_spec)
+                    maximum = np.max(powers_spec)
+                    np.clip(powers_spec, average, maximum, out=powers_spec)
+
+                    f = np.arange(0, self._fft_size, 1)
+                    ax1.plot(f, powers_spec)
+                    ax1.set_xticks([])
+                    ax1.set_yticks([])
+
+                    # --- BOTTOM: Spectrogram ---
+                    powers = np.array(powers)
+                    spec = powers.T
+
+                    max_db = np.max(spec)
+                    avg_db = np.average(spec)
+                    range_db = max_db - avg_db - 5
+                    spec = np.clip(spec, max_db - range_db, max_db)
+
+                    ax2.imshow(spec, aspect='auto', origin='lower', cmap='Blues')
+                    ax2.set_xticks([])
+                    ax2.set_yticks([])
+
+                    # --- Save to file ---
+                    plt.tight_layout(pad=0.1)
+                    fig.savefig(pic_name, dpi=50, bbox_inches='tight', pad_inches=0)
+                    plt.close(fig)
 
             source.close()
 
