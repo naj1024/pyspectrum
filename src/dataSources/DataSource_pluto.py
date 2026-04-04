@@ -387,9 +387,11 @@ class Input(DataSource.DataSource):
             if self._index + number_samples > self._read_block_size:
                 try:
                     # we don't append to the end
-                    # self._complex_data = self._sdr.rx()  # the samples here are complex128 i.e. full double
+                    # self._complex_data = self._sdr.rx()  # the samples are complex128 i.e. full double
+                    # analog devices rx_tx.py forces complex128 on conversion in def __rx_complex(self)
                     raw_data = self._sdr.rx()  # Returns complex128
-                    self._complex_data = np.array(raw_data, dtype=np.complex64) / 4096.0
+                    raw_data /= 32768.0  # just used to make it smaller
+                    self._complex_data = raw_data.astype(np.complex64)
                     try:
                         self._block_time = time.time_ns()
                     except AttributeError:
