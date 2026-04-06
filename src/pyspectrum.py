@@ -67,7 +67,6 @@ bad_count = 0
 def signal_handler(sig, __):
     global processing
     processing = False
-    print("Received signal", sig)
 
 
 def main() -> None:
@@ -984,6 +983,7 @@ def send_spectrums_to_ui(sdr_config: Sdr.Sdr,
     :return: array of updated peak powers
     """
     peak_detect = False
+    global processing
     if sdr_config.stop:
         # drop things on the floor if we are told to stop
         sdr_config.measured_fps = 0  # not doing anything yet
@@ -1018,14 +1018,26 @@ def send_spectrums_to_ui(sdr_config: Sdr.Sdr,
 
                 # data into the UI queue
                 try:
-                    to_ui_queue.put((sdr_config.sample_rate, sdr_config.centre_frequency_hz,
-                                     display_peaks, sdr_config.time_first_spectrum, time_spectrum + 1), block=True)
+                    to_ui_queue.put(
+                        (sdr_config.sample_rate,
+                            sdr_config.centre_frequency_hz,
+                            display_peaks,
+                            sdr_config.time_first_spectrum,
+                            time_spectrum + 1
+                         ),
+                         block=True
+                    )
 
                     # peak since last time is the current powers
                     sdr_config.sent_count += 1
                     sdr_config.update_count = 0  # success on putting into queue
                 except queue.Full:
                     peak_detect = True  # UI can't keep up
+                except InterruptedError as msg:
+                    logger.warning("send_spectrums_to_u, Queue interrupted")
+                except Exception as msg:
+                    logger.error("Unhandled exception in send_spectrums_to_ui")
+                    processing = False
         else:
             # nope, so peak detect the fft result instead
             peak_detect = True

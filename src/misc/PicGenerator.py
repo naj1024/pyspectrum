@@ -97,5 +97,5 @@ class PicGenerator(multiprocessing.Process):
         else:
             logger.error("PicGenerator, failed")
 
-        logger.error("Process exited")
+        logger.error("PicGenerator process exited")
         return

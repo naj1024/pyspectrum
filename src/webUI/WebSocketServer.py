@@ -6,6 +6,7 @@ import multiprocessing
 import os
 import pathlib
 import queue
+import signal
 import struct
 import time
 from builtins import Exception
@@ -38,10 +39,22 @@ class WebSocketServer(multiprocessing.Process):
     def shutdown(self) -> None:
         logger.debug("WebSocketServer Shutting down")
         self._exit_now = True
-        asyncio.get_event_loop().call_soon_threadsafe(asyncio.get_event_loop().stop)
+        try:
+            asyncio.get_event_loop().call_soon_threadsafe(asyncio.get_event_loop().stop)
+        except Exception as msg:
+            logger.error(f"Exception when closing websocket, {msg}")
         logger.debug("WebSocketServer shutdown")
 
+    def signal_handler(self, _sig, __):
+        self.shutdown()
+
     def run(self):
+
+        # as we are in a separate process the thing that spawned us can't call shutdown correctly
+        # It can send us a signal, then we can shut down our self
+        signal.signal(signal.SIGINT, self.signal_handler)
+
+
         global logger
         log_file = pathlib.PurePath(os.path.dirname(__file__), "..", global_vars.log_dir, __name__ + ".log")
 
@@ -66,12 +79,15 @@ class WebSocketServer(multiprocessing.Process):
         asyncio.set_event_loop(loop)
 
         async def server_task():
-            async with websockets.serve(
-                    functools.partial(self.handler), "0.0.0.0", self._port
-            ):
-                logger.info("WebSocket server is now listening")
-                while not self._exit_now:
-                    await asyncio.sleep(0.5)
+            try:
+                async with websockets.serve(
+                        functools.partial(self.handler), "0.0.0.0", self._port
+                ):
+                    logger.info("WebSocket server is now listening")
+                    while not self._exit_now:
+                        await asyncio.sleep(0.5)
+            except Exception as msg:
+                logger.error(f"Exception when closing websocket, {msg}")
 
         try:
             loop.run_until_complete(server_task())
@@ -79,7 +95,7 @@ class WebSocketServer(multiprocessing.Process):
             logger.error(f"WebSocket exception: {msg}")
         finally:
             loop.close()
-            logger.info("WebSocket loop closed")
+            logger.info("WebSocket process exited")
 
     async def handler(self, web_socket):
         # path = web_socket.path
