@@ -151,30 +151,15 @@ class FlaskInterface(multiprocessing.Process):
             try:
                 logger.info(f"flask restful server serving {web_root} on port {self._port}")
                 flask_app.run(host="0.0.0.0", port=self._port, debug=False, use_reloader=False, threaded=False)
+            except KeyboardInterrupt:
+                logger.info("FlaskInterface received Ctrl+C, shutting down")
+                self._shutdown = True
             except Exception as msg:
                 logger.error(f"FlaskServer {msg}")
                 time.sleep(1)
 
         logger.error("WebServer process exited")
         return
-
-    def set_logging(self, logg):
-        log_file = pathlib.PurePath(os.path.dirname(__file__), "..", global_vars.log_dir, __name__ + ".log")
-        try:
-            # define file handler and set formatter
-            file_handler = logging.FileHandler(log_file, mode="w")
-
-            formatter = logging.Formatter('%(asctime)s,%(levelname)s:%(name)s:%(module)s:%(message)s',
-                                          datefmt="%Y-%m-%d %H:%M:%S UTC")
-            file_handler.setFormatter(formatter)
-            logg.addHandler(file_handler)
-        except Exception as msg:
-            print(f"Failed to create logger for webserver, {msg}")
-            exit(1)
-        # don't use %Z for timezone as some say 'GMT' or 'GMT standard time'
-        logging.Formatter.converter = time.gmtime  # GMT/UTC timestamps on logging
-        logg.setLevel(self._log_level)
-
 
 ###############
 #
