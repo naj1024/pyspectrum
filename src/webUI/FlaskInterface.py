@@ -666,7 +666,10 @@ class Status(Resource):
                             ]
                     status = {}
                     for stat in stats:
-                       status[stat] = self._status[stat]
+                        try:
+                            status[stat] = self._status[stat]
+                        except Exception:
+                            pass
                     return jsonify(status)
 
                 elif thing == 'currentStatus':
