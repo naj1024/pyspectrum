@@ -67,7 +67,6 @@ class FlaskInterface(multiprocessing.Process):
         logger.debug("FlaskServer shutdown")
 
     def signal_handler(self, _sig, __):
-        print("Flask shutdown")
         self.shutdown()
 
     def run(self):
@@ -77,9 +76,6 @@ class FlaskInterface(multiprocessing.Process):
 
         :return: None
         """
-        # as we are in a separate process the thing that spawned us can't call shutdown correctly
-        # It can send us a signal, then we can shut down our self
-        signal.signal(signal.SIGINT, self.signal_handler)
 
         global logger
         log_file = pathlib.PurePath(os.path.dirname(__file__), "..", global_vars.log_dir, __name__ + ".log")
@@ -98,6 +94,10 @@ class FlaskInterface(multiprocessing.Process):
         logger.setLevel(self._log_level)
 
         logger.info(f"WebSocket starting on port {self._port}")
+
+        # as we are in a separate process the thing that spawned us can't call shutdown correctly
+        # It can send us a signal, then we can shut down our self
+        signal.signal(signal.SIGINT, self.signal_handler)
 
         # serve all the pages from the webroot
         flask_app = Flask(__name__,
