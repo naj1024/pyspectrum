@@ -150,7 +150,7 @@ class FlaskInterface(multiprocessing.Process):
         while not self._shutdown:
             try:
                 logger.info(f"flask restful server serving {web_root} on port {self._port}")
-                flask_app.run(host="0.0.0.0", port=self._port, debug=False)
+                flask_app.run(host="0.0.0.0", port=self._port, debug=False, use_reloader=False, threaded=False)
             except Exception as msg:
                 logger.error(f"FlaskServer {msg}")
                 time.sleep(1)
@@ -666,10 +666,7 @@ class Status(Resource):
                             ]
                     status = {}
                     for stat in stats:
-                        try:
-                            status[stat] = self._status[stat]
-                        except Exception:
-                            pass
+                       status[stat] = self._status[stat]
                     return jsonify(status)
 
                 elif thing == 'currentStatus':
