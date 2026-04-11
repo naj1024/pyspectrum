@@ -10,7 +10,8 @@ We save the raw float data to file:
 import datetime
 import logging
 import pathlib
-from datetime import datetime, timezone
+import datetime
+from datetime import timezone
 
 import numpy as np
 import numpy.typing as npt
@@ -140,7 +141,7 @@ class FileOutput:
     def _filename(self, sigmf_type: str = 'data') -> str:
         then = int(self._start_time_nsec / 1e9)
         fractional_sec = (self._start_time_nsec / 1e9) - then
-        date_time = datetime.fromtimestamp(then, timezone.utc).strftime('%Y-%m-%d_%H-%M-%S')
+        date_time = datetime.datetime.fromtimestamp(then, timezone.utc).strftime('%Y-%m-%d_%H-%M-%S')
         fractional_sec = str(round(fractional_sec, 3)).lstrip('0')
         filename = self._base_filename + f".{date_time}{fractional_sec}" \
                                          f".cf{self._centre_freq_hz / 1e6:.6f}" \
@@ -161,8 +162,6 @@ class FileOutput:
             file.setnchannels(2)  # iq
             file.setsampwidth(4)  # 32bit floats
             file.setwformat(wave.WAVE_FORMAT_IEEE_FLOAT)
-            # the wav module has no support for changing the format to float32
-            # we will write complex float32 and the wave file will be set to int32
             for buff in self._complex_pre_data:
                 file.writeframes(buff)
             for buff in self._complex_post_data:
@@ -176,9 +175,15 @@ class FileOutput:
             raise ValueError(err)
 
     def _write_sgmf_meta(self):
-        # meta data is in separate file
+        # metadata is in separate file
         meta_filename = self._filename('meta')
         path_and_meta_filename = pathlib.PurePath(self._base_directory, meta_filename)
+
+        # got to have some samples to save to get the format of the samples
+        if self._complex_pre_data:
+            data_type = get_data_type_str(self._complex_pre_data[0])  # in this case, 'cf32_le' ??
+        else:
+            data_type = get_data_type_str(self._complex_post_data[0])
 
         # create the metadata
         meta = SigMFFile(
@@ -186,7 +191,7 @@ class FileOutput:
             # data_file = ,
             # no paths allowed, so no leak of your environment
             global_info={
-                SigMFFile.DATATYPE_KEY: get_data_type_str(self._complex_pre_data[0]),  # in this case, 'cf32_le' ??
+                SigMFFile.DATATYPE_KEY: data_type,
                 SigMFFile.SAMPLE_RATE_KEY: self._sample_rate_sps,
                 SigMFFile.DESCRIPTION_KEY: 'SDR samples.',
                 SigMFFile.VERSION_KEY: sigmf.__version__,
@@ -194,9 +199,9 @@ class FileOutput:
             }
         )
 
-        seconds, microseconds = divmod(self._start_time_nsec, 1000000000)
+        seconds, nanoseconds = divmod(self._start_time_nsec, 1000000000)
         dt = datetime.datetime.fromtimestamp(seconds, datetime.timezone.utc) + datetime.timedelta(
-            microseconds=microseconds)
+            microseconds=nanoseconds // 1000)
 
         # create a capture key at time index 0
         meta.add_capture(0, metadata={
