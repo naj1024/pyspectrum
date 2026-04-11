@@ -33,6 +33,7 @@ from typing import Tuple, Any
 import numpy as np
 
 from dataProcessing import ProcessSamples
+from dataProcessing.ProcessSamples import ProcessSamples
 from dataSink import DataSink_file
 from dataSources import DataSource
 from dataSources import DataSourceFactory
@@ -46,6 +47,7 @@ from misc import commandLine
 from misc import global_vars
 from misc import sdrStuff
 from misc import snapStuff
+from misc.Sdr import Sdr
 from misc.global_vars import THUMBNAILS_DIRECTORY
 from webUI import FlaskInterface
 from webUI import WebSocketServer
@@ -161,6 +163,9 @@ def main() -> None:
                 # do we get complex samples or magnitudes from the source
                 if fetcher is None:
                     samples, time_rx_nsec = data_source.read_magnitude_samples(sdr_config.fft_size)
+                    # make sure we all talking the same size. maybe the source can't change
+                    if len(samples) != sdr_config.fft_size:
+                        change_fft_size(len(samples), processor, sdr_config)
                 else:
                     samples, time_rx_nsec, hop = fetcher.get_next_block()
 
@@ -276,6 +281,15 @@ def main() -> None:
         logger.debug("SpectrumAnalyser to_ui_queue empty")
 
     logger.error("SpectrumAnalyser exit")
+
+
+def change_fft_size(size: int, processor: ProcessSamples, sdr_config: Sdr) -> None:
+    sdr_config.fft_size = size
+    processor.set_fft_size(sdr_config.fft_size)
+    fudge = (100 - sdr_config.fft_overlap) / 100
+    sdr_config.one_in_n = int(
+        sdr_config.sample_rate / (fudge * sdr_config.fps * sdr_config.fft_size))
+    sdr_config.fft_rbw = processor.get_rbw_per_sps() * sdr_config.sample_rate
 
 
 def handle_samples(data_sink: DataSink_file, hop: Any | None, plugin_manager: PluginManager, processor: ProcessSamples,
@@ -864,11 +878,7 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
 
             if message_name == 'fftSize':
                 if message_value != sdr_config.fft_size:
-                    sdr_config.fft_size = message_value
-                    processor.set_fft_size(sdr_config.fft_size)
-                    fudge = (100 - sdr_config.fft_overlap) / 100
-                    sdr_config.one_in_n = int(sdr_config.sample_rate / (fudge * sdr_config.fps * sdr_config.fft_size))
-                    sdr_config.fft_rbw = processor.get_rbw_per_sps() * sdr_config.sample_rate
+                    change_fft_size(message_value, processor, sdr_config)
                     config_changed = True
 
             if message_name == 'fftOverlap':
