@@ -33,7 +33,6 @@ from typing import Tuple, Any
 import numpy as np
 
 from dataProcessing import ProcessSamples
-from dataProcessing.ProcessSamples import ProcessSamples
 from dataSink import DataSink_file
 from dataSources import DataSource
 from dataSources import DataSourceFactory
@@ -47,7 +46,6 @@ from misc import commandLine
 from misc import global_vars
 from misc import sdrStuff
 from misc import snapStuff
-from misc.Sdr import Sdr
 from misc.global_vars import THUMBNAILS_DIRECTORY
 from webUI import FlaskInterface
 from webUI import WebSocketServer
