@@ -295,9 +295,13 @@ def handle_samples(data_sink: DataSink_file, hop: Any | None, plugin_manager: Pl
                    times_and_averages: TimesAndAverages) -> tuple[complex | Any, bool]:
     ##########################
     # save the samples for snapshots
+    #
+    # Allows us to save pre-trigger samples by saving everything off always
     ##########################
     time_start = time.perf_counter()
     patched_rx_time_nsec = time_rx_nsec + int((hop * 1e9) / sdr_config.sample_rate)
+
+    #
     snap_finished = save_samples(data_sink, samples[-hop:], snap_config, patched_rx_time_nsec, times_and_averages)
     snap_config.currentSizeMbytes = data_sink.get_current_size_mbytes()
     snap_config.expectedSizeMbytes = data_sink.get_size_mbytes()
