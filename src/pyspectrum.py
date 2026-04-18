@@ -1030,6 +1030,8 @@ def send_spectrums_to_ui(sdr_config: Sdr.Sdr,
 
                 # data into the UI queue
                 try:
+                    # wait a maximum of 3seconds to in case we are shutting down
+                    timeout = 3
                     to_ui_queue.put(
                         (sdr_config.sample_rate,
                             sdr_config.centre_frequency_hz,
@@ -1037,7 +1039,7 @@ def send_spectrums_to_ui(sdr_config: Sdr.Sdr,
                             sdr_config.time_first_spectrum,
                             time_spectrum + 1
                          ),
-                         block=True
+                         timeout=timeout
                     )
 
                     # peak since last time is the current powers
