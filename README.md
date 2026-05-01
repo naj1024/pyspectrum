@@ -26,7 +26,7 @@ If you have some sort of sdr working with other tools then after installing the 
 dependencies it should just work, mmmmm.
 
 This project is a bit like the Krikkit One spaceship in The Hitchhiker's Guide to the Galaxy. 
-It does the job, so you may want to rely on it.
+It does the job, so you may want to NOT rely on it.
 
 Performance will depend on your machine and how the supporting fft libraries were compiled.
 
