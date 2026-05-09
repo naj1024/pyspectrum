@@ -78,6 +78,10 @@ class Input(DataSource.DataSource):
         self.enbw_db = 0
         self.change_spectrum(512, 'Hanning')
 
+    def set_spectral_output(self, active: bool):
+        # configure source to output spectrums
+        self._spectral_output = active
+
     def change_spectrum(self, n: int, window: str) -> None:
         self._spec = Spectrum.Spectrum(n, window)
         self._enbw_db= 10 * math.log10(self._spec.get_enbw())

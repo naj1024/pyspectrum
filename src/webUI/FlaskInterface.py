@@ -643,17 +643,14 @@ class Status(Resource):
             return jsonify({"fastStatus": self.api()})
 
         if thing in self._allowed_get_endpoints:
+            stats = []
+            status = {}
             try:
                 if thing == 'fastStatus':
                     stats = ['delay', 'loopCpuPc', 'maxCpuCorePc', 'overflows', 'fps', 'oneInN',
-                            'digitiserInputLevel', 'digitiserGain', 'streamLength', 'streamCurrent',
-                            'snapSize', 'snapTriggerState',
+                            'expectedOneInN', 'digitiserInputLevel', 'digitiserGain', 'streamLength',
+                             'streamCurrent', 'snapSize', 'snapTriggerState',
                             ]
-                    status = {}
-                    for stat in stats:
-                       status[stat] = self._status[stat]
-                    return jsonify(status)
-
                 elif thing == 'currentStatus':
                     stats = ['source',
                              'frequency',
@@ -664,12 +661,17 @@ class Status(Resource):
                              'snapTriggerSource', 'snapName', 'snapFormat',
                              'snapPreTrigger', 'snapPostTrigger', 'readMagnitudes'
                             ]
-                    status = {}
-                    for stat in stats:
-                       status[stat] = self._status[stat]
-                    return jsonify(status)
+
+                for stat in stats:
+                   status[stat] = self._status[stat]
+
+            except BrokenPipeError:
+                logger.error(f"Client disconnected for endpoint {thing}")
             except Exception:
                 logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
+
+            return jsonify(status)
+
         return f"Endpoint {thing} not supported", 403
 
     def put(self, thing):

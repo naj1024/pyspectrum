@@ -51,10 +51,14 @@ class Sdr:
     stop = False
     web_port = 8080
 
+    peak_detect = True # we can turn off peak detection between spectrums output at fps
+    fps_send_flag = True  # when set to false the sending of data to the ui is disabled
+
     # for interface to UI
     ackTime = 0  # time in seconds of the last data displayed by the UI, updated by UI
     ui_delay = 0  # measured difference between now and ack from ui
-    one_in_n = int(sample_rate / (fps * fft_size))
+    expected_one_in_n = int(sample_rate / (fps * fft_size))
+    actual_one_in_n = expected_one_in_n
 
     # where the data comes from
     input_source = "null"  # the source type e.g. file, socket, pluto, soapy, rtlsdr, audio ....

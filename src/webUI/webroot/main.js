@@ -13,10 +13,10 @@ var snapFormInFocus = false;
 // Will also dynamically hold previous values
 const fastStatusUi = {
     delay: $('#currentDelay'),
-    delay2: $('#currentDelay2'),
     loopCpu: $('#currentLoopCpuPc'),
     overflows: $('#currentOverflows'),
     fps: $('#currentFPS'),
+    expectedOneInN: $('#currentExpectedOneInN'),
     oneInN: $('#currentOneInN'),
     inputLevel: $('#currentInputLevel'),
     gain: $('#currentGain'),
@@ -169,11 +169,15 @@ async function syncCurrentFast() {
         // only update the UI elements if things have changed
         // store the previous state in the fastStatusUi
 
-        const delayText = obj.delay.toFixed(2);
-        if (fastStatusUi.lastDelay !== delayText){
-            fastStatusUi.delay.text(obj.delay.toFixed(2));
-            fastStatusUi.delay2.text(obj.delay.toFixed(2));
-            fastStatusUi.lastDelay = delayText;
+        const delay = obj.delay.toFixed(2);
+        if (fastStatusUi.lastDelay !== delay){
+            fastStatusUi.delay.text(delay);
+            if (delay > 1.0) {
+                fastStatusUi.delay.css("background-color", "#ff0000");
+            } else {
+                fastStatusUi.delay.css("background-color", "#00ee00");
+            }
+            fastStatusUi.lastDelay = delay;
         }
 
         const loopCpu = sdrState.getLoopCpuPc().toFixed(1);
@@ -207,6 +211,11 @@ async function syncCurrentFast() {
         if (fastStatusUi.lastMaxFps != maxFps) {
             fastStatusUi.fps.text(maxFps);
             fastStatusUi.lastMaxFps = maxFps;
+        }
+
+        if (fastStatusUi.lastExpectedOneInN != obj.expectedOneInN) {
+            fastStatusUi.expectedOneInN.text(obj.expectedOneInN.toFixed(0)+" traces");
+            fastStatusUi.lastExpectedOneInN = obj.expectedOneInN;
         }
 
         if (fastStatusUi.lastOneInN != obj.oneInN) {

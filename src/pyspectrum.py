@@ -27,6 +27,7 @@ import queue
 import signal
 import sys
 import time
+import asyncio
 import psutil
 from typing import Tuple, Any
 
@@ -52,6 +53,10 @@ from webUI import WebSocketServer
 
 processing = True  # global to be set to False from ctrl-c
 
+# interface to fps to ui code
+latest_lock = asyncio.Lock()
+latest_peaks = None # for sending to ui through fps limiter
+
 # We will use separate log files for each process, main/webserver/websocket
 # Perceived wisdom is to use a logging server in multiprocessing environments, maybe in the future
 logger = logging.getLogger("spectrum_logger")  # a name we use to find this logger
@@ -61,7 +66,6 @@ MAX_TO_UI_QUEUE_DEPTH = 10  # low for low latency
 # default logging level
 DEFAULT_LOG_LEVEL = logging.INFO
 
-bad_count = 0
 
 
 def signal_handler(sig, __):
@@ -69,7 +73,7 @@ def signal_handler(sig, __):
     processing = False
 
 
-def main() -> None:
+async def main() -> None:
     """
     Main programme
 
@@ -84,6 +88,11 @@ def main() -> None:
     # different python versions may impact us
     if sys.version_info < (3, 7):
         logger.warning(f"Python version nas no support for nanoseconds, current interpreter is V{sys.version}")
+
+    # async queue and worker for fps output to web process
+    web_queue = asyncio.Queue(maxsize=1)  # max of 1 as we use queuefull to do peak detect
+    # Start web send worker as a background task
+    send_worker_task = asyncio.create_task(send_worker(sdr_config))
 
     # configuration shared across all processes
     manager = multiprocessing.Manager()
@@ -127,6 +136,8 @@ def main() -> None:
 
     # keep processing until told to stop or an error occurs
     while processing:
+        await asyncio.sleep(0)  # let worker have some time
+
         loop_start = time.perf_counter()
 
         if not multiprocessing.active_children():
@@ -161,9 +172,11 @@ def main() -> None:
                 # do we get complex samples or magnitudes from the source
                 if fetcher is None:
                     samples, time_rx_nsec = data_source.read_magnitude_samples(sdr_config.fft_size)
-                    # make sure we all talking the same size. maybe the source can't change
-                    if len(samples) != sdr_config.fft_size:
-                        change_fft_size(len(samples), processor, sdr_config)
+                    if samples is not None:
+                        # make sure we all talking the same size. maybe the source can't change
+                        if len(samples) != sdr_config.fft_size:
+                            # note this does not get to the web_ui
+                            change_fft_size(len(samples), processor, sdr_config)
                 else:
                     samples, time_rx_nsec, hop = fetcher.get_next_block()
 
@@ -216,11 +229,11 @@ def main() -> None:
             # Update the UI spectral data
             ###################
             time_start = time.perf_counter()
-            peak_powers_since_last_display = send_spectrums_to_ui(sdr_config,
-                                                                  to_ui_queue,
-                                                                  processor.get_powers(False),
-                                                                  peak_powers_since_last_display,
-                                                                  time_rx_nsec)
+            peak_powers_since_last_display = await send_spectrum_to_ui(sdr_config,
+                                                                       to_ui_queue,
+                                                                       processor.get_powers(False),
+                                                                       peak_powers_since_last_display,
+                                                                       time_rx_nsec)
             time_end = time.perf_counter()
             times_and_averages.ui_time.average(time_end - time_start)
 
@@ -256,6 +269,12 @@ def main() -> None:
     # Exit: clean up
     #
     #############
+    try:
+        web_queue.put_nowait(None)
+        await send_worker_task
+    except asyncio.CancelledError:
+        pass
+
     if data_source:
         logger.debug("SpectrumAnalyser data_source close")
         data_source.close()
@@ -285,7 +304,7 @@ def change_fft_size(size: int, processor: ProcessSamples, sdr_config: Sdr) -> No
     sdr_config.fft_size = size
     processor.set_fft_size(sdr_config.fft_size)
     fudge = (100 - sdr_config.fft_overlap) / 100
-    sdr_config.one_in_n = int(
+    sdr_config.expected_one_in_n = int(
         sdr_config.sample_rate / (fudge * sdr_config.fps * sdr_config.fft_size))
     sdr_config.fft_rbw = processor.get_rbw_per_sps() * sdr_config.sample_rate
 
@@ -350,12 +369,19 @@ def set_sample_fetcher(data_source: DataSource, sdr_config: Sdr) -> BlockSampleF
         try:
             # set fft and window on source, source may not have this method
             data_source.change_spectrum(sdr_config.fft_size, sdr_config.window)
+            data_source.set_spectral_output(True)
         except (NotImplementedError, AttributeError):
+            # make a samples source instead
             logger.error(f"{data_source.get_name()} does not support magnitude samples")
-            sdr_config.read_magnitudes = False
             fetcher = create_sample_fetch(data_source, sdr_config)
+            sdr_config.read_magnitudes = False
     else:
         fetcher = create_sample_fetch(data_source, sdr_config)
+        sdr_config.read_magnitudes = False
+        try:
+            data_source.set_spectral_output(False)  # make sure its off
+        except (NotImplementedError, AttributeError, AttributeError):
+            pass
     return fetcher
 
 
@@ -636,7 +662,8 @@ def fill_status_fast_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_config
     shared_status['loopCpuPc'] = sdr_config.loop_cpu_pc
     shared_status['maxCpuCorePc'] = sdr_config.max_cpu_core_pc
     shared_status['overflows'] = sdr_config.input_overflows
-    shared_status['oneInN'] = sdr_config.one_in_n
+    shared_status['oneInN'] = sdr_config.actual_one_in_n
+    shared_status['expectedOneInN'] = sdr_config.expected_one_in_n
 
     # snapshot stuff
     shared_status['snapTriggerState'] = snap_config.triggerState
@@ -701,7 +728,8 @@ def fill_shared_status_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_conf
     shared_status['loopCpuPc'] = sdr_config.loop_cpu_pc
     shared_status['overflows'] = sdr_config.input_overflows
     shared_status['ackTime'] = sdr_config.ackTime
-    shared_status['oneInN'] = sdr_config.one_in_n
+    shared_status['oneInN'] = sdr_config.actual_one_in_n
+    shared_status['ExpectedOneInN'] = sdr_config.expected_one_in_n
 
     shared_status['readMagnitudes'] = "magnitudes" if sdr_config.read_magnitudes else "samples"
 
@@ -800,7 +828,7 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                 if message_value != sdr_config.fps:
                     sdr_config.fps = message_value
                     fudge = (100 - sdr_config.fft_overlap) / 100
-                    sdr_config.one_in_n = int(sdr_config.sample_rate / (fudge * sdr_config.fps * sdr_config.fft_size))
+                    sdr_config.expected_one_in_n = int(sdr_config.sample_rate / (fudge * sdr_config.fps * sdr_config.fft_size))
 
             if message_name == 'ackTime':
                 if message_value != sdr_config.ackTime:
@@ -855,7 +883,7 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                     sdr_config.input_bw_hz = data_source.get_bandwidth_hz()  # some sources over-ride bw when setting sps
                     sdr_config.input_overflows = 0
                     fudge = (100 - sdr_config.fft_overlap) / 100
-                    sdr_config.one_in_n = int(sdr_config.sample_rate / (fudge * sdr_config.fps * sdr_config.fft_size))
+                    sdr_config.expected_one_in_n = int(sdr_config.sample_rate / (fudge * sdr_config.fps * sdr_config.fft_size))
                     config_changed = True
 
             if message_name == 'digitiserFormat':
@@ -887,7 +915,7 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                 if message_value != sdr_config.fft_overlap:
                     sdr_config.fft_overlap = message_value
                     fudge = (100 - sdr_config.fft_overlap) / 100  # account for more spectrums
-                    sdr_config.one_in_n = int(sdr_config.sample_rate / (fudge * sdr_config.fps * sdr_config.fft_size))
+                    sdr_config.expected_one_in_n = int(sdr_config.sample_rate / (fudge * sdr_config.fps * sdr_config.fft_size))
                     config_changed = True
 
             if message_name == 'psd':
@@ -918,7 +946,7 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                     shared_status['snapDelete'] = ""
                     snap_config.directory_list = snapStuff.list_snap_files(global_vars.SNAPSHOT_DIRECTORY)
                     fudge = (100 - sdr_config.fft_overlap) / 100
-                    sdr_config.one_in_n = int(sdr_config.sample_rate / (fudge * sdr_config.fps * sdr_config.fft_size))
+                    sdr_config.expected_one_in_n = int(sdr_config.sample_rate / (fudge * sdr_config.fps * sdr_config.fft_size))
                     config_changed = True
 
             if message_name == 'snapTrigger':
@@ -961,7 +989,7 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                 snap_config.sps = data_source.get_sample_rate_sps()
                 data_sink = DataSink_file.FileOutput(snap_config, global_vars.SNAPSHOT_DIRECTORY)
                 fudge = (100 - sdr_config.fft_overlap) / 100
-                sdr_config.one_in_n = int(sdr_config.sample_rate / (fudge * sdr_config.fps * sdr_config.fft_size))
+                sdr_config.expected_one_in_n = int(sdr_config.sample_rate / (fudge * sdr_config.fps * sdr_config.fft_size))
 
                 # following may of been changed by the sink on creation
                 if data_sink.get_post_trigger_milli_seconds() != snap_config.postTriggerMilliSec or \
@@ -979,98 +1007,99 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
     return data_source, snap_sink, sdr_config, snap_config, config_changed
 
 
-def send_spectrums_to_ui(sdr_config: Sdr.Sdr,
-                         to_ui_queue: multiprocessing.Queue,
-                         powers: np.ndarray,
-                         peak_powers_since_last_display: np.ndarray,
-                         time_spectrum: float) -> np.ndarray:
+async def send_spectrum_to_ui(sdr_config: Sdr.Sdr,
+                              to_ui_queue: multiprocessing.Queue,
+                              powers: np.ndarray,
+                              peaks: np.ndarray,
+                              time_spectrum: float) -> np.ndarray:
     """
     Send data to the queue used for talking to the ui processes
 
     :param sdr_config: Our programme state variables
     :param to_ui_queue: The queue used for talking to the UI process
     :param powers: The powers of the spectrum bins
-    :param peak_powers_since_last_display: The powers since we last updated the UI
+    :param peaks: The powers since we last updated the UI
     :param time_spectrum: Time of this spectrum in nanoseconds
+    :param web_queue: queue used to implement fps limiter
     :return: array of updated peak powers
     """
     peak_detect = False
-    global processing
+    global latest_peaks
     if sdr_config.stop:
         # drop things on the floor if we are told to stop
         sdr_config.measured_fps = 0  # not doing anything yet
         sdr_config.update_count = 0
     else:
         if powers is None:
-            return peak_powers_since_last_display
+            return None
 
-        if sdr_config.one_in_n < 1:
-            sdr_config.one_in_n = 1
-
-        # should we try and add to the ui queue
-        if sdr_config.update_count >= sdr_config.one_in_n:
+        seconds = sdr_config.time_first_spectrum / 1e9
+        ack = sdr_config.ackTime  # should be the last spectrum shown
+        # update the UI delay
+        if ack != 0:
             # Is the UI keeping up with how fast we are sending things
             # rather a lot of data may get buffered by the OS or network stack
-            seconds = sdr_config.time_first_spectrum / 1e9
-            ack = sdr_config.ackTime  # should be the last spectrum shown
-            if ack != 0:
-                sdr_config.ui_delay = round((seconds - ack), 2)
-                if sdr_config.ui_delay > 2:
-                    # Maybe stuck ack time as the UI is not getting any spectrums
-                    if sdr_config.update_count < (2 * sdr_config.one_in_n):
-                        peak_detect = True  # UI can't keep up
-                    else:
-                        sdr_config.time_first_spectrum = time_spectrum
-                        peak_powers_since_last_display = powers
-                        sdr_config.update_count = 1
+            sdr_config.ui_delay = round((seconds - ack), 2)
+            if sdr_config.ui_delay > 2:
+                sdr_config.fps = max(sdr_config.fps/2, 5)  # save ourselves but don't go too low in fps
 
-            if not peak_detect:
-                # order the spectral magnitudes, zero in the middle
-                display_peaks = np.fft.fftshift(peak_powers_since_last_display)
-
-                # data into the UI queue
-                try:
-                    # wait a maximum of 3seconds to in case we are shutting down
-                    timeout = 3
-                    to_ui_queue.put(
-                        (sdr_config.sample_rate,
-                            sdr_config.centre_frequency_hz,
-                            display_peaks,
-                            sdr_config.time_first_spectrum,
-                            time_spectrum + 1
-                         ),
-                         timeout=timeout
-                    )
-
-                    # peak since last time is the current powers
-                    sdr_config.sent_count += 1
-                    sdr_config.update_count = 0  # success on putting into queue
-                except queue.Full:
-                    peak_detect = True  # UI can't keep up
-                except InterruptedError as msg:
-                    logger.warning("send_spectrums_to_u, Queue interrupted")
-                except Exception as msg:
-                    logger.error("Unhandled exception in send_spectrums_to_ui")
-                    processing = False
-        else:
-            # nope, so peak detect the fft result instead
-            peak_detect = True
-
-    if peak_detect:
-        if sdr_config.update_count == 0:
+        # always peak detect
+        # unless it is the first one after send to the ui
+        # or the fft size has changed
+        if powers.shape != peaks.shape or sdr_config.update_count == 0:
             sdr_config.time_first_spectrum = time_spectrum
-            peak_powers_since_last_display = powers
+            peaks = powers.copy()
         else:
-            if powers.shape == peak_powers_since_last_display.shape:
-                # Record the maximum (peak) for each bin
-                peak_powers_since_last_display = np.maximum.reduce([powers, peak_powers_since_last_display])
+            if sdr_config.peak_detect:
+                peaks = np.maximum(powers, peaks) # Record the maximum (peak) for each bin
             else:
-                peak_powers_since_last_display = powers
-                sdr_config.time_first_spectrum = time_spectrum
-                sdr_config.update_count = 0
+                peaks = powers.copy()
+
         sdr_config.update_count += 1
 
-    return peak_powers_since_last_display
+        # now send to the UI
+        if sdr_config.fps_send_flag:
+            try:
+                # re-order for display
+                display_peaks = np.fft.fftshift(peaks   )
+                timeout = 1.0
+                to_ui_queue.put(
+                    (sdr_config.sample_rate,
+                     sdr_config.centre_frequency_hz,
+                     display_peaks,
+                     sdr_config.time_first_spectrum,
+                     time_spectrum + 1
+                     ),
+                    timeout=timeout
+                )
+
+                # peak since last time is the current powers
+                sdr_config.sent_count += 1
+                sdr_config.actual_one_in_n = sdr_config.update_count
+                sdr_config.update_count = 0  # success on putting into queue
+            except queue.Full:
+                pass  # UI can't keep up
+            except InterruptedError as msg:
+                logger.warning(f"send_spectrums_to_ui, Queue interrupted, {msg}")
+            except Exception as msg:
+                logger.error(f"Unexpected exception in send_spectrum_to_ui, {msg}")
+
+            sdr_config.fps_send_flag = False
+
+    return peaks
+
+
+async def send_worker(sdr_config: Sdr.Sdr) -> None:
+    # every 1/fps set teh fps send flag to true
+    logger.info("pyspectrum send_worker fps queue worker started")
+    try:
+        while True:
+            # Pause for 1/fps sec
+            frame_interval = 1.0 / sdr_config.fps
+            await asyncio.sleep(frame_interval)
+            sdr_config.fps_send_flag = True
+    except Exception as msg:
+        logger.error("send_worker exited", msg)
 
 
 def debug_print(sdr_config: Sdr.Sdr, times_and_averages: TimesAndAverages.TimesAndAverages) -> None:
@@ -1117,4 +1146,4 @@ def debug_print(sdr_config: Sdr.Sdr, times_and_averages: TimesAndAverages.TimesA
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
