@@ -173,6 +173,7 @@ async def main() -> None:
                 else:
                     samples, time_rx_nsec, hop = fetcher.get_next_block()
 
+                sdr_config.total_samples += len(samples) if samples is not None else 0
                 sdr_config.input_overflows = data_source.get_overflows()
 
             except ValueError as mm:
@@ -353,7 +354,8 @@ def handle_samples(data_sink: DataSink_file.FileOutput, hop: Any | None, plugin_
     return samples, snap_finished
 
 
-def set_sample_fetcher(data_source: DataSource.DataSource, sdr_config: Sdr.Sdr) -> BlockSampleFetch | OverlapSampleFetch:
+def set_sample_fetcher(data_source: DataSource.DataSource,
+                       sdr_config: Sdr.Sdr) -> BlockSampleFetch | OverlapSampleFetch:
     fetcher = None
     if sdr_config.read_magnitudes:
         try:
@@ -399,6 +401,13 @@ def update_source_stats(data_source: DataSource.DataSource, now: float, samples:
         times_and_averages.config_time = now + 1
         data_time = (sdr_config.fft_size / sdr_config.sample_rate)
         sdr_config.loop_cpu_pc = 100.0 * (times_and_averages.loop_time.get_ewma() / data_time)
+
+        # effective sample rate, TODO: doesn't work when we have fft overlap
+        diff_time = now - sdr_config.time_last_effective_calc
+        new_effective = (sdr_config.total_samples / max(diff_time, 0.000001)) / 1e6
+        sdr_config.effective_sample_rate = 0.9999 * new_effective + (1 - 0.9999) * sdr_config.effective_sample_rate
+        sdr_config.time_last_effective_calc = now
+        sdr_config.total_samples = 0
 
         # cpu load
         sdr_config.max_cpu_core_pc = max(psutil.cpu_percent(percpu=True))
@@ -653,6 +662,7 @@ def fill_status_fast_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_config
     shared_status['overflows'] = sdr_config.input_overflows
     shared_status['oneInN'] = sdr_config.actual_one_in_n
     shared_status['expectedOneInN'] = sdr_config.expected_one_in_n
+    shared_status['effectiveSps'] = sdr_config.effective_sample_rate
 
     # snapshot stuff
     shared_status['snapTriggerState'] = snap_config.triggerState
@@ -719,7 +729,8 @@ def fill_shared_status_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_conf
     shared_status['overflows'] = sdr_config.input_overflows
     shared_status['ackTime'] = sdr_config.ackTime
     shared_status['oneInN'] = sdr_config.actual_one_in_n
-    shared_status['ExpectedOneInN'] = sdr_config.expected_one_in_n
+    shared_status['expectedOneInN'] = sdr_config.expected_one_in_n
+    shared_status['effectiveSps'] = sdr_config.effective_sample_rate
 
     shared_status['readMagnitudes'] = "magnitudes" if sdr_config.read_magnitudes else "samples"
 
@@ -1060,7 +1071,7 @@ async def send_spectrum_to_ui(sdr_config: Sdr.Sdr,
         sdr_config.update_count += 1
 
         update = False
-        #print(update, sdr_config.sent_count, sdr_config.update_count, sdr_config.expected_one_in_n, sdr_config.actual_one_in_n, sdr_config.fps, sdr_config.measured_fps)
+        # print(update, sdr_config.sent_count, sdr_config.update_count, sdr_config.expected_one_in_n, sdr_config.actual_one_in_n, sdr_config.fps, sdr_config.measured_fps)
 
         # now send to the UI
         # fps_send_flag saves us from when we are missing lots of data

@@ -17,6 +17,7 @@ const fastStatusUi = {
     overflows: $('#currentOverflows'),
     fps: $('#currentFPS'),
     expectedOneInN: $('#currentExpectedOneInN'),
+    effectiveSps: $('#currentEffectiveSps'),
     oneInN: $('#currentOneInN'),
     inputLevel: $('#currentInputLevel'),
     gain: $('#currentGain'),
@@ -169,10 +170,24 @@ async function syncCurrentFast() {
         snapState.setFromJson(obj.fastStatus); // update the snap state
 
         // only update the UI elements if things have changed
-        // store the previous state in the fastStatusUi
-        const delay = sdrState.getUiDelay().toFixed(2);
+        // store the previous state in the fastStatusxxxxxxx
+
+        const eSps = sdrState.getEffectiveSps();
+        if (fastStatusUi.lastEffectiveSps != eSps){
+            fastStatusUi.effectiveSps.text(eSps.toFixed(6)+" Msps");
+            const sps = sdrState.getSps();
+            // within 1%
+            if (eSps < (0.99 * (sdrState.getSps() / 1e6))) {
+                fastStatusUi.effectiveSps.css("background-color", "#ff0000");
+            } else {
+                fastStatusUi.effectiveSps.css("background-color", "#00ee00");
+            }
+            fastStatusUi.lastEffectiveSps = eSps;
+        }
+
+        const delay = sdrState.getUiDelay();
         if (fastStatusUi.lastDelay !== delay){
-            fastStatusUi.delay.text(delay);
+            fastStatusUi.delay.text(delay.toFixed(2) + " sec");
             if (delay > 1.0) {
                 fastStatusUi.delay.css("background-color", "#ff0000");
             } else {
@@ -183,7 +198,7 @@ async function syncCurrentFast() {
 
         const loopCpu = sdrState.getLoopCpuPc().toFixed(1);
         if (fastStatusUi.lastLoopCpu != loopCpu) {
-            fastStatusUi.loopCpu.text(loopCpu +'%');
+            fastStatusUi.loopCpu.text(loopCpu +' %');
             if (loopCpu > 110) {
                 fastStatusUi.loopCpuCell.css("background-color", "#ff0000");
             } else {
@@ -194,7 +209,7 @@ async function syncCurrentFast() {
 
         const coreCpuPc = sdrState.getMaxCpuCorePc().toFixed(1);
         if (fastStatusUi.lastMaxCpuCorePc != coreCpuPc) {
-            fastStatusUi.maxCpuCorePc.text(coreCpuPc + '%');
+            fastStatusUi.maxCpuCorePc.text(coreCpuPc + ' %');
             if (coreCpuPc > 90) {
                 fastStatusUi.maxCpuCorePc.css("background-color", "#ff0000");
             } else {
@@ -222,6 +237,11 @@ async function syncCurrentFast() {
         if (fastStatusUi.lastOneInN != sdrState.getOneInN()) {
             fastStatusUi.oneInN.text(sdrState.oneInN.toFixed(0)+" traces");
             fastStatusUi.lastOneInN = sdrState.oneInN;
+        }
+
+        if (fastStatusUi.lastEffectiveSps != sdrState.getEffectiveSps()) {
+            fastStatusUi.effectiveSps.text(sdrState.effectiveSps.toFixed(6)+" Msps");
+            fastStatusUi.lastEffectiveSps = sdrState.effectiveSps;
         }
 
         const inputLevel = sdrState.getInputLevel().toFixed(1);

@@ -645,7 +645,7 @@ class Status(Resource):
         if thing == 'fastStatus':
             stats = [
                 'delay', 'loopCpuPc', 'maxCpuCorePc', 'overflows', 'fps', 'oneInN',
-                'expectedOneInN', 'digitiserInputLevel', 'digitiserGain',
+                'expectedOneInN', 'digitiserInputLevel', 'digitiserGain', 'effectiveSps',
                 'streamLength', 'streamCurrent', 'snapSize', 'snapTriggerState',
             ]
         elif thing == 'currentStatus':

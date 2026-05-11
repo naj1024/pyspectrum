@@ -11,11 +11,14 @@ from dataclasses import dataclass
 @dataclass
 class Sdr:
     sample_rate = 1e6  # default
+    effective_sample_rate = sample_rate # we will calculate what we are getting
     centre_frequency_hz = 433.92e6  # used by the sdr
     conversion_frequency_hz = 0.0
     sdr_centre_frequency_hz = centre_frequency_hz - conversion_frequency_hz
     sample_types = ['8o', '8t', '16tbe', '16tle', '32fle', '32fbe']
     sample_type = '16tbe'  # default Format of sample data
+    total_samples = 0
+    time_last_effective_calc = 0
     gain = 0
     gain_modes = ['none']
     gain_mode = "none"

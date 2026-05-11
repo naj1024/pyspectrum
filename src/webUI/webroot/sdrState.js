@@ -79,6 +79,9 @@ sdrState.prototype.setOneInN = function(oneInN) {
 sdrState.prototype.expectedOneInN = function(expectedOneInN) {
     this.expectedOneInN = parseInt(expectedOneInN);
 }
+sdrState.prototype.effectiveSps = function(effectiveSps) {
+    this.effectiveSps = parseInt(effectiveSps);
+}
 sdrState.prototype.setGain = function(gain) {
     this.gain = parseInt(gain);
 }
@@ -196,6 +199,9 @@ sdrState.prototype.getOneInN = function() {
 }
 sdrState.prototype.getExpectedOneInN = function() {
     return this.expectedOneInN;
+}
+sdrState.prototype.getEffectiveSps = function() {
+    return this.effectiveSps;
 }
 sdrState.prototype.getSourceConnected = function() {
     return this.sourceConnected;
@@ -461,6 +467,9 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
     if (jsonConfig.expectedOneInN != undefined) {
         this.expectedOneInN = parseInt(jsonConfig.expectedOneInN);
     }
+    if (jsonConfig.effectiveSps != undefined) {
+        this.effectiveSps = parseFloat(jsonConfig.effectiveSps);
+    }
 }
 
 function sdrState() {
@@ -474,6 +483,7 @@ function sdrState() {
     this.overflows = 0;
     this.oneInN = 0;
     this.expectedOneInN = 0;
+    this.effectiveSps = 0.0
 
     // non visible things
     this.lastDataTime = 0;

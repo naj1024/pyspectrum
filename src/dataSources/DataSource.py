@@ -387,6 +387,8 @@ class DataSource:
         elapsed = (time.time_ns() - self._last_time)
         if elapsed > 0:
             expected_time = 1e9 * number_samples / self._sample_rate_sps
+            # approximation to allow for other things happening, may be specific to computer it is run on
+            expected_time *= 0.75
             wait = (expected_time - elapsed) / 1e9
             if wait > 0.0:
                 time.sleep(wait)
