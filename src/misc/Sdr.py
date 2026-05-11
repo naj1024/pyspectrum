@@ -5,7 +5,7 @@ Used because we seem to need a lot of these in different places during initialis
 
 Passed to the UI as a jason string every few seconds
 """
-
+import asyncio
 from dataclasses import dataclass
 
 @dataclass
@@ -44,6 +44,7 @@ class Sdr:
 
     # display
     fps = 20
+    dog = asyncio.Event()  # for sending data at fps, guard when things go wrong
     update_count = 0
     measured_fps = 20
     time_measure_fps = 0
@@ -57,7 +58,7 @@ class Sdr:
     # for interface to UI
     ackTime = 0  # time in seconds of the last data displayed by the UI, updated by UI
     ui_delay = 0  # measured difference between now and ack from ui
-    expected_one_in_n = int(sample_rate / (fps * fft_size))
+    expected_one_in_n = max(int(sample_rate / (fps * fft_size)), 1)
     actual_one_in_n = expected_one_in_n
 
     # where the data comes from

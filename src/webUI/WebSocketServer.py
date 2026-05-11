@@ -86,8 +86,8 @@ class WebSocketServer(multiprocessing.Process):
                     logger.info("WebSocket server is now listening")
                     while not self._exit_now:
                         await asyncio.sleep(0.5)
-            except Exception as msg:
-                logger.error(f"Exception when closing websocket, {msg}")
+            except Exception as msg2:
+                logger.error(f"Exception when closing websocket, {msg2}")
 
         try:
             loop.run_until_complete(server_task())

@@ -48,6 +48,7 @@ const currentStatusUi = {
    fft: $('#currentFft'),
    overlap: $('#currentFftOverlap'),
    psd: $('#currentPsd'),
+   peakDetect: $('#currentPeakDetect'),
    frameTime: $('#fftFrameTime'),
    window: $('#currentFftWindow'),
    triggerType: $('#currentSnapTriggerType'),
@@ -100,8 +101,8 @@ async function syncCurrent() {
         // current values not covered by fast update method
         const res = await fetch('./status/currentStatus');
         const obj = await res.json();
-        sdrState.setConfigFromJason(obj); // update the sdr state
-        snapState.setFromJson(obj); // update the snap state
+        sdrState.setConfigFromJason(obj.currentStatus); // update the sdr state
+        snapState.setFromJson(obj.currentStatus); // update the snap state
 
         let source = sdrState.getInputSource();
         let params = sdrState.getInputSourceParams();
@@ -139,6 +140,7 @@ async function syncCurrent() {
         currentStatusUi.fft.text(sdrState.getFftSize());
         currentStatusUi.overlap.text(sdrState.getFftOverlap() + " %");
         currentStatusUi.psd.text(sdrState.getPsd());
+        currentStatusUi.peakDetect.text(sdrState.getPeakDetect());
         currentStatusUi.frameTime.text(sdrState.getFftFrameTime().toFixed(0) + " usec");
         currentStatusUi.window.text(sdrState.getFftWindow());
         currentStatusUi.fftRbw.text(spectrum.convertFrequencyForDisplay(sdrState.getFftRbw(),1));
@@ -163,13 +165,12 @@ async function syncCurrentFast() {
     try {
         const res = await fetch('./status/fastStatus');
         const obj = await res.json();
-        sdrState.setConfigFromJason(obj); // update the sdr state
-        snapState.setFromJson(obj); // update the snap state
+        sdrState.setConfigFromJason(obj.fastStatus); // update the sdr state
+        snapState.setFromJson(obj.fastStatus); // update the snap state
 
         // only update the UI elements if things have changed
         // store the previous state in the fastStatusUi
-
-        const delay = obj.delay.toFixed(2);
+        const delay = sdrState.getUiDelay().toFixed(2);
         if (fastStatusUi.lastDelay !== delay){
             fastStatusUi.delay.text(delay);
             if (delay > 1.0) {
@@ -202,9 +203,9 @@ async function syncCurrentFast() {
             fastStatusUi.lastMaxCpuCorePc = coreCpuPc;
         }
 
-        if (fastStatusUi.lastOverflows != obj.overflows) {
-            fastStatusUi.overflows.text(obj.overflows);
-            fastStatusUi.lastOverflows = obj.overflows;
+        if (fastStatusUi.lastOverflows != sdrState.getOverflows()) {
+            fastStatusUi.overflows.text(sdrState.overflows);
+            fastStatusUi.lastOverflows = sdrState.overflows;
         }
 
         const maxFps = sdrState.getMeasuredFps().toFixed(1);
@@ -213,14 +214,14 @@ async function syncCurrentFast() {
             fastStatusUi.lastMaxFps = maxFps;
         }
 
-        if (fastStatusUi.lastExpectedOneInN != obj.expectedOneInN) {
-            fastStatusUi.expectedOneInN.text(obj.expectedOneInN.toFixed(0)+" traces");
-            fastStatusUi.lastExpectedOneInN = obj.expectedOneInN;
+        if (fastStatusUi.lastExpectedOneInN != sdrState.getExpectedOneInN()) {
+            fastStatusUi.expectedOneInN.text(sdrState.expectedOneInN.toFixed(0)+" traces");
+            fastStatusUi.lastExpectedOneInN = sdrState.expectedOneInN;
         }
 
-        if (fastStatusUi.lastOneInN != obj.oneInN) {
-            fastStatusUi.oneInN.text(obj.oneInN.toFixed(0)+" traces");
-            fastStatusUi.lastOneInN = obj.oneInN;
+        if (fastStatusUi.lastOneInN != sdrState.getOneInN()) {
+            fastStatusUi.oneInN.text(sdrState.oneInN.toFixed(0)+" traces");
+            fastStatusUi.lastOneInN = sdrState.oneInN;
         }
 
         const inputLevel = sdrState.getInputLevel().toFixed(1);
@@ -284,7 +285,7 @@ function syncNew() {
     // This is very busy on the network. TODO: change to have a single end point for this
     // get all the main stuff
     let initUris = ['./input/sources', './digitiser/digitiserFormats',
-                './spectrum/fftSizes', './spectrum/psd', './spectrum/fftOverlap',
+                './spectrum/fftSizes', './spectrum/psd', 'spectrum/peakDetect', './spectrum/fftOverlap',
                 './spectrum/fftOverlaps', './spectrum/fftFrameTime', './spectrum/fftRbw',
                 './spectrum/fftWindows', './digitiser/digitiserGainTypes', './control/presetFps',
                 './digitiser/digitiserGain', './digitiser/digitiserSampleRate', './tuning/frequency',
@@ -637,6 +638,24 @@ function showNew(jsonConfig) {
         $('#newPsd').empty().append(new_html);
     }
 
+
+    /////////////
+    // Peak Detect
+    ///////
+    if(jsonConfig.peakDetect != undefined){
+        let peak = sdrState.getPeakDetect();
+        let peaks = ["On", "Off"];
+        new_html = '<form ';
+        new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
+        new_html += 'action="javascript:handlePeakDetectChange(peakDetect.value)">';
+        new_html += '<select id="peakDetect" name="peakDetect" onchange="this.form.submit()">';
+        peaks.forEach(function(pk) {
+                new_html += '<option value="'+pk+'"'+((pk==peak)?"selected":"")+'>'+pk+'</option>';
+            });
+        new_html += '</select></form>';
+        $('#newPeakDetect').empty().append(new_html);
+    }
+
     /////////////
     // gain mode
     ///////
@@ -969,6 +988,22 @@ function handlePsdChange(newPsd) {
     spectrum.setPsd(newPsd);
     configFocusOut();
 }
+
+function handlePeakDetectChange(newPeak) {
+    fetch("./spectrum/peakDetect", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"peakDetect":(newPeak)})
+    }).then(response => {
+        return response.json();
+    });
+
+    sdrState.setPeakDetect(newPeakDetect);
+    configFocusOut();
+}
+
 
 function handleFftWindowChange(newWindow) {
     fetch("./spectrum/fftWindow", {

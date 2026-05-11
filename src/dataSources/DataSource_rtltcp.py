@@ -375,7 +375,7 @@ class Input(DataSource.DataSource):
         if (freq_ok and
                 (self._tuner_type_str == allowed_tuner_types[1] or self._tuner_type_str == allowed_tuner_types[4])):
             # E4000 and FC2580 have gaps in frequency coverage
-            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, self._min_frequency_gap52e6, self._max_frequency_gap)
+            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, self._min_frequency_gap, self._max_frequency_gap)
             freq = not freq_ok
 
         if not freq_ok:

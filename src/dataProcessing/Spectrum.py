@@ -125,34 +125,34 @@ class Spectrum:
     def set_window(self, window: str) -> None:
         # window_gain_compensation values adjusted by matching the
         # rectangular window average power on the spectrum
+        num_samples = self._fft_size
         try:
-            N = self._fft_size
             win = window.lower()
             if win in (w.lower() for w in get_windows()):
                 self._window_type = window
                 if self._window_type == 'Rectangular':
-                    self._win = np.ones(N)
+                    self._win = np.ones(num_samples)
                 elif self._window_type == 'Flattop':
                     if signal:
-                        self._win = signal.windows.flattop(N, False)
+                        self._win = signal.windows.flattop(num_samples, False)
                     else:
                         raise ValueError()
                 elif self._window_type == 'Hanning':
-                    self._win = np.hanning(N)
+                    self._win = np.hanning(num_samples)
                 elif self._window_type == 'Hamming':
-                    self._win = np.hamming(N)
+                    self._win = np.hamming(num_samples)
                 elif self._window_type == 'Blackman':
-                    self._win = np.blackman(N)
+                    self._win = np.blackman(num_samples)
                 elif self._window_type == 'Kaiser_16':
-                    self._win = np.kaiser(N, 16)
+                    self._win = np.kaiser(num_samples, 16)
                 elif self._window_type == 'Bartlett':
-                    self._win = np.bartlett(N)
+                    self._win = np.bartlett(num_samples)
                 else:
                     raise ValueError()
 
                 if self._win is not None:
                     self._window_gain_compensation = np.mean(self._win)
-                    self._effective_noise_bw = N * np.sum(self._win ** 2) / (np.sum(self._win) ** 2)
+                    self._effective_noise_bw = num_samples * np.sum(self._win ** 2) / (np.sum(self._win) ** 2)
 
             else:
                 raise ValueError()
@@ -160,7 +160,7 @@ class Spectrum:
             # default window is hanning
             self._win = np.hanning(self._fft_size)
             self._window_gain_compensation = np.mean(self._win)
-            self._effective_noise_bw = N * np.sum(self._win ** 2) / (np.sum(self._win) ** 2)
+            self._effective_noise_bw = num_samples * np.sum(self._win ** 2) / (np.sum(self._win) ** 2)
             self._window_type = "Hanning"
             logging.error(f"Unavailable window {window}, defaulting to Hanning")
 
@@ -281,14 +281,14 @@ class Spectrum:
         :return: dB array of the magnitudes squared
         """
         # convert to dB and normalise,
-        N = len(mag_squared)
+        n = len(mag_squared)
         if psd:
             # normalize for PSD (dB/Hz)
-            psd_vals = mag_squared / (N * sps * self._window_gain_compensation** 2 * self._effective_noise_bw)
+            psd_vals = mag_squared / (n * sps * self._window_gain_compensation** 2 * self._effective_noise_bw)
         else:
             # normalize for bin power (dB per FFT bin)
-            rbw = sps / N * self._effective_noise_bw
-            psd_vals = rbw * mag_squared / (N * self._window_gain_compensation** 2)  # linear bin power
+            rbw = sps / n * self._effective_noise_bw
+            psd_vals = rbw * mag_squared / (n * self._window_gain_compensation** 2)  # linear bin power
 
         psd_vals = 10 * np.log10(psd_vals + 1e-20) - offset  # avoid log(0) with 1e-20
 
