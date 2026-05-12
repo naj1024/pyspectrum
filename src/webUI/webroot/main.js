@@ -169,22 +169,7 @@ async function syncCurrentFast() {
         sdrState.setConfigFromJason(obj.fastStatus); // update the sdr state
         snapState.setFromJson(obj.fastStatus); // update the snap state
 
-        // only update the UI elements if things have changed
-        // store the previous state in the fastStatusxxxxxxx
-
-        const eSps = sdrState.getEffectiveSps();
-        if (fastStatusUi.lastEffectiveSps != eSps){
-            fastStatusUi.effectiveSps.text(eSps.toFixed(6)+" Msps");
-            const sps = sdrState.getSps();
-            // within 1%
-            if (eSps < (0.99 * (sdrState.getSps() / 1e6))) {
-                fastStatusUi.effectiveSps.css("background-color", "#ff0000");
-            } else {
-                fastStatusUi.effectiveSps.css("background-color", "#00ee00");
-            }
-            fastStatusUi.lastEffectiveSps = eSps;
-        }
-
+        // update the live status bars
         statusBars.updateDynamic('effectiveSps', {
           value:         sdrState.getEffectiveSps(),
           max:           sdrState.getSps() / 1e6,
@@ -202,38 +187,8 @@ async function syncCurrentFast() {
         statusBars.update('coreCpu', sdrState.getMaxCpuCorePc());
         statusBars.update('loopCpu', sdrState.getLoopCpuPc());
 
-        const delay = sdrState.getUiDelay();
-        if (fastStatusUi.lastDelay !== delay){
-            fastStatusUi.delay.text(delay.toFixed(2) + " sec");
-            if (delay > 1.0) {
-                fastStatusUi.delay.css("background-color", "#ff0000");
-            } else {
-                fastStatusUi.delay.css("background-color", "#00ee00");
-            }
-            fastStatusUi.lastDelay = delay;
-        }
-
-        const loopCpu = sdrState.getLoopCpuPc().toFixed(1);
-        if (fastStatusUi.lastLoopCpu != loopCpu) {
-            fastStatusUi.loopCpu.text(loopCpu +' %');
-            if (loopCpu > 110) {
-                fastStatusUi.loopCpuCell.css("background-color", "#ff0000");
-            } else {
-                fastStatusUi.loopCpuCell.css("background-color", "#00ee00");
-            }
-            fastStatusUi.lastLoopCpu = loopCpu;
-        }
-
-        const coreCpuPc = sdrState.getMaxCpuCorePc().toFixed(1);
-        if (fastStatusUi.lastMaxCpuCorePc != coreCpuPc) {
-            fastStatusUi.maxCpuCorePc.text(coreCpuPc + ' %');
-            if (coreCpuPc > 90) {
-                fastStatusUi.maxCpuCorePc.css("background-color", "#ff0000");
-            } else {
-                fastStatusUi.maxCpuCorePc.css("background-color", "#00ee00");
-            }
-            fastStatusUi.lastMaxCpuCorePc = coreCpuPc;
-        }
+        // only update the UI elements if things have changed
+        // store the previous state in the fastStatusxxxxxxx
 
         if (fastStatusUi.lastOverflows != sdrState.getOverflows()) {
             fastStatusUi.overflows.text(sdrState.overflows);
