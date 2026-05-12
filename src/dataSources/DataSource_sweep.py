@@ -78,6 +78,10 @@ class Input(DataSource.DataSource):
         self.enbw_db = 0
         self.change_spectrum(512, 'Hanning')
 
+    def set_spectral_output(self, active: bool):
+        # configure source to output spectrums
+        self._spectral_output = active
+
     def change_spectrum(self, n: int, window: str) -> None:
         self._spec = Spectrum.Spectrum(n, window)
         self._enbw_db= 10 * math.log10(self._spec.get_enbw())
@@ -114,26 +118,26 @@ class Input(DataSource.DataSource):
 
         time_in = time.time_ns()
 
-        Fs = self._sample_rate_sps
-        N = number_samples
+        sample_rate = self._sample_rate_sps
+        n = number_samples
 
         # Phase step for this frequency
-        phase_step = np.complex64(np.exp(1j * 2 * np.pi * self._current_freq / Fs))
+        phase_step = np.complex64(np.exp(1j * 2 * np.pi * self._current_freq / sample_rate))
 
         # generate samples
         phases = np.arange(number_samples, dtype=np.float64)
-        signal = (self._osc_phase * np.exp(1j * 2 * np.pi * self._current_freq / Fs * phases)).astype(np.complex64)
+        signal = (self._osc_phase * np.exp(1j * 2 * np.pi * self._current_freq / sample_rate * phases)).astype(np.complex64)
 
         # advance for next call
         self._osc_phase = signal[-1] * phase_step
 
         # Frequency step per call and wrap to [-Fs/2, Fs/2)
-        self._current_freq += Fs / 8192  # decent sweep rate
-        if self._current_freq >= Fs / 2:
-            self._current_freq -= Fs
+        self._current_freq += sample_rate / 8192  # decent sweep rate
+        if self._current_freq >= sample_rate / 2:
+            self._current_freq -= sample_rate
 
         # Desired noise level
-        fft_gain_db = 10 * math.log10(N)
+        fft_gain_db = 10 * math.log10(n)
         snr_offset_db = fft_gain_db - self._enbw_db
         snr_linear = 10 ** ((self._snr_db - snr_offset_db) / 10)
 
@@ -143,8 +147,8 @@ class Input(DataSource.DataSource):
 
         # Add Gaussian noise, make sure we stay as complex64
         noise = (
-                np.random.normal(0, noise_std_per_component, N).astype(np.float32)
-                + 1j * np.random.normal(0, noise_std_per_component, N).astype(np.float32)
+                np.random.normal(0, noise_std_per_component, n).astype(np.float32)
+                + 1j * np.random.normal(0, noise_std_per_component, n).astype(np.float32)
         )
         signal_noisy = signal + noise.astype(np.complex64)
 

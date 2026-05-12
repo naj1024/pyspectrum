@@ -188,7 +188,20 @@
                                                 <div id="newGain"></div>
                                             </td>
                                         </tr>
-
+                                        <tr title="Overflows on input buffer from device, -1 means that the IO library provides no support for detecting overflows">
+                                            <td><b>Overflows</b></td>
+                                            <td>
+                                                <div id="currentOverflows"></div>
+                                            </td>
+                                            <td>
+                                        </tr>
+                                        <tr title="Length of file input stream in seconds">
+                                            <td><b>Stream Length</b></td>
+                                            <td>
+                                                <div id="streamLength"></div>
+                                            </td>
+                                            <td/>
+                                        </tr>
                                         <tr class="blank_row">
                                             <td colspan="3">&nbsp;</td>
                                         </tr>
@@ -243,6 +256,15 @@
                                             </td>
                                             <td>
                                                 <div id="newFftOverlap"></div>
+                                            </td>
+                                        </tr>
+                                        <tr title="Peak detect. Off: don't peak over N fft frames. You get one in N">
+                                            <td><b>PeakDetect</b></td>
+                                            <td>
+                                                <div id="currentPeakDetect"></div>
+                                            </td>
+                                            <td>
+                                                <div id="newPeakDetect"></div>
                                             </td>
                                         </tr>
                                         <tr title="FFT RBW">
@@ -304,7 +326,7 @@
                                             </td>
                                             <td></td>
                                         </tr>
-                                        <tr title="How often we update this UI display">
+                                        <tr title="How often we update this UI display, When dropping samples this will not be the correct fps">
                                             <td><b>FPS</b></td>
                                             <td>
                                                 <div id="currentFPS"></div>
@@ -313,17 +335,17 @@
                                                 <div id="newFPS"></div>
                                             </td>
                                         </tr>
-                                        <tr title="Peak detect on all fft results, updating every 1 in N">
-                                            <td><b>Peak over </b></td>
+                                        <tr title="Expected peak detect over N fft results">
+                                            <td><b>Expected Peak over </b></td>
                                             <td>
-                                                <div id="currentOneInN"></div>
+                                                <div id="currentExpectedOneInN"></div>
                                             </td>
                                             <td></td>
                                         </tr>
-                                        <tr title="Approximate delay from front end to UI, limited to 2seconds">
-                                            <td><b>UI delay</b></td>
+                                        <tr title="Peak detect over N fft results">
+                                            <td><b>Peak over </b></td>
                                             <td>
-                                                <div id="currentDelay2"></div>
+                                                <div id="currentOneInN"></div>
                                             </td>
                                             <td></td>
                                         </tr>
@@ -333,46 +355,7 @@
 
                             <details open>
                                 <summary>Processing</summary>
-                                <table id="processingTable" class="table table-hover table-striped table-bordered table-sm">
-                                    <tbody>
-                                        <tr title="Overflows on input buffer from device, -1 means that the IO library provides no support for detecting overflows">
-                                            <td><b>Overflows</b></td>
-                                            <td>
-                                                <div id="currentOverflows"></div>
-                                            </td>
-                                        </tr>
-                                        <tr title="Approximate delay from front end to UI, limited to 2seconds">
-                                            <td><b>UI delay</b></td>
-                                            <td>
-                                                <div id="currentDelay"></div>
-                                            </td>
-                                        </tr>
-                                        <tr title="Max CPU core load %, may not be due to this program">
-                                            <td><b>CPU core pc %</b></td>
-                                            <td>
-                                                <div id="currentMaxCpuCorePc"></div>
-                                            </td>
-                                        </tr>
-                                        <tr title="Percentage of FFT frame time being used. Should be close to 100%, >100% may indicate problem with keeping up. The percentage includes all processing and time to get samples">
-                                            <td><b>Loop %</b></td>
-                                            <td>
-                                                <div id="currentLoopCpuPc"></div>
-                                            </td>
-                                        </tr>
-                                        <tr title="Length of file input stream in seconds">
-                                            <td><b>Stream Length</b></td>
-                                            <td>
-                                                <div id="streamLength"></div>
-                                            </td>
-                                        </tr>
-                                        <tr title="Current seconds of file input streams">
-                                            <td><b>Stream current</b></td>
-                                            <td>
-                                                <div id="streamCurrent"></div>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                <div id="process-status-panel"></div>
                             </details>
                         </div>
 
@@ -670,6 +653,7 @@
 <script src="colourmap.js"></script>
 <script src="spectrum.js"></script>
 <script src="snapState.js"></script>
+<script src="statusBars.js"></script>
 <script src="main.js"></script>
 <script src="sdrState.js"></script>
 

@@ -375,10 +375,20 @@ class DataSource:
         # used for reading say fft spectrum magnitudes instead of complex samples
         raise NotImplementedError("Derived class has to provide read_magnitude_samples()")
 
+    def set_spectral_output(self, active: bool):
+        # configure source to output spectrums
+        raise NotImplementedError("Derived class may provide set_spectral_output()")
+
+    def change_spectrum(self, sdr_config: int, window: str):
+        # if source supports spectral output it may implement this
+        raise NotImplementedError("Derived class may provide set_spectral_output()")
+
     def simulate_sample_wait_time(self, number_samples: int) -> float:
         elapsed = (time.time_ns() - self._last_time)
         if elapsed > 0:
             expected_time = 1e9 * number_samples / self._sample_rate_sps
+            # approximation to allow for other things happening, may be specific to computer it is run on
+            expected_time *= 0.75
             wait = (expected_time - elapsed) / 1e9
             if wait > 0.0:
                 time.sleep(wait)

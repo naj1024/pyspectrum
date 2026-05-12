@@ -7,7 +7,6 @@ We save the raw float data to file:
     * if we are triggered before we have accumulated sufficient pre-trigger samples we just go with what we have
 
 """
-import datetime
 import logging
 import pathlib
 import datetime

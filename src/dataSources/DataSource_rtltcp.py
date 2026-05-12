@@ -168,8 +168,8 @@ class Input(DataSource.DataSource):
             # recover the type of tuner we have from the server
             try:
                 self._tuner_type_str = self.get_tuner_type()
-            except Exception:
-                logger.error("Failed to get tuner_type - using R820T")
+            except Exception as e:
+                logger.error(f"Failed to get tuner_type - using R820T, {e}")
                 self._tuner_type_str = allowed_tuner_types[5]  # R820T
                 pass
 
@@ -365,18 +365,12 @@ class Input(DataSource.DataSource):
         return ret
 
     def set_centre_frequency_hz(self, frequency: float) -> None:
-
-        # what type of tuner do we have ?
-        freq_ok = True
-        frequency_to_use = frequency
-        freq_range = ""
         freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, self._min_frequency, self._max_frequency)
 
         if (freq_ok and
                 (self._tuner_type_str == allowed_tuner_types[1] or self._tuner_type_str == allowed_tuner_types[4])):
             # E4000 and FC2580 have gaps in frequency coverage
-            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, self._min_frequency_gap52e6, self._max_frequency_gap)
-            freq = not freq_ok
+            freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, self._min_frequency_gap, self._max_frequency_gap)
 
         if not freq_ok:
             err = f"{self._tuner_type_str}, {frequency}Hz outside range {freq_range}. Setting{frequency_to_use}Hz"

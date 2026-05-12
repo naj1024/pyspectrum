@@ -24,7 +24,7 @@ class Stdout(Plugin):
         self._help_string = help_string
         self._parse_options(kwargs)
 
-    def _parse_options(self, options: {}) -> None:
+    def _parse_options(self, options: dict) -> None:
         """
         Parse the given dictionary of options to see if there is anything for us
         :param options: Dictionary of stuff, note that these are NOT the command line args but derived from them

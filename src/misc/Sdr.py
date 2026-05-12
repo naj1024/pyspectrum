@@ -5,17 +5,20 @@ Used because we seem to need a lot of these in different places during initialis
 
 Passed to the UI as a jason string every few seconds
 """
-
+import asyncio
 from dataclasses import dataclass
 
 @dataclass
 class Sdr:
     sample_rate = 1e6  # default
+    effective_sample_rate = sample_rate # we will calculate what we are getting
     centre_frequency_hz = 433.92e6  # used by the sdr
     conversion_frequency_hz = 0.0
     sdr_centre_frequency_hz = centre_frequency_hz - conversion_frequency_hz
     sample_types = ['8o', '8t', '16tbe', '16tle', '32fle', '32fbe']
     sample_type = '16tbe'  # default Format of sample data
+    total_samples = 0
+    time_last_effective_calc = 0
     gain = 0
     gain_modes = ['none']
     gain_mode = "none"
@@ -44,6 +47,7 @@ class Sdr:
 
     # display
     fps = 20
+    dog = asyncio.Event()  # for sending data at fps, guard when things go wrong
     update_count = 0
     measured_fps = 20
     time_measure_fps = 0
@@ -51,10 +55,14 @@ class Sdr:
     stop = False
     web_port = 8080
 
+    peak_detect = True # we can turn off peak detection between spectrums output at fps
+    fps_send_flag = True  # when set to false the sending of data to the ui is disabled
+
     # for interface to UI
     ackTime = 0  # time in seconds of the last data displayed by the UI, updated by UI
     ui_delay = 0  # measured difference between now and ack from ui
-    one_in_n = int(sample_rate / (fps * fft_size))
+    expected_one_in_n = max(int(sample_rate / (fps * fft_size)), 1)
+    actual_one_in_n = expected_one_in_n
 
     # where the data comes from
     input_source = "null"  # the source type e.g. file, socket, pluto, soapy, rtlsdr, audio ....

@@ -34,6 +34,9 @@ sdrState.prototype.setFftOverlap = function(fftOverlap) {
 sdrState.prototype.setPsd = function(psd) {
     this.psd = psd;
 }
+sdrState.prototype.setPeakDetect = function(peakDetect) {
+    this.peakDetect = peakDetect;
+}
 sdrState.prototype.setFftFrameTime = function(fftFrameTime) {
     this.fftFrameTime = parseInt(fftFrameTime);
 }
@@ -67,8 +70,17 @@ sdrState.prototype.setAllowedFps = function(allowed) {
     this.fpsAllowed = allowed;
 }
 sdrState.prototype.setFps = function(fps) {
-    this.fps = parseInt(fps.set);
+    this.fps = parseInt(fps);
     this.measuredFps = parseFloat(fps.measured);
+}
+sdrState.prototype.setOneInN = function(oneInN) {
+    this.setOneInN = parseInt(oneInN);
+}
+sdrState.prototype.expectedOneInN = function(expectedOneInN) {
+    this.expectedOneInN = parseInt(expectedOneInN);
+}
+sdrState.prototype.effectiveSps = function(effectiveSps) {
+    this.effectiveSps = parseInt(effectiveSps);
 }
 sdrState.prototype.setGain = function(gain) {
     this.gain = parseInt(gain);
@@ -128,6 +140,9 @@ sdrState.prototype.getFftOverlap = function() {
 sdrState.prototype.getPsd = function() {
     return this.psd;
 }
+sdrState.prototype.getPeakDetect = function() {
+    return this.peakDetect;
+}
 sdrState.prototype.getFftRbw = function() {
     return this.fftRbw;
 }
@@ -178,6 +193,15 @@ sdrState.prototype.getFps = function() {
 }
 sdrState.prototype.getMeasuredFps = function() {
     return this.measuredFps;
+}
+sdrState.prototype.getOneInN = function() {
+    return this.oneInN;
+}
+sdrState.prototype.getExpectedOneInN = function() {
+    return this.expectedOneInN;
+}
+sdrState.prototype.getEffectiveSps = function() {
+    return this.effectiveSps;
 }
 sdrState.prototype.getSourceConnected = function() {
     return this.sourceConnected;
@@ -320,6 +344,15 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
         }
     }
 
+    if (jsonConfig.peakDetect != undefined) {
+        if (jsonConfig.peakDetect == "On") {
+            this.peakDetect = "On";
+        }
+        else{
+            this.peakDetect = "Off";
+        }
+    }
+
     if (jsonConfig.fftWindow != undefined) {
         this.window = jsonConfig.fftWindow;
     }
@@ -420,16 +453,22 @@ sdrState.prototype.setConfigFromJason = function(jsonConfig) {
     if (jsonConfig.overflows != undefined) {
         this.overflows = parseInt(jsonConfig.overflows);
     }
-    if (jsonConfig.ui_delay != this.uiDelay) {
-        this.uiDelay = parseFloat(jsonConfig.ui_delay);
-    }
     if (jsonConfig.overflows != this.overflows) {
         this.overflows = parseInt(jsonConfig.input_overflows);
     }
-    
     if (jsonConfig.fps != undefined) {
+        // {'set': sdr_config.fps,'measured': sdr_config.measured_fps}
         this.fps = parseInt(jsonConfig.fps.set);
         this.measuredFps = parseFloat(jsonConfig.fps.measured);
+    }
+    if (jsonConfig.oneInN != undefined) {
+        this.oneInN = parseInt(jsonConfig.oneInN);
+    }
+    if (jsonConfig.expectedOneInN != undefined) {
+        this.expectedOneInN = parseInt(jsonConfig.expectedOneInN);
+    }
+    if (jsonConfig.effectiveSps != undefined) {
+        this.effectiveSps = parseFloat(jsonConfig.effectiveSps);
     }
 }
 
@@ -442,6 +481,9 @@ function sdrState() {
     this.loopCpuPc = 0;
     this.maxCpuCorePc = 0;
     this.overflows = 0;
+    this.oneInN = 0;
+    this.expectedOneInN = 0;
+    this.effectiveSps = 0.0
 
     // non visible things
     this.lastDataTime = 0;
@@ -463,6 +505,7 @@ function sdrState() {
     
     this.fftSize = 0;
     this.psd = "";
+    this.peakDetect = "";
     this.fftOverlap = 0;
     this.fftOverlaps = [];
     this.fftSizes = [];

@@ -97,4 +97,4 @@ def create_sample_fetch(data_source: DataSource.DataSource, sdr_config: Sdr.Sdr)
         overlap_ratio = sdr_config.fft_overlap / 100.0
         return OverlapSampleFetch(data_source, sdr_config.fft_size, sdr_config.sample_rate, overlap_ratio)
     else:
-        raise ValueError(f"Unsupported FFT overlap: {sdr_config.overlap_percent}")
+        raise ValueError(f"Unsupported FFT overlap: {sdr_config.fft_overlap}")

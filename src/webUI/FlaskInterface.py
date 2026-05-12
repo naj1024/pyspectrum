@@ -189,49 +189,44 @@ class Input(Resource):
         self._allowed_put_endpoints = ['source']
 
     def api(self):
-        points = {}
-        for ep in self._allowed_get_endpoints:
-            try:
-                points[ep] = self._status[ep]
-            except Exception:
-                points[ep] = "tbd"  # not present in status yet
-        return points
+        return {
+            ep: self._status.get(ep, "tbd")
+            for ep in self._allowed_get_endpoints
+        }
 
     def get(self, thing):
         if thing == "api":
             return jsonify({"input": self.api()})
 
-        if thing in self._allowed_get_endpoints:
-            if thing == "errors":
-                tmp = ""
-                # error entry may not be present
-                if thing in self._status.keys():
-                    tmp = self._status[thing]
-                    self._status[thing] = ""
-                try:
-                    return jsonify({thing: tmp})
-                except Exception:
-                    logger.error(f"Failed to jsonify for {thing} {type(tmp)}")
-            else:
-                return jsonify({thing: self._status[thing]})
-        return f"Endpoint {thing} not supported", 403
+        if thing not in self._allowed_get_endpoints:
+            return f"Endpoint {thing} not supported", 403
+
+        if thing == "errors":
+            tmp = self._status.get("errors", "")
+            self._status["errors"] = ""
+            return jsonify({"errors": tmp})
+
+        return jsonify({thing: self._status.get(thing)})
 
     def put(self, thing):
-        if thing in self._allowed_put_endpoints:
-            if thing == 'source':
-                try:
-                    s = request.json['source']
-                    p = request.json['params']
-                    self._updateQ.put({
-                        "type": thing,
-                        "set": s,
-                        "params": p,
-                        "connected": "false",
-                    })
-                except Exception:
-                    return f"Failed to parse {thing} endpoint", 400
-                return "ok"
-        return f"Endpoint {thing} not supported", 403
+        if thing not in self._allowed_put_endpoints:
+            return f"Endpoint {thing} not supported", 403
+
+        if thing == 'source':
+            data = request.get_json(silent=True) or {}
+            s = data.get('source')
+            p = data.get('params')
+
+            if s is None or p is None:
+                return f"Missing 'source' or 'params'", 400
+
+            self._updateQ.put({
+                "type": thing,
+                "set": s,
+                "params": p,
+                "connected": "false",
+            })
+        return "ok"
 
 
 class Digitiser(Resource):
@@ -253,97 +248,82 @@ class Digitiser(Resource):
                                        'digitiserDcRemoval', 'digitiserDbmOffset', 'readMagnitudes']
 
     def api(self):
-        points = {}
-        for ep in self._allowed_get_endpoints:
-            try:
-                points[ep] = self._status[ep]
-            except Exception:
-                points[ep] = "tbd"  # not present in status yet
-        return points
+        return {
+            ep: self._status.get(ep, "tbd")
+            for ep in self._allowed_get_endpoints
+        }
 
     def get(self, thing):
         if thing == "api":
             return jsonify({"digitiser": self.api()})
 
-        # Check for allowed endpoints at this point
         if thing in self._allowed_get_endpoints:
-            try:
-                return jsonify({thing: self._status[thing]})
-            except Exception:
-                logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
+            value = self._status.get(thing)
+            if value is None:
+                logger.error(f"Missing key in status: {thing}")
+                return f"Status for {thing} not available", 404
+
+            return jsonify({thing: value})
+
         return f"Endpoint {thing} not supported", 403
 
     def put(self, thing):
-        if thing in self._allowed_put_endpoints:
-            try:
-                if thing == 'digitiserFormat':
-                    fmt = request.json[thing]
-                    if fmt in self._status['digitiserFormats']:
-                        self._updateQ.put({
-                            "type": thing,
-                            "set": fmt,
-                        })
-                    else:
-                        raise ValueError()
-                elif thing == 'digitiserSampleRate':
-                    # request.form for non json put
-                    sps = abs(int(request.json[thing]))
-                    self._updateQ.put({
-                        "type": thing,
-                        "set": sps,
-                    })
-                elif thing == 'digitiserBandwidth':
-                    bw = abs(int(request.json[thing]))
-                    self._updateQ.put({
-                        "type": thing,
-                        "set": bw,
-                    })
-                elif thing == 'digitiserPartsPerMillion':
-                    ppm = float(request.json[thing])
-                    self._updateQ.put({
-                        "type": thing,
-                        "set": ppm,
-                    })
-                elif thing == 'digitiserDbmOffset':
-                    offset = float(request.json[thing])
-                    self._updateQ.put({
-                        "type": thing,
-                        "set": offset,
-                    })
-                elif thing == 'digitiserGainType':
-                    gt = request.json[thing]
-                    if gt in self._status['digitiserGainTypes']:
-                        self._updateQ.put({
-                            "type": thing,
-                            "set": gt,
-                        })
-                    else:
-                        raise ValueError()
-                elif thing == 'digitiserDcRemoval':
-                    dc = request.json[thing]
-                    if dc in self._status['digitiserDcRemovals']:
-                        self._updateQ.put({
-                            "type": thing,
-                            "set": dc,
-                        })
-                    else:
-                        raise ValueError()
-                elif thing == 'digitiserGain':
-                    gn = int(request.json[thing])
-                    self._updateQ.put({
-                            "type": thing,
-                            "set": gn,
-                    })
-                elif thing == 'readMagnitudes':
-                    gt = request.json[thing]
-                    self._updateQ.put({
-                            "type": thing,
-                            "set": gt,
-                    })
-                return "ok"
-            except Exception:
-                return "Failed to parse {thing} endpoint", 400
-        return f"Endpoint {thing} not supported", 403
+        if thing not in self._allowed_put_endpoints:
+            return f"Endpoint {thing} not supported", 403
+
+        data = request.get_json(silent=True) or {}
+
+        if thing not in data:
+            return f"Missing '{thing}'", 400
+
+        value = data[thing]
+
+        try:
+            if thing == 'digitiserFormat':
+                if value not in self._status.get('digitiserFormats', []):
+                    return "Invalid digitiserFormat", 400
+                payload = value
+
+            elif thing == 'digitiserSampleRate':
+                payload = abs(int(value))
+
+            elif thing == 'digitiserBandwidth':
+                payload = float(value)
+
+            elif thing == 'digitiserPartsPerMillion':
+                payload = float(value)
+
+            elif thing == 'digitiserDbmOffset':
+                payload = float(value)
+
+            elif thing == 'digitiserGainType':
+                if value not in self._status.get('digitiserGainTypes', []):
+                    return "Invalid digitiserGainType", 400
+                payload = value
+
+            elif thing == 'digitiserDcRemoval':
+                if value not in self._status.get('digitiserDcRemovals', []):
+                    return "Invalid digitiserDcRemoval", 400
+                payload = value
+
+            elif thing == 'digitiserGain':
+                payload = int(value)
+
+            elif thing == 'readMagnitudes':
+                payload = value
+
+            else:
+                return f"Unhandled endpoint {thing}", 500  # safety fallback
+
+        except (TypeError, ValueError):
+            return f"Invalid value for {thing}", 400
+
+        self._updateQ.put({
+            "type": thing,
+            "set": payload,
+        })
+
+        return "ok"
 
 
 class Spectrum(Resource):
@@ -352,70 +332,77 @@ class Spectrum(Resource):
         # set the dictionary we use for updating things
         self._status = kwargs['status']
         self._updateQ = kwargs['updateQ']
-        self._allowed_get_endpoints = ['fftSizes', 'fftSize', 'psd', 'fftOverlap', 'fftOverlaps',
+        self._allowed_get_endpoints = ['fftSizes', 'fftSize', 'psd', 'peakDetect', 'fftOverlap', 'fftOverlaps',
                                        'fftFrameTime', 'fftWindows', 'fftWindow', 'fftRbw']
-        self._allowed_put_endpoints = ['fftSize', 'fftOverlap', 'psd', 'fftWindow']
+        self._allowed_put_endpoints = ['fftSize', 'fftOverlap', 'psd', 'peakDetect', 'fftWindow']
 
     def api(self):
-        points = {}
-        for ep in self._allowed_get_endpoints:
-            try:
-                points[ep] = self._status[ep]
-            except Exception:
-                points[ep] = "tbd"  # not present in status yet
-        return points
+        return {
+            ep: self._status.get(ep, "tbd")
+            for ep in self._allowed_get_endpoints
+        }
 
     def get(self, thing):
         if thing == "api":
             return jsonify({"spectrum": self.api()})
 
         if thing in self._allowed_get_endpoints:
-            try:
-                return jsonify({thing: self._status[thing]})
-            except Exception:
-                logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
+            value = self._status.get(thing)
+            if value is None:
+                logger.error(f"Missing key in status: {thing}")
+                return f"Status for {thing} not available", 404
+
+            return jsonify({thing: value})
+
         return f"Endpoint {thing} not supported", 403
 
     def put(self, thing):
-        if thing in self._allowed_put_endpoints:
-            try:
-                if thing == 'fftSize':
-                    size = int(request.json[thing])
-                    if size in self._status['fftSizes']:
-                        self._updateQ.put({
-                            "type": thing,
-                            "set": size,
-                        })
-                    else:
-                        raise ValueError()
-                elif thing == 'fftOverlap':
-                    overlap = int(request.json[thing])
-                    if (overlap >= 0) and (overlap <= 100):
-                        self._updateQ.put({
-                            "type": thing,
-                            "set": overlap,
-                        })
-                    else:
-                        raise ValueError()
-                elif thing == 'psd':
-                    psd = request.json[thing]
-                    self._updateQ.put({
-                        "type": thing,
-                        "set": psd,
-                    })
-                elif thing == 'fftWindow':
-                    wnd = request.json[thing]
-                    if wnd in self._status['fftWindows']:
-                        self._updateQ.put({
-                            "type": thing,
-                            "set": wnd,
-                        })
-                    else:
-                        raise ValueError()
-                return "ok"
-            except Exception:
-                return "Failed to parse {thing} endpoint", 400
-        return f"Endpoint {thing} not supported", 403
+        if thing not in self._allowed_put_endpoints:
+            return f"Endpoint {thing} not supported", 403
+
+        data = request.get_json(silent=True) or {}
+
+        if thing not in data:
+            return f"Missing '{thing}'", 400
+
+        value = data[thing]
+
+        try:
+            if thing == 'fftSize':
+                size = int(value)
+                if size not in self._status.get('fftSizes', []):
+                    return "Invalid fftSize", 400
+                payload = size
+
+            elif thing == 'fftOverlap':
+                overlap = int(value)
+                if not (0 <= overlap <= 100):
+                    return "fftOverlap must be 0–100", 400
+                payload = overlap
+
+            elif thing == 'psd':
+                payload = value
+
+            elif thing == 'peakDetect':
+                payload = value
+
+            elif thing == 'fftWindow':
+                if value not in self._status.get('fftWindows', []):
+                    return "Invalid fftWindow", 400
+                payload = value
+
+            else:
+                return f"Unhandled endpoint {thing}", 500  # safety guard
+
+        except (TypeError, ValueError):
+            return f"Invalid value for {thing}", 400
+
+        self._updateQ.put({
+            "type": thing,
+            "set": payload,
+        })
+
+        return "ok"
 
 
 class Control(Resource):
@@ -430,51 +417,64 @@ class Control(Resource):
         self._allowed_put_endpoints = ['ackTime', 'fps', 'stop']
 
     def api(self):
-        points = {}
-        for ep in self._allowed_get_endpoints:
-            try:
-                points[ep] = self._status[ep]
-            except Exception:
-                points[ep] = "tbd"  # not present in status yet
-        return points
+        return {
+            ep: self._status.get(ep, "tbd")
+            for ep in self._allowed_get_endpoints
+        }
 
     def get(self, thing):
         if thing == "api":
             return jsonify({"control": self.api()})
 
         if thing in self._allowed_get_endpoints:
-            try:
-                return jsonify({thing: self._status[thing]})
-            except Exception:
-                logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
+            value = self._status.get(thing)
+            if value is None:
+                logger.error(f"Missing key in status: {thing}")
+                return f"Status for {thing} not available", 404
+
+            return jsonify({thing: value})
+
         return f"Endpoint {thing} not supported", 403
 
     def put(self, thing):
-        if thing in self._allowed_put_endpoints:
-            try:
-                if thing == 'ackTime':
-                    self._updateQ.put({
-                        "type": thing,
-                        "set": request.json[thing],
-                    })
-                elif thing == 'fps':
-                    set_fps = abs(int(request.json[thing]['set']))
-                    measured = self._status['fps']['measured']
-                    self._updateQ.put({
-                        "type": thing,
-                        "set": set_fps,
-                        "measured": measured,
-                    })
-                elif thing == 'stop':
-                    self._updateQ.put({
-                        "type": thing,
-                        "set": request.json[thing],
-                    })
-                return "ok"
-            except Exception:
-                return "Failed to parse {thing} command", 400
-        return f"Endpoint {thing} not supported", 403
+        if thing not in self._allowed_put_endpoints:
+            return f"Endpoint {thing} not supported", 403
 
+        data = request.get_json(silent=True) or {}
+
+        if thing == 'ackTime':
+            if thing not in data:
+                return f"Missing '{thing}'", 400
+
+            self._updateQ.put({
+                "type": thing,
+                "set": data[thing],
+            })
+
+        elif thing == 'fps':
+            try:
+                set_fps = abs(int(data.get(thing, {}).get('set')))
+            except (TypeError, ValueError):
+                return "Invalid fps value", 400
+
+            measured = self._status.get('fps', {}).get('measured')
+
+            self._updateQ.put({
+                "type": thing,
+                "set": set_fps,
+                "measured": measured,
+            })
+
+        elif thing == 'stop':
+            if thing not in data:
+                return "Missing stop value", 400
+
+            self._updateQ.put({
+                "type": thing,
+                "set": data[thing],
+            })
+
+        return "ok"
 
 class Snapshot(Resource):
     # Handle all web requests on the /snapshot endpoint
@@ -491,76 +491,71 @@ class Snapshot(Resource):
         self._allowed_delete_endpoints = ['snapDelete']
 
     def api(self):
-        points = {}
-        for ep in self._allowed_get_endpoints:
-            try:
-                points[ep] = self._status[ep]
-            except Exception:
-                points[ep] = "tbd"  # not present in status yet
-        return points
+        return {
+            ep: self._status.get(ep, "tbd")
+            for ep in self._allowed_get_endpoints
+        }
 
     def get(self, thing):
         if thing == "api":
             return jsonify({"snapshot": self.api()})
 
         if thing in self._allowed_get_endpoints:
-            try:
-                return jsonify({thing: self._status[thing]})
-            except Exception:
-                logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
+            value = self._status.get(thing)
+            if value is None:
+                logger.error(f"Missing key in status: {thing}")
+                return f"Status for {thing} not available", 404
+
+            return jsonify({thing: value})
+
         return f"Endpoint {thing} not supported", 403
 
     def put(self, thing):
-        if thing in self._allowed_put_endpoints:
-            try:
-                if thing == 'snapTrigger':
-                    self._updateQ.put({
-                        "type": thing,
-                        "set": "true",
-                    })
-                elif thing == 'snapTriggerSource':
-                    src = request.json[thing]
-                    if src in self._status['snapTriggerSources']:
-                        self._updateQ.put({
-                            "type": thing,
-                            "set": src,
-                        })
-                    else:
-                        raise ValueError()
-                elif thing == 'snapName':
-                    nme = request.json[thing]
-                    if len(nme) > 0:
-                        self._updateQ.put({
-                            "type": thing,
-                            "set": nme,
-                        })
-                    else:
-                        raise ValueError()
-                elif thing == 'snapFormat':
-                    frm = request.json[thing]
-                    if frm in self._status['snapFormats']:
-                        self._updateQ.put({
-                            "type": thing,
-                            "set": frm,
-                        })
-                    else:
-                        raise ValueError()
-                elif thing == 'snapPreTrigger':
-                    pre = abs(int(request.json[thing]))
-                    self._updateQ.put({
-                        "type": thing,
-                        "set": pre,
-                    })
-                elif thing == 'snapPostTrigger':
-                    pos = abs(int(request.json[thing]))
-                    self._updateQ.put({
-                        "type": thing,
-                        "set": pos,
-                    })
-                return "ok"
-            except Exception:
-                return "Failed to parse {thing} command", 400
-        return f"Endpoint {thing} not supported", 403
+        if thing not in self._allowed_put_endpoints:
+            return f"Endpoint {thing} not supported", 403
+
+        data = request.get_json(silent=True) or {}
+
+        try:
+            if thing == 'snapTrigger':
+                payload = "true"
+
+            elif thing == 'snapTriggerSource':
+                value = data.get(thing)
+                if value not in self._status.get('snapTriggerSources', []):
+                    return "Invalid snapTriggerSource", 400
+                payload = value
+
+            elif thing == 'snapName':
+                value = data.get(thing)
+                if not value:
+                    return "snapName cannot be empty", 400
+                payload = value
+
+            elif thing == 'snapFormat':
+                value = data.get(thing)
+                if value not in self._status.get('snapFormats', []):
+                    return "Invalid snapFormat", 400
+                payload = value
+
+            elif thing == 'snapPreTrigger':
+                payload = abs(int(data.get(thing)))
+
+            elif thing == 'snapPostTrigger':
+                payload = abs(int(data.get(thing)))
+
+            else:
+                return f"Unhandled endpoint {thing}", 500
+
+        except (TypeError, ValueError):
+            return f"Invalid value for {thing}", 400
+
+        self._updateQ.put({
+            "type": thing,
+            "set": payload,
+        })
+
+        return "ok"
 
     def delete(self, thing):
         if thing in self._allowed_delete_endpoints:
@@ -583,40 +578,45 @@ class Tuning(Resource):
         self._allowed_put_endpoints = ['frequency']
 
     def api(self):
-        points = {}
-        for ep in self._allowed_get_endpoints:
-            try:
-                points[ep] = self._status[ep]
-            except Exception:
-                points[ep] = "tbd"  # not present in status yet
-        return points
+        return {
+            ep: self._status.get(ep, "tbd")
+            for ep in self._allowed_get_endpoints
+        }
 
     def get(self, thing):
         if thing == "api":
             return jsonify({"tuning": self.api()})
 
         if thing in self._allowed_get_endpoints:
-            try:
-                return jsonify({thing: self._status[thing]})
-            except Exception:
-                logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
+            value = self._status.get(thing)
+            if value is None:
+                logger.error(f"Missing key in status: {thing}")
+                return f"Status for {thing} not available", 404
+
+            return jsonify({thing: value})
+
         return f"Endpoint {thing} not supported", 403
 
     def put(self, thing):
-        if thing in self._allowed_put_endpoints:
-            try:
-                if thing == 'frequency':
-                    f = abs(int(request.json['value']))
-                    c = int(request.json['conversion'])
-                    self._updateQ.put({
-                        "type": thing,
-                        "set": f,
-                        "conversion": c,
-                    })
-                return "ok"
-            except Exception:
-                return f"Failed to parse {thing} command", 400
-        return f"Endpoint {thing} not supported", 403
+        if thing not in self._allowed_put_endpoints:
+            return f"Endpoint {thing} not supported", 403
+
+        data = request.get_json(silent=True) or {} # {'conversion':0, 'value': 1000000}
+        try:
+            if thing == 'frequency':
+                payload = data
+            else:
+                return f"Unhandled endpoint {thing}", 500
+
+        except (TypeError, ValueError):
+            return f"Invalid value for {thing}", 400
+
+        self._updateQ.put({
+            "type": thing,
+            "set": payload,
+        })
+
+        return "ok"
 
 
 class Status(Resource):
@@ -630,52 +630,57 @@ class Status(Resource):
         self._allowed_put_endpoints = []
 
     def api(self):
-        points = {}
-        for ep in self._allowed_get_endpoints:
-            try:
-                points[ep] = self._status[ep]
-            except Exception:
-                points[ep] = "tbd"  # not present in status yet
-        return points
+        return {
+            ep: self._status.get(ep, "tbd")
+            for ep in self._allowed_get_endpoints
+        }
 
     def get(self, thing):
         if thing == "api":
             return jsonify({"fastStatus": self.api()})
 
-        if thing in self._allowed_get_endpoints:
-            try:
-                if thing == 'fastStatus':
-                    stats = ['delay', 'loopCpuPc', 'maxCpuCorePc', 'overflows', 'fps', 'oneInN',
-                            'digitiserInputLevel', 'digitiserGain', 'streamLength', 'streamCurrent',
-                            'snapSize', 'snapTriggerState',
-                            ]
-                    status = {}
-                    for stat in stats:
-                       status[stat] = self._status[stat]
-                    return jsonify(status)
+        if thing not in self._allowed_get_endpoints:
+            return f"Endpoint {thing} not supported", 403
 
-                elif thing == 'currentStatus':
-                    stats = ['source',
-                             'frequency',
-                             'digitiserFrequency', 'digitiserFormat', 'digitiserSampleRate',
-                             'digitiserBandwidth', 'digitiserPartsPerMillion', 'digitiserDcRemoval',
-                             'digitiserInputLevel', 'digitiserDbmOffset', 'digitiserGainType',
-                             'fftSize', 'fftOverlap', 'psd', 'fftFrameTime', 'fftWindow', 'fftRbw',
-                             'snapTriggerSource', 'snapName', 'snapFormat',
-                             'snapPreTrigger', 'snapPostTrigger', 'readMagnitudes'
-                            ]
-                    status = {}
-                    for stat in stats:
-                       status[stat] = self._status[stat]
-                    return jsonify(status)
-            except Exception:
-                logger.error(f"Failed to jsonify for {thing} {type(self._status[thing])}")
-        return f"Endpoint {thing} not supported", 403
+        if thing == 'fastStatus':
+            stats = [
+                'delay', 'loopCpuPc', 'maxCpuCorePc', 'overflows', 'fps', 'oneInN',
+                'expectedOneInN', 'digitiserInputLevel', 'digitiserGain', 'effectiveSps',
+                'streamLength', 'streamCurrent', 'snapSize', 'snapTriggerState',
+            ]
+        elif thing == 'currentStatus':
+            stats = [
+                'source', 'frequency',
+                'digitiserFrequency', 'digitiserFormat', 'digitiserSampleRate',
+                'digitiserBandwidth', 'digitiserPartsPerMillion', 'digitiserDcRemoval',
+                'digitiserInputLevel', 'digitiserDbmOffset', 'digitiserGainType',
+                'fftSize', 'fftOverlap', 'psd', 'peakDetect',
+                'fftFrameTime', 'fftWindow', 'fftRbw',
+                'snapTriggerSource', 'snapName', 'snapFormat',
+                'snapPreTrigger', 'snapPostTrigger', 'readMagnitudes'
+            ]
+        else:
+            return f"Unhandled endpoint {thing}", 500
+
+        status = {}
+        try:
+            for stat in stats:
+                status[stat] = self._status.get(stat)  # safe access
+
+            return jsonify({thing: status})
+
+        except BrokenPipeError:
+            logger.error(f"Client disconnected for endpoint {thing}")
+            return "", 499
+
+        except Exception as e:
+            logger.exception(f"Failed to build response for {thing}, {e}")
+            return "Internal server error", 500
 
     def put(self, thing):
         if thing in self._allowed_put_endpoints:
             try:
                 return "ok"
-            except Exception:
-                return f"Failed to parse {thing} command", 400
+            except Exception as e:
+                return f"Failed to parse {thing} command, {e}", 400
         return f"Endpoint {thing} not supported", 403

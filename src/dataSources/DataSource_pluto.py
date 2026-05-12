@@ -194,7 +194,7 @@ class Input(DataSource.DataSource):
             self._max_frequency = float(allowed_range[1])
             logger.info(f"Frequency range {allowed_range}")
         except Exception as err:
-            logger.info("No frequency range available through pyadi")
+            logger.info(f"No frequency range available through pyadi, {err}")
 
         # pluto is not consistent in its errors so check ranges here
         if self._centre_frequency_hz < self._min_frequency or self._centre_frequency_hz > self._max_frequency:

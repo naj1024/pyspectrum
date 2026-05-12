@@ -13,10 +13,11 @@ var snapFormInFocus = false;
 // Will also dynamically hold previous values
 const fastStatusUi = {
     delay: $('#currentDelay'),
-    delay2: $('#currentDelay2'),
     loopCpu: $('#currentLoopCpuPc'),
     overflows: $('#currentOverflows'),
     fps: $('#currentFPS'),
+    expectedOneInN: $('#currentExpectedOneInN'),
+    effectiveSps: $('#currentEffectiveSps'),
     oneInN: $('#currentOneInN'),
     inputLevel: $('#currentInputLevel'),
     gain: $('#currentGain'),
@@ -48,6 +49,7 @@ const currentStatusUi = {
    fft: $('#currentFft'),
    overlap: $('#currentFftOverlap'),
    psd: $('#currentPsd'),
+   peakDetect: $('#currentPeakDetect'),
    frameTime: $('#fftFrameTime'),
    window: $('#currentFftWindow'),
    triggerType: $('#currentSnapTriggerType'),
@@ -100,8 +102,8 @@ async function syncCurrent() {
         // current values not covered by fast update method
         const res = await fetch('./status/currentStatus');
         const obj = await res.json();
-        sdrState.setConfigFromJason(obj); // update the sdr state
-        snapState.setFromJson(obj); // update the snap state
+        sdrState.setConfigFromJason(obj.currentStatus); // update the sdr state
+        snapState.setFromJson(obj.currentStatus); // update the snap state
 
         let source = sdrState.getInputSource();
         let params = sdrState.getInputSourceParams();
@@ -139,6 +141,7 @@ async function syncCurrent() {
         currentStatusUi.fft.text(sdrState.getFftSize());
         currentStatusUi.overlap.text(sdrState.getFftOverlap() + " %");
         currentStatusUi.psd.text(sdrState.getPsd());
+        currentStatusUi.peakDetect.text(sdrState.getPeakDetect());
         currentStatusUi.frameTime.text(sdrState.getFftFrameTime().toFixed(0) + " usec");
         currentStatusUi.window.text(sdrState.getFftWindow());
         currentStatusUi.fftRbw.text(spectrum.convertFrequencyForDisplay(sdrState.getFftRbw(),1));
@@ -163,44 +166,33 @@ async function syncCurrentFast() {
     try {
         const res = await fetch('./status/fastStatus');
         const obj = await res.json();
-        sdrState.setConfigFromJason(obj); // update the sdr state
-        snapState.setFromJson(obj); // update the snap state
+        sdrState.setConfigFromJason(obj.fastStatus); // update the sdr state
+        snapState.setFromJson(obj.fastStatus); // update the snap state
+
+        // update the live status bars
+        statusBars.updateDynamic('effectiveSps', {
+          value:         sdrState.getEffectiveSps(),
+          max:           sdrState.getSps() / 1e6,
+          threshold:     0.99 * (sdrState.getSps() / 1e6),
+          thresholdMode: 'below',   // red when value drops *below* threshold
+        });
+        statusBars.updateDynamic('streamCurrent', {
+          value:         sdrState.getStreamCurrent(),
+          max:           sdrState.getStreamLength(),
+          threshold:     sdrState.getStreamLength(),
+          thresholdMode: 'above',
+        });
+        statusBars.update('delay', sdrState.getUiDelay());
+        statusBars.update('loopCpu', sdrState.getLoopCpuPc());
+        statusBars.update('coreCpu', sdrState.getMaxCpuCorePc());
+        statusBars.update('loopCpu', sdrState.getLoopCpuPc());
 
         // only update the UI elements if things have changed
-        // store the previous state in the fastStatusUi
+        // store the previous state in the fastStatusxxxxxxx
 
-        const delayText = obj.delay.toFixed(2);
-        if (fastStatusUi.lastDelay !== delayText){
-            fastStatusUi.delay.text(obj.delay.toFixed(2));
-            fastStatusUi.delay2.text(obj.delay.toFixed(2));
-            fastStatusUi.lastDelay = delayText;
-        }
-
-        const loopCpu = sdrState.getLoopCpuPc().toFixed(1);
-        if (fastStatusUi.lastLoopCpu != loopCpu) {
-            fastStatusUi.loopCpu.text(loopCpu +'%');
-            if (loopCpu > 110) {
-                fastStatusUi.loopCpuCell.css("background-color", "#ff0000");
-            } else {
-                fastStatusUi.loopCpuCell.css("background-color", "#00ee00");
-            }
-            fastStatusUi.lastLoopCpu = loopCpu;
-        }
-
-        const coreCpuPc = sdrState.getMaxCpuCorePc().toFixed(1);
-        if (fastStatusUi.lastMaxCpuCorePc != coreCpuPc) {
-            fastStatusUi.maxCpuCorePc.text(coreCpuPc + '%');
-            if (coreCpuPc > 90) {
-                fastStatusUi.maxCpuCorePc.css("background-color", "#ff0000");
-            } else {
-                fastStatusUi.maxCpuCorePc.css("background-color", "#00ee00");
-            }
-            fastStatusUi.lastMaxCpuCorePc = coreCpuPc;
-        }
-
-        if (fastStatusUi.lastOverflows != obj.overflows) {
-            fastStatusUi.overflows.text(obj.overflows);
-            fastStatusUi.lastOverflows = obj.overflows;
+        if (fastStatusUi.lastOverflows != sdrState.getOverflows()) {
+            fastStatusUi.overflows.text(sdrState.overflows);
+            fastStatusUi.lastOverflows = sdrState.overflows;
         }
 
         const maxFps = sdrState.getMeasuredFps().toFixed(1);
@@ -209,9 +201,19 @@ async function syncCurrentFast() {
             fastStatusUi.lastMaxFps = maxFps;
         }
 
-        if (fastStatusUi.lastOneInN != obj.oneInN) {
-            fastStatusUi.oneInN.text(obj.oneInN.toFixed(0)+" traces");
-            fastStatusUi.lastOneInN = obj.oneInN;
+        if (fastStatusUi.lastExpectedOneInN != sdrState.getExpectedOneInN()) {
+            fastStatusUi.expectedOneInN.text(sdrState.expectedOneInN.toFixed(0)+" traces");
+            fastStatusUi.lastExpectedOneInN = sdrState.expectedOneInN;
+        }
+
+        if (fastStatusUi.lastOneInN != sdrState.getOneInN()) {
+            fastStatusUi.oneInN.text(sdrState.oneInN.toFixed(0)+" traces");
+            fastStatusUi.lastOneInN = sdrState.oneInN;
+        }
+
+        if (fastStatusUi.lastEffectiveSps != sdrState.getEffectiveSps()) {
+            fastStatusUi.effectiveSps.text(sdrState.effectiveSps.toFixed(6)+" Msps");
+            fastStatusUi.lastEffectiveSps = sdrState.effectiveSps;
         }
 
         const inputLevel = sdrState.getInputLevel().toFixed(1);
@@ -275,7 +277,7 @@ function syncNew() {
     // This is very busy on the network. TODO: change to have a single end point for this
     // get all the main stuff
     let initUris = ['./input/sources', './digitiser/digitiserFormats',
-                './spectrum/fftSizes', './spectrum/psd', './spectrum/fftOverlap',
+                './spectrum/fftSizes', './spectrum/psd', 'spectrum/peakDetect', './spectrum/fftOverlap',
                 './spectrum/fftOverlaps', './spectrum/fftFrameTime', './spectrum/fftRbw',
                 './spectrum/fftWindows', './digitiser/digitiserGainTypes', './control/presetFps',
                 './digitiser/digitiserGain', './digitiser/digitiserSampleRate', './tuning/frequency',
@@ -628,6 +630,24 @@ function showNew(jsonConfig) {
         $('#newPsd').empty().append(new_html);
     }
 
+
+    /////////////
+    // Peak Detect
+    ///////
+    if(jsonConfig.peakDetect != undefined){
+        let peak = sdrState.getPeakDetect();
+        let peaks = ["On", "Off"];
+        new_html = '<form ';
+        new_html += ' onfocusin="configFocusIn()" onfocusout="configFocusOut()" ';
+        new_html += 'action="javascript:handlePeakDetectChange(peakDetect.value)">';
+        new_html += '<select id="peakDetect" name="peakDetect" onchange="this.form.submit()">';
+        peaks.forEach(function(pk) {
+                new_html += '<option value="'+pk+'"'+((pk==peak)?"selected":"")+'>'+pk+'</option>';
+            });
+        new_html += '</select></form>';
+        $('#newPeakDetect').empty().append(new_html);
+    }
+
     /////////////
     // gain mode
     ///////
@@ -960,6 +980,22 @@ function handlePsdChange(newPsd) {
     spectrum.setPsd(newPsd);
     configFocusOut();
 }
+
+function handlePeakDetectChange(newPeak) {
+    fetch("./spectrum/peakDetect", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"peakDetect":(newPeak)})
+    }).then(response => {
+        return response.json();
+    });
+
+    sdrState.setPeakDetect(newPeakDetect);
+    configFocusOut();
+}
+
 
 function handleFftWindowChange(newWindow) {
     fetch("./spectrum/fftWindow", {
@@ -1480,6 +1516,50 @@ function Main() {
         "spectrumanalyser", {
             spectrumPercent: 50
     });
+
+    // init status bars
+    statusBars.init('process-status-panel', [
+      {
+        key: 'effectiveSps',
+        label: 'Effective sps',
+        unit: ' Msps',
+        decimals: 6,
+        max: null,
+        threshold: null
+      },
+      {
+        key: 'delay',
+        label: 'UI Delay',
+        unit: ' sec',
+        decimals: 2,
+        max: 2.0,
+        threshold: 1.0,
+      },
+      {
+        key: 'loopCpu',
+        label: 'Loop CPU',
+        unit: ' %',
+        decimals: 1,
+        max: 200,
+        threshold: 110,
+      },
+      {
+        key: 'coreCpu',
+        label: 'CPU core %',
+        unit: ' %',
+        decimals: 1,
+        max: 100,
+        threshold: 90.0,
+      },
+      {
+        key: 'streamCurrent',
+        label: 'Stream current',
+        unit: ' sec',
+        decimals: 2,
+        max: 100,
+        threshold: 100.0,
+      },
+    ]);
 
     // create sdrState object
     sdrState = new sdrState();

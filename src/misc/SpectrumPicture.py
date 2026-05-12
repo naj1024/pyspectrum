@@ -6,11 +6,8 @@ Produce a small png file that can be displayed in the web UI
 The png filename will be the input filename with .png appended
 
 """
-import logging
 import os
 import pathlib
-from matplotlib import image
-
 import numpy as np
 
 from dataProcessing import Spectrum
