@@ -436,7 +436,7 @@ def update_fps(now: float, sdr_config: Sdr.Sdr, times_and_averages: TimesAndAver
     return False
 
 
-def save_samples(data_sink: DataSink_file.FileOutput, samples: np.ndarray, snap_config: Sdr.Sdr,
+def save_samples(data_sink: DataSink_file.FileOutput, samples: np.ndarray, snap_config: Snapper.Snapper,
                  time_rx_nsec: float, times_and_averages: TimesAndAverages.TimesAndAverages) -> bool:
     ##########################
     # Handle snapshots, due to pre-trigger we need to always give the samples
@@ -1070,11 +1070,9 @@ async def send_spectrum_to_ui(sdr_config: Sdr.Sdr,
 
         sdr_config.update_count += 1
 
-        update = False
-        # print(update, sdr_config.sent_count, sdr_config.update_count, sdr_config.expected_one_in_n, sdr_config.actual_one_in_n, sdr_config.fps, sdr_config.measured_fps)
-
         # now send to the UI
         # fps_send_flag saves us from when we are missing lots of data
+        update = False
         if sdr_config.update_count >= sdr_config.expected_one_in_n:
             update = True
         elif sdr_config.fps_send_flag:

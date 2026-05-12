@@ -18,6 +18,7 @@ import logging
 from typing import Tuple
 
 import numpy as np
+from rtlsdr.rtlsdr import LibUSBError
 
 from dataSources import DataSource
 
@@ -147,6 +148,7 @@ class Input(DataSource.DataSource):
         try:
             self._sdr = RtlSdr(device_index=self._device_index)
         except Exception as err:
+            print(type(err))
             self._error = f"Failed {module_type} to connect {str(err)}"
             logger.error(self._error)
             raise ValueError(self._error)
@@ -231,8 +233,10 @@ class Input(DataSource.DataSource):
                 # addresses = sdr.get_device_serial_addresses() # permissions required
                 sdr.close()
                 devices += f"device {device}, type {type_of_tuner} {allowed_tuner_types[type_of_tuner]}\n"
-            except Exception:
+            except LibUSBError as e:
+                logger.error(f"Failed to find {module_type} for device {device}, {e}")
                 pass
+
         if devices == "":
             devices = f"No rtlsdr devices found, scanned 0 to {max_device - 1}"
         return devices
@@ -282,13 +286,6 @@ class Input(DataSource.DataSource):
         logger.info(f"Set sample rate {sample_rate}sps as {self._sample_rate_sps}sps")
 
     def set_centre_frequency_hz(self, frequency: float) -> None:
-
-        freq_ok = True
-        frequency_to_use = frequency
-        # logger.info(f"set cf rtlsdr tuner type {self._tuner_type}, {allowed_tuner_types[self._tuner_type]}")
-
-        # what type of tuner do we have ?
-        freq_range = ""
         freq_ok, frequency_to_use, freq_range = DataSource.validate_number(frequency, self._min_frequency, self._max_frequency)
         if freq_ok and (self._tuner_type == 1 or self._tuner_type == 4):
             # E4000 and FC2580 have gaps in frequency coverage

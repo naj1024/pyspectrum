@@ -226,7 +226,7 @@ class Input(Resource):
                 "params": p,
                 "connected": "false",
             })
-            return "ok"
+        return "ok"
 
 
 class Digitiser(Resource):
@@ -673,14 +673,14 @@ class Status(Resource):
             logger.error(f"Client disconnected for endpoint {thing}")
             return "", 499
 
-        except Exception:
-            logger.exception(f"Failed to build response for {thing}")
+        except Exception as e:
+            logger.exception(f"Failed to build response for {thing}, {e}")
             return "Internal server error", 500
 
     def put(self, thing):
         if thing in self._allowed_put_endpoints:
             try:
                 return "ok"
-            except Exception:
-                return f"Failed to parse {thing} command", 400
+            except Exception as e:
+                return f"Failed to parse {thing} command, {e}", 400
         return f"Endpoint {thing} not supported", 403

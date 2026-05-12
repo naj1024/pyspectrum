@@ -188,7 +188,20 @@
                                                 <div id="newGain"></div>
                                             </td>
                                         </tr>
-
+                                        <tr title="Overflows on input buffer from device, -1 means that the IO library provides no support for detecting overflows">
+                                            <td><b>Overflows</b></td>
+                                            <td>
+                                                <div id="currentOverflows"></div>
+                                            </td>
+                                            <td>
+                                        </tr>
+                                        <tr title="Length of file input stream in seconds">
+                                            <td><b>Stream Length</b></td>
+                                            <td>
+                                                <div id="streamLength"></div>
+                                            </td>
+                                            <td/>
+                                        </tr>
                                         <tr class="blank_row">
                                             <td colspan="3">&nbsp;</td>
                                         </tr>
@@ -342,31 +355,6 @@
 
                             <details open>
                                 <summary>Processing</summary>
-                                <table id="processingTable" class="table table-hover table-striped table-bordered table-sm">
-                                    <thead class="thead-dark">
-                                        <tr>
-                                            <th scope="col">Param</th>
-                                            <th scope="col">Current</th>
-                                            <th scope="col">New</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr title="Overflows on input buffer from device, -1 means that the IO library provides no support for detecting overflows">
-                                            <td><b>Overflows</b></td>
-                                            <td>
-                                                <div id="currentOverflows"></div>
-                                            </td>
-                                            <td></>
-                                        </tr>
-                                        <tr title="Length of file input stream in seconds">
-                                            <td><b>Stream Length</b></td>
-                                            <td>
-                                                <div id="streamLength"></div>
-                                            </td>
-                                            <td/>
-                                        </tr>
-                                    </tbody>
-                                </table>
                                 <div id="process-status-panel"></div>
                             </details>
                         </div>

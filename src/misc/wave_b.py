@@ -254,7 +254,7 @@ class Wave_read:
     def initfp(self, file):
         self._convert = None
         self._soundpos = 0
-        self._file = _Chunk(file, bigendian = 0)
+        self._file = _Chunk(file, bigendian = False)
         if self._file.getname() != b'RIFF':
             raise Error('file does not start with RIFF id')
         if self._file.read(4) != b'WAVE':
@@ -264,7 +264,7 @@ class Wave_read:
         while 1:
             self._data_seek_needed = 1
             try:
-                chunk = _Chunk(self._file, bigendian = 0)
+                chunk = _Chunk(self._file, bigendian = False)
             except EOFError:
                 break
             chunkname = chunk.getname()

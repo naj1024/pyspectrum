@@ -12,7 +12,8 @@ class SubProcess(multiprocessing.Process):
         print("new sub")
         try:
             self._config = config
-        except Exception:
+        except Exception as e:
+            print(e)
             traceback.print_exc()
             quit()
 
@@ -28,7 +29,8 @@ class NewProcess(multiprocessing.Process):
         print("new proc")
         try:
             self._config = config
-        except Exception:
+        except Exception as e:
+            print(e)
             traceback.print_exc()
             quit()
         self._subProc = None

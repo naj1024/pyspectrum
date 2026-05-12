@@ -28,7 +28,7 @@ class PluginManager:
         if register:
             self._register_plugins(**plugin_init_arguments)
 
-    def get_plugin_helps(self) -> {}:
+    def get_plugin_helps(self) -> dict:
         return self._help_strings
 
     def _load_plugins(self):
