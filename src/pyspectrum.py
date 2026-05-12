@@ -1115,7 +1115,7 @@ async def send_spectrum_to_ui(sdr_config: Sdr.Sdr,
 async def watchdog(sdr_config: Sdr.Sdr):
     while True:
         try:
-            timeout = 2.0 / sdr_config.fps
+            timeout = 1.5 / sdr_config.fps
             await asyncio.wait_for(sdr_config.dog.wait(), timeout)
             sdr_config.dog.clear()
         except asyncio.TimeoutError:
