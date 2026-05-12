@@ -343,51 +343,31 @@
                             <details open>
                                 <summary>Processing</summary>
                                 <table id="processingTable" class="table table-hover table-striped table-bordered table-sm">
+                                    <thead class="thead-dark">
+                                        <tr>
+                                            <th scope="col">Param</th>
+                                            <th scope="col">Current</th>
+                                            <th scope="col">New</th>
+                                        </tr>
+                                    </thead>
                                     <tbody>
                                         <tr title="Overflows on input buffer from device, -1 means that the IO library provides no support for detecting overflows">
                                             <td><b>Overflows</b></td>
                                             <td>
                                                 <div id="currentOverflows"></div>
                                             </td>
-                                        </tr>
-                                        <tr title="Measured sample rate, green if within 1% of required">
-                                            <td><b>Effective sps</b></td>
-                                            <td>
-                                                <div id="currentEffectiveSps"></div>
-                                            </td>
-                                        </tr>
-                                        <tr title="Approximate delay from front end to UI, limited to 2seconds">
-                                            <td><b>UI delay</b></td>
-                                            <td>
-                                                <div id="currentDelay"></div>
-                                            </td>
-                                        </tr>
-                                        <tr title="Max CPU core load %, may not be due to this program">
-                                            <td><b>CPU core pc %</b></td>
-                                            <td>
-                                                <div id="currentMaxCpuCorePc"></div>
-                                            </td>
-                                        </tr>
-                                        <tr title="Percentage of FFT frame time being used. Should be close to 100%, >100% may indicate problem with keeping up. The percentage includes all processing and time to get samples">
-                                            <td><b>Loop %</b></td>
-                                            <td>
-                                                <div id="currentLoopCpuPc"></div>
-                                            </td>
+                                            <td></>
                                         </tr>
                                         <tr title="Length of file input stream in seconds">
                                             <td><b>Stream Length</b></td>
                                             <td>
                                                 <div id="streamLength"></div>
                                             </td>
-                                        </tr>
-                                        <tr title="Current seconds of file input streams">
-                                            <td><b>Stream current</b></td>
-                                            <td>
-                                                <div id="streamCurrent"></div>
-                                            </td>
+                                            <td/>
                                         </tr>
                                     </tbody>
                                 </table>
+                                <div id="process-status-panel"></div>
                             </details>
                         </div>
 
@@ -685,6 +665,7 @@
 <script src="colourmap.js"></script>
 <script src="spectrum.js"></script>
 <script src="snapState.js"></script>
+<script src="statusBars.js"></script>
 <script src="main.js"></script>
 <script src="sdrState.js"></script>
 

@@ -185,6 +185,23 @@ async function syncCurrentFast() {
             fastStatusUi.lastEffectiveSps = eSps;
         }
 
+        statusBars.updateDynamic('effectiveSps', {
+          value:         sdrState.getEffectiveSps(),
+          max:           sdrState.getSps() / 1e6,
+          threshold:     0.99 * (sdrState.getSps() / 1e6),
+          thresholdMode: 'below',   // red when value drops *below* threshold
+        });
+        statusBars.updateDynamic('streamCurrent', {
+          value:         sdrState.getStreamCurrent(),
+          max:           sdrState.getStreamLength(),
+          threshold:     sdrState.getStreamLength(),
+          thresholdMode: 'above',
+        });
+        statusBars.update('delay', sdrState.getUiDelay());
+        statusBars.update('loopCpu', sdrState.getLoopCpuPc());
+        statusBars.update('coreCpu', sdrState.getMaxCpuCorePc());
+        statusBars.update('loopCpu', sdrState.getLoopCpuPc());
+
         const delay = sdrState.getUiDelay();
         if (fastStatusUi.lastDelay !== delay){
             fastStatusUi.delay.text(delay.toFixed(2) + " sec");
@@ -1544,6 +1561,50 @@ function Main() {
         "spectrumanalyser", {
             spectrumPercent: 50
     });
+
+    // init status bars
+    statusBars.init('process-status-panel', [
+      {
+        key: 'effectiveSps',
+        label: 'Effective sps',
+        unit: ' Msps',
+        decimals: 6,
+        max: null,
+        threshold: null
+      },
+      {
+        key: 'delay',
+        label: 'UI Delay',
+        unit: ' sec',
+        decimals: 2,
+        max: 2.0,
+        threshold: 1.0,
+      },
+      {
+        key: 'loopCpu',
+        label: 'Loop CPU',
+        unit: ' %',
+        decimals: 1,
+        max: 200,
+        threshold: 110,
+      },
+      {
+        key: 'coreCpu',
+        label: 'CPU core %',
+        unit: ' %',
+        decimals: 1,
+        max: 100,
+        threshold: 90.0,
+      },
+      {
+        key: 'streamCurrent',
+        label: 'Stream current',
+        unit: ' sec',
+        decimals: 2,
+        max: 100,
+        threshold: 100.0,
+      },
+    ]);
 
     // create sdrState object
     sdrState = new sdrState();
