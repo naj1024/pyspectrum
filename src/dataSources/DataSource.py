@@ -258,8 +258,6 @@ class DataSource:
             raise ValueError(msgs)
         self._data_type = data_type
 
-        print(self._adc_bits, data_type)
-
     def get_gain_mode(self) -> str:
         return self._gain_mode
 
