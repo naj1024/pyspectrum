@@ -156,7 +156,11 @@ class WebSocketServer(multiprocessing.Process):
                 except queue.Empty:
                     pass
 
-                await asyncio.sleep(0.001)
+                await asyncio.sleep(0.0)  # give someone else some compute
 
+        except websockets.exceptions.ConnectionClosedOK:
+            logger.info(f"WebSocket client {client} disconnected cleanly")
+        except websockets.exceptions.ConnectionClosedError as msg:
+            logger.warning(f"WebSocket client {client} disconnected with error: {msg}")
         except Exception as msg:
             logger.error(f"WebSocket socket Tx exception for {client}, {msg}")
