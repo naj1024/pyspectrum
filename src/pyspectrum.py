@@ -1054,7 +1054,7 @@ async def send_spectrum_to_ui(sdr_config: Sdr.Sdr,
             if sdr_config.ui_delay > 2:
                 sdr_config.update_count = 0
                 sdr_config.fps = max(sdr_config.fps / 2, 5)  # save ourselves but don't go too low in fps
-                logger.error(f"reducing fps to {sdr_config.fps}")
+                #logger.error(f"reducing fps to {sdr_config.fps}")
 
         # always peak detect
         # unless it is the first one after send to the ui
