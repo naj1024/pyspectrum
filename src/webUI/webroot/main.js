@@ -1656,8 +1656,14 @@ function Main() {
     $('#rangeDwnBut').click(function() {spectrum.rangeDecrease();});
     $('#rangeUpBut').click(function() {spectrum.rangeIncrease();});
     $('#autoRangeBut').click(function() {
-        spectrum.autoRange();
+        spectrum.autoRange(true);
         const btn = document.getElementById('scaleSpectrum');
+        btn.classList.add('active');
+        setTimeout(() => btn.classList.remove('active'), 350);
+    });
+    $('#autoRangeButM').click(function() {
+        spectrum.autoRange(false);
+        const btn = document.getElementById('scaleSpectrumM');
         btn.classList.add('active');
         setTimeout(() => btn.classList.remove('active'), 350);
     });
@@ -1681,7 +1687,12 @@ function Main() {
 
     // vertical buttons between spectrum and controls
     $('#scaleSpectrum').click(function() {
-        spectrum.autoRange();
+        spectrum.autoRange(true);
+        this.classList.add('active');
+        setTimeout(() => this.classList.remove('active'), 350);
+        });
+    $('#scaleSpectrumM').click(function() {
+        spectrum.autoRange(false);
         this.classList.add('active');
         setTimeout(() => this.classList.remove('active'), 350);
         });
