@@ -323,7 +323,10 @@ class Input(DataSource.DataSource):
 
     def get_gain(self) -> float:
         if self._sdr:
-            self._gain = self._sdr.get_gain()
+            if self._gain_mode == 'auto':
+                self._gain = 0  # we cant seem to read the actual value back in auto mode
+            else:
+                self._gain = self._sdr.get_gain()
         return self._gain
 
     def set_gain(self, gain: float) -> None:
