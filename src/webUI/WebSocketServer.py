@@ -156,10 +156,7 @@ class WebSocketServer(multiprocessing.Process):
                 except queue.Empty:
                     pass
 
-                await asyncio.sleep(0.0001)  # this will have a direct impact on possible fps
-                # not doing the sleep on chrome based brosers allows for upto 120fps
-                # firefox struggles at over 80fps
-                # with no sleep the spectrogram bacomes jumpy at low fps, 20, on both browsers
+                await asyncio.sleep(0.0)  # give someone else some compute
 
         except websockets.exceptions.ConnectionClosedOK:
             logger.info(f"WebSocket client {client} disconnected cleanly")

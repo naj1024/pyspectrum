@@ -129,7 +129,6 @@ async def main() -> None:
 
     # keep processing until told to stop or an error occurs
     while processing:
-        await asyncio.sleep(0)  # let worker have some time
 
         loop_start = time.perf_counter()
 
