@@ -135,7 +135,7 @@ async function syncCurrent() {
         currentStatusUi.sdrBw.text((sdrState.getSdrBwHz()/1e6).toFixed(6)+' MHz');
         currentStatusUi.ppm.text((sdrState.getPpmError()).toFixed(3));
         currentStatusUi.dcRemoval.text(sdrState.getDcRemoval());
-        currentStatusUi.inputLevel.text(sdrState.getInputLevel().toFixed(1)+'%');
+        currentStatusUi.inputLevel.text(sdrState.getInputLevel().toFixed(4)+'%');
         currentStatusUi.dbmOffset.text((sdrState.getDBmOffset()).toFixed(3));
         currentStatusUi.gainMode.text(sdrState.getGainMode());
         currentStatusUi.fft.text(sdrState.getFftSize());
@@ -216,7 +216,7 @@ async function syncCurrentFast() {
             fastStatusUi.lastEffectiveSps = sdrState.effectiveSps;
         }
 
-        const inputLevel = sdrState.getInputLevel().toFixed(1);
+        const inputLevel = sdrState.getInputLevel().toFixed(4);
         if (fastStatusUi.lastInputLevel != inputLevel) {
             fastStatusUi.inputLevel.text(inputLevel +'%');
             fastStatusUi.lastInputLevel = inputLevel;

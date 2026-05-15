@@ -414,6 +414,7 @@ def update_source_stats(data_source: DataSource.DataSource, now: float, samples:
 
         # update the input level
         if samples is not None:
+            # assume max magnitude is 1.0
             sdr_config.input_level = 100.0 * np.max(np.absolute(samples))
 
         # for file inputs, show where we are
