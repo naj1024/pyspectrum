@@ -60,6 +60,7 @@ class Input(DataSource.DataSource):
         self._file_in_seconds = 0.0  # how long is the file
         self._file_current_seconds = 0.0
 
+        self._adc_bits = 16
         self._name = module_type
         self._connected = False
 

@@ -119,7 +119,9 @@ class Input(DataSource.DataSource):
 
         self._name = module_type
         self._connected = False
-        
+
+        self._adc_bits = 8
+
         self._gain_modes = ["auto", "manual"]  # would ask, but can't
         super().set_gain_mode(self._gain_modes[0])
         super().set_help(help_string)

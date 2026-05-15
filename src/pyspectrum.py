@@ -20,6 +20,7 @@ Provide a basic spectrum analyser for digitised complex samples
 """
 
 import logging
+import math
 import multiprocessing
 import os
 import pathlib
@@ -415,7 +416,8 @@ def update_source_stats(data_source: DataSource.DataSource, now: float, samples:
         # update the input level
         if samples is not None:
             # assume max magnitude is 1.0
-            sdr_config.input_level = 100.0 * np.max(np.absolute(samples))
+            adc_peak = pow(2, data_source.get_adc_bits() - 1) * np.max(np.absolute(samples))
+            sdr_config.input_level = math.log2(adc_peak)
 
         # for file inputs, show where we are
         sdr_config.seconds_current = data_source.get_seconds_current()

@@ -91,6 +91,8 @@ class DataSource:
         self._bandwidth_hz = input_bw
         self._centre_frequency_hz = centre_frequency
 
+        self._adc_bits = 8 # guess, override as required
+
         self._ppm = 0.0  # error on clock and frequency. Either removed by device or compensated by our sources
         self._hw_ppm_compensation = False  # True if the hardware does the compensation
 
@@ -217,6 +219,9 @@ class DataSource:
     def set_web_help(self, help_str: str) -> None:
         self._web_help = help_str
 
+    def get_adc_bits(self) -> int:
+        return self._adc_bits
+
     def get_sample_type(self) -> str:
         return self._data_type
 
@@ -231,21 +236,29 @@ class DataSource:
         # side effect is that we check for the types we can handle
         if data_type == '32fle':
             self._bytes_per_complex_sample = 8
+            self._adc_bits = 32  # TODO: mmm what to do with floats
         elif data_type == '32fbe':
             self._bytes_per_complex_sample = 8
+            self._adc_bits = 32
         elif data_type == '16tle':
             self._bytes_per_complex_sample = 4
+            self._adc_bits = 16
         elif data_type == '16tbe':
             self._bytes_per_complex_sample = 4
+            self._adc_bits = 16
         elif data_type == '8t':
             self._bytes_per_complex_sample = 2
+            self._adc_bits = 8
         elif data_type == '8o':
             self._bytes_per_complex_sample = 2
+            self._adc_bits = 9 # as when we use this value we expect +- 2^(n-1)
         else:
             msgs = f'Attempt to set unsupported data type "{data_type}"'
             logger.error(msgs)
             raise ValueError(msgs)
         self._data_type = data_type
+
+        print(self._adc_bits, data_type)
 
     def get_gain_mode(self) -> str:
         return self._gain_mode
