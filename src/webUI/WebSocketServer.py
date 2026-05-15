@@ -128,7 +128,7 @@ class WebSocketServer(multiprocessing.Process):
         try:
             while not self._exit_now:
                 try:
-                    sps, centre, magnitudes, time_start, time_end = self._to_ui_queue.get(timeout=0.1)
+                    sps, centre, magnitudes, time_start, time_end = self._to_ui_queue.get(timeout=1.0)
 
                     centre_mhz = float(centre) / 1e6
                     start_sec = int(time_start / 1e9)
@@ -156,11 +156,15 @@ class WebSocketServer(multiprocessing.Process):
                         num_floats,
                         *magnitudes
                     )
-
                     await web_socket.send(message)
 
                 except queue.Empty:
-                    pass
+                    # send something to allow web ui to update
+                    message = struct.pack(
+                        f"!i",
+                        int(0),
+                    )
+                    await web_socket.send(message)
 
                 await asyncio.sleep(0.0)  # give someone else some compute
 
