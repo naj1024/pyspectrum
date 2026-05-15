@@ -138,6 +138,12 @@ class WebSocketServer(multiprocessing.Process):
 
                     num_floats = int(magnitudes.size)
                     data_type = 1
+                    # f"!2id5i{N}f"
+                    # !  - Network order
+                    # 2i - two integers (4bytes each)
+                    # d  - (8bytes)
+                    # 5i - five integers
+                    # {N}f - N floats
                     message = struct.pack(
                         f"!2id5i{num_floats}f",
                         int(data_type),
