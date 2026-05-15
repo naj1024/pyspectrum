@@ -374,7 +374,7 @@ class Input(DataSource.DataSource):
                 rx_time = self.get_time_ns(number_samples)
                 complex_data = raw_data.astype(np.complex64)  # (?) we need all values to be 32bit floats
             except Exception as err:
-                print(f"read_cplx_samples() exception, {err}, {len(complex_data)}")
+                print(f"read_cplx_samples() exception, {err}")
                 self._connected = False
                 self._error = str(err)
                 logger.error(self._error)

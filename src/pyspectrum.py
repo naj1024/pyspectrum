@@ -405,7 +405,7 @@ def update_source_stats(data_source: DataSource.DataSource, now: float, samples:
         # effective sample rate, TODO: doesn't work when we have fft overlap
         diff_time = now - sdr_config.time_last_effective_calc
         new_effective = (sdr_config.total_samples / max(diff_time, 0.000001)) / 1e6
-        sdr_config.effective_sample_rate = 0.9999 * new_effective + (1 - 0.9999) * sdr_config.effective_sample_rate
+        sdr_config.effective_sample_rate = 0.99999 * new_effective + (1 - 0.99999) * sdr_config.effective_sample_rate
         sdr_config.time_last_effective_calc = now
         sdr_config.total_samples = 0
 
