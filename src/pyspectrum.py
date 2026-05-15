@@ -717,7 +717,7 @@ def fill_shared_status_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_conf
     shared_status['fftRbw'] = sdr_config.fft_rbw
     # spectrogram does not work with 32768 points
     # 256 points never keeps up due to overheads
-    shared_status['fftSizes'] = [512, 1024, 2048, 4096, 8192, 16384]
+    shared_status['fftSizes'] = [512, 1024, 2048, 4096, 8192]  # 16384 has problems due to time to capture samples?
     shared_status['fftWindows'] = sdr_config.window_types
     shared_status['fftWindow'] = sdr_config.window
 

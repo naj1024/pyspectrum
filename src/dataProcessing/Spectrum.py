@@ -19,7 +19,7 @@ except ImportError:
     logger.info("No scipy support in environment")
 
 try:
-    import pyfftw  # seems best suited for large FFT sizes, >8192
+    import pyfftw  # seems best suited for large FFT sizes, >
 
     pyfftw.interfaces.cache.enable()  # planner cache
     pyfftw.interfaces.cache.set_keepalive_time(5)  # keep fftw things cache alive for 5 seconds between calls
