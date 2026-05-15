@@ -445,19 +445,25 @@ Spectrum.prototype.roundTo10 =  function(num) {
     return (num - smallest > largest - num)? largest : smallest;
 }
 
-Spectrum.prototype.autoRange = function() {
+Spectrum.prototype.autoRange = function(fullBw) {
     // Find max and min
     let max = -200; // suitably small dB
-    let min = 100; // suitably large dB
-    // find the max over the last spectrum, held in spectrogram data = this.spectrums[]
-    //const t0 = performance.now();
+    let min = 200; // suitably large dB
+    // find the max over the last spectrums, held in spectrogram data = this.spectrums[]
     // go over last 32 spectrums so that we can auto range on short burst signals
     let start = this.currentSpectrumIndex;
     for (let num=0; num<32; num ++) {
         let index = start - num;
         let spec = this.spectrums[index].magnitudes;
         if (spec && spec.length) {
-            for (let i = 1; i < spec.length; i++) {
+            let limit_min = 0;
+            let limit_max = spec.length;
+            if (!fullBw) {
+                // skip first and last bins
+                limit_min = Math.floor(spec.length / 6);
+                limit_max = Math.floor(spec.length - limit_min);
+            }
+            for (let i = limit_min; i < limit_max; i++) {
                 if (spec[i] > max)
                     max = spec[i];
                 else
@@ -466,9 +472,6 @@ Spectrum.prototype.autoRange = function() {
             }
         }
     }
-    //const t1 = performance.now();
-    // fastest to just itterate using for loop
-    //console.log(`${numSpectrums} autorange took ${t1-t0} milliseconds`);
     this.max_db = this.roundTo10(max+10); // headroom
     this.min_db = this.roundTo10(min-10);
     this.setRange(this.min_db, this.max_db);

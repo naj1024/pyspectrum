@@ -38,7 +38,8 @@
             <div id="specCanvas" class="leftPanel"></div>
             <div id="vertButtons" class="midPanel">
                 <button id="togglePanel" class="btn btn-sm btn-secondary vertical-btn" title="Show/Hide the controls"><span id="toggleIcon">HIDE</span></button>
-                <button id="scaleSpectrum" class="btn btn-sm btn-secondary vertical-btn" title="One shot autoscale db range"><span id="Scale">AUTO</span></button>
+                <button id="scaleSpectrum" class="btn btn-sm btn-secondary vertical-btn" title="One shot autoscale db range over full spectrum"><span id="Scale">AUTO</span></button>
+                <button id="scaleSpectrumM" class="btn btn-sm btn-secondary vertical-btn" title="One shot autoscale db range over the middle of the spectrum"><span id="ScaleM">AUTO-M</span></button>
                 <button id="stopSource" class="btn btn-sm btn-secondary vertical-btn toggle-btn" data-state="off" title="Stop reading the source device"><span id="Stop">STOP</span></button>
                 <button id="holdSpectrum" class="btn btn-sm btn-secondary vertical-btn toggle-btn" data-state="off" title="Toggle hold on the spectrum and spectrogram"><span id="Hold">HOLD</span></button>
                 <button id="peakSpectrum" class="btn btn-sm btn-secondary vertical-btn toggle-btn" data-state="off" title="Toggle peak detect on spectrum"><span id="Peak">PEAK</span></button>
@@ -164,7 +165,7 @@
                                                 <div id="newDcRemoval"></div>
                                             </td>
                                         </tr>
-                                        <tr title="Input level percentage of full scale">
+                                        <tr title="Input level in bits at the ADC">
                                             <td><b>Input Level</b></td>
                                             <td>
                                                 <div id="currentInputLevel"></div>
@@ -432,8 +433,11 @@
                                     <button type="button" id="rangeUpBut" title="increase the dB range"
                                             class="specbuttons btn btn-outline-dark mx-1 my-1">Rng&gt
                                     </button>
-                                    <button type="button" id="autoRangeBut" title="single shot autorange on dB across spectrum"
+                                    <button type="button" id="autoRangeBut" title="single shot autorange on dB across the full spectrum"
                                             class="specbuttons btn btn-outline-dark mx-1 my-1">Auto
+                                    </button>
+                                    <button type="button" id="autoRangeButM" title="single shot autorange on dB across the middle spectrum"
+                                            class="specbuttons btn btn-outline-dark mx-1 my-1">AutoM
                                     </button>
                                 </div>
 

@@ -119,7 +119,9 @@ class Input(DataSource.DataSource):
 
         self._name = module_type
         self._connected = False
-        
+
+        self._adc_bits = 8
+
         self._gain_modes = ["auto", "manual"]  # would ask, but can't
         super().set_gain_mode(self._gain_modes[0])
         super().set_help(help_string)
@@ -321,7 +323,10 @@ class Input(DataSource.DataSource):
 
     def get_gain(self) -> float:
         if self._sdr:
-            self._gain = self._sdr.get_gain()
+            if self._gain_mode == 'auto':
+                self._gain = 0  # we cant seem to read the actual value back in auto mode
+            else:
+                self._gain = self._sdr.get_gain()
         return self._gain
 
     def set_gain(self, gain: float) -> None:

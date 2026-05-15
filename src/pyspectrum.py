@@ -20,6 +20,7 @@ Provide a basic spectrum analyser for digitised complex samples
 """
 
 import logging
+import math
 import multiprocessing
 import os
 import pathlib
@@ -414,14 +415,13 @@ def update_source_stats(data_source: DataSource.DataSource, now: float, samples:
 
         # update the input level
         if samples is not None:
-            sdr_config.input_level = 100.0 * np.max(np.absolute(samples))
-            shared_status['digitiserInputLevel'] = float(sdr_config.input_level)
+            # assume max magnitude is 1.0
+            adc_peak = pow(2, data_source.get_adc_bits() - 1) * np.max(np.absolute(samples))
+            sdr_config.input_level = math.log2(adc_peak)
 
         # for file inputs, show where we are
         sdr_config.seconds_current = data_source.get_seconds_current()
-        shared_status['streamCurrent'] = sdr_config.seconds_current
         sdr_config.seconds_length = data_source.get_seconds_length()
-        shared_status['streamLength'] = sdr_config.seconds_length
 
 
 def update_fps(now: float, sdr_config: Sdr.Sdr, times_and_averages: TimesAndAverages.TimesAndAverages) -> bool:
@@ -663,6 +663,9 @@ def fill_status_fast_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_config
     shared_status['oneInN'] = sdr_config.actual_one_in_n
     shared_status['expectedOneInN'] = sdr_config.expected_one_in_n
     shared_status['effectiveSps'] = sdr_config.effective_sample_rate
+    shared_status['digitiserInputLevel'] = float(sdr_config.input_level)
+    shared_status['streamCurrent'] = sdr_config.seconds_current
+    shared_status['streamLength'] = sdr_config.seconds_length
 
     # snapshot stuff
     shared_status['snapTriggerState'] = snap_config.triggerState
@@ -714,7 +717,7 @@ def fill_shared_status_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_conf
     shared_status['fftRbw'] = sdr_config.fft_rbw
     # spectrogram does not work with 32768 points
     # 256 points never keeps up due to overheads
-    shared_status['fftSizes'] = [512, 1024, 2048, 4096, 8192, 16384]
+    shared_status['fftSizes'] = [512, 1024, 2048, 4096, 8192]  # 16384 has problems due to time to capture samples?
     shared_status['fftWindows'] = sdr_config.window_types
     shared_status['fftWindow'] = sdr_config.window
 
