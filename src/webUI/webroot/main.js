@@ -227,13 +227,13 @@ async function syncCurrentFast() {
             fastStatusUi.lastGain = sdrState.getGain();
         }
 
-        const streamLength = sdrState.getStreamLength().toFixed(2);
+        const streamLength = sdrState.getStreamLength().toFixed(5);
         if (fastStatusUi.lastStreamLength != streamLength) {
             fastStatusUi.streamLength.text(streamLength+' sec');
             fastStatusUi.lastStreamLength = streamLength;
         }
 
-        const streamCurrent = sdrState.getStreamCurrent().toFixed(2);
+        const streamCurrent = sdrState.getStreamCurrent().toFixed(5);
         if (fastStatusUi.lastStreamCurrent != streamCurrent) {
             fastStatusUi.streamCurrent.text(streamCurrent+' sec');
             fastStatusUi.lastStreamCurrent = streamCurrent;

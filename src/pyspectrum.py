@@ -415,13 +415,10 @@ def update_source_stats(data_source: DataSource.DataSource, now: float, samples:
         # update the input level
         if samples is not None:
             sdr_config.input_level = 100.0 * np.max(np.absolute(samples))
-            shared_status['digitiserInputLevel'] = float(sdr_config.input_level)
 
         # for file inputs, show where we are
         sdr_config.seconds_current = data_source.get_seconds_current()
-        shared_status['streamCurrent'] = sdr_config.seconds_current
         sdr_config.seconds_length = data_source.get_seconds_length()
-        shared_status['streamLength'] = sdr_config.seconds_length
 
 
 def update_fps(now: float, sdr_config: Sdr.Sdr, times_and_averages: TimesAndAverages.TimesAndAverages) -> bool:
@@ -663,6 +660,9 @@ def fill_status_fast_to_ui(shared_status: dict, sdr_config: Sdr.Sdr, snap_config
     shared_status['oneInN'] = sdr_config.actual_one_in_n
     shared_status['expectedOneInN'] = sdr_config.expected_one_in_n
     shared_status['effectiveSps'] = sdr_config.effective_sample_rate
+    shared_status['digitiserInputLevel'] = float(sdr_config.input_level)
+    shared_status['streamCurrent'] = sdr_config.seconds_current
+    shared_status['streamLength'] = sdr_config.seconds_length
 
     # snapshot stuff
     shared_status['snapTriggerState'] = snap_config.triggerState
