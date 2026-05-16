@@ -109,10 +109,6 @@ async def main() -> None:
     logger.info(f"Samples {sdr_config.fft_size}: {(1000000 * expected_samples_receive_time):.0f}usec")
     logger.info(f"Required FFT per second: {sdr_config.sample_rate / sdr_config.fft_size:.0f}")
 
-    # expected bits/sec on network, 8bits byte, 4 bytes per complex
-    bits_sec = 8 * sdr_config.sample_rate * data_source.get_bytes_per_complex_sample() * sdr_config.fft_size
-    logger.info(f"Minimum bit rate of input: {(bits_sec / 1e6):.0f}Mbit/sec")
-
     # Default things before the main loop
     peak_powers_since_last_display = np.full(sdr_config.fft_size, -200)
 
@@ -132,14 +128,11 @@ async def main() -> None:
     while processing:
         await asyncio.sleep(0)  # let the watchdog have some time to run
 
-        loop_start = time.perf_counter()
-
         if not multiprocessing.active_children():
             processing = False  # we will exit mow as we lost our processes
             continue
 
-        # sync the status and update from UI
-        time_start = time.perf_counter()
+        # update from the UI
         if update_queue:
             data_source, data_sink, sdr_config, snap_config, config_changed = sync_state_from_ui(sdr_config,
                                                                                                  snap_config,
@@ -152,13 +145,10 @@ async def main() -> None:
                                                                                                  update_queue)
             if config_changed:
                 fetcher = set_sample_fetcher(data_source, sdr_config)
-        time_end = time.perf_counter()
-        times_and_averages.sync_from_ui.average(time_end - time_start)
 
         ###########################################
         # Get complex samples we will work on
         ######################
-        time_start = time.perf_counter()
         if sdr_config.stop or not data_source.connected():
             time.sleep(sdr_config.fft_size / sdr_config.sample_rate)
         else:
@@ -191,8 +181,6 @@ async def main() -> None:
                     fetcher = set_sample_fetcher(data_source, sdr_config)
                     fill_shared_status_to_ui(shared_status, sdr_config, snap_config)
                     samples = None
-        time_end = time.perf_counter()
-        times_and_averages.capture_time.average(time_end - time_start)
 
         ###########################################
         # Get and process the complex/magnitude samples we will work on
@@ -210,7 +198,6 @@ async def main() -> None:
             ##########################
             # the snap may of changed
             #################
-            time_start = time.perf_counter()
             snap_config_changed, data_sink = check_on_snap_config(data_sink, sdr_config, snap_config)
 
             # Has source or snap changed
@@ -218,42 +205,20 @@ async def main() -> None:
                 fill_shared_status_to_ui(shared_status, sdr_config, snap_config)
                 config_changed = False
 
-            time_end = time.perf_counter()
-            times_and_averages.plugins.average(time_end - time_start)
-
             ################################
             # Update the UI spectral data
             ###################
-            time_start = time.perf_counter()
             peak_powers_since_last_display = await send_spectrum_to_ui(sdr_config,
                                                                        to_ui_queue,
                                                                        processor.get_powers(False),
                                                                        peak_powers_since_last_display,
                                                                        time_rx_nsec)
-            time_end = time.perf_counter()
-            times_and_averages.ui_time.average(time_end - time_start)
 
         now = time.time()
-
-        time_start = time.perf_counter()
         if update_fps(now, sdr_config, times_and_averages):
             fill_status_fast_to_ui(shared_status, sdr_config, snap_config)
 
-        if now > times_and_averages.debug_time:
-            debug_print(sdr_config, times_and_averages)
-            times_and_averages.debug_time = now + 60
-
         update_source_stats(data_source, now, samples, sdr_config, shared_status, times_and_averages)
-
-        if sdr_config.stop or not data_source.connected():
-            times_and_averages.loop_time.clear()
-        else:
-            loop_end = time.perf_counter()
-            loop_multiplier = int(100 / (100 - sdr_config.fft_overlap))
-            _ = times_and_averages.loop_time.average(loop_multiplier * (loop_end - loop_start))
-
-        time_end = time.perf_counter()
-        times_and_averages.misc.average(time_end - time_start)
 
         # don't spin
         if samples is None:
@@ -1122,49 +1087,6 @@ async def watchdog(sdr_config: Sdr.Sdr):
         except asyncio.TimeoutError:
             # woof
             sdr_config.fps_send_flag = True
-
-
-def debug_print(sdr_config: Sdr.Sdr, times_and_averages: TimesAndAverages.TimesAndAverages) -> None:
-    """
-    Various useful profiling prints
-
-    :return: None
-    """
-    data_time = (sdr_config.fft_size / sdr_config.sample_rate)
-    loop_cpu_pc = 100.0 * (times_and_averages.loop_time.get_ewma() / data_time)
-
-    total = times_and_averages.process_time.get_ewma()
-    total += times_and_averages.capture_time.get_ewma()
-    total += times_and_averages.reporting_time.get_ewma()
-    total += times_and_averages.reporting_time.get_ewma()
-    total += times_and_averages.snap_time.get_ewma()
-    total += times_and_averages.ui_time.get_ewma()
-    total += times_and_averages.sync_from_ui.get_ewma()
-    total += times_and_averages.save_samples.get_ewma()
-    total += times_and_averages.dc_offset.get_ewma()
-    total += times_and_averages.plugins.get_ewma()
-    total += times_and_averages.snap_config.get_ewma()
-    total += times_and_averages.misc.get_ewma()
-
-    logger.debug(f'SPS:{sdr_config.sample_rate:.0f}, '
-                 f'FFT:{sdr_config.fft_size} '
-                 f'{1e6 * data_time:.0f}usec, '
-                 f'overlap: {sdr_config.fft_overlap}%, '
-                 f'loop:{(times_and_averages.loop_time.get_ewma() * 1000000):.0f}usec {loop_cpu_pc:.0f}%, '
-                 f'fps/mfps:{sdr_config.fps}/{sdr_config.measured_fps}, '
-                 f'total:{1e6 * total:.0f}us: '
-                 f'read:{1e6 * times_and_averages.capture_time.get_ewma():.0f}us, '
-                 f'proc:{1e6 * times_and_averages.process_time.get_ewma():.0f}us, '
-                 f'report:{1e6 * times_and_averages.reporting_time.get_ewma():.0f}us, '
-                 f'snap:{1e6 * times_and_averages.snap_time.get_ewma():.0f}us, '
-                 f'from_ui:{1e6 * times_and_averages.sync_from_ui.get_ewma():.0f}us, '
-                 f'save:{1e6 * times_and_averages.save_samples.get_ewma():.0f}us, '
-                 f'dc:{1e6 * times_and_averages.dc_offset.get_ewma():.0f}us, '
-                 f'plugins:{1e6 * times_and_averages.plugins.get_ewma():.0f}us, '
-                 f'config:{1e6 * times_and_averages.snap_config.get_ewma():.0f}us, '
-                 f'misc:{1e6 * times_and_averages.misc.get_ewma():.0f}us, '
-                 f'ui:{1e6 * times_and_averages.ui_time.get_ewma():.0f}us'
-                 )
 
 
 if __name__ == '__main__':
