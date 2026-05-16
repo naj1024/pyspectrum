@@ -258,6 +258,28 @@ class Input(DataSource.DataSource):
         # we can't set a different sample type on this source
         super().set_sample_type(self._constant_data_type)
 
+    def clamp_sample_rate(self, sample_rate):
+        # Define valid ranges
+        low_min, low_max = 225001, 300000
+        high_min, high_max = 900001, 3200000
+
+        # Already valid → return as-is
+        if (low_min < sample_rate <= low_max) or (high_min < sample_rate <= high_max):
+            return sample_rate
+
+        # Below lowest allowed
+        if sample_rate <= low_min:
+            return low_min
+
+        # Above highest allowed
+        if sample_rate > high_max:
+            return high_max
+
+        # In the forbidden gap (300k–900k)
+        # Snap to nearest boundary
+        if low_max < sample_rate <= high_min:
+            return low_max if (sample_rate - low_max) < (high_min - sample_rate) else high_min
+
     def set_sample_rate_sps(self, sample_rate: float) -> None:
         # rtlsdr has limits on allowed sample rates
         # from librtlsdr.c data_source.get_bytes_per_sample()
@@ -269,11 +291,13 @@ class Input(DataSource.DataSource):
         # 	}
         # logger.info(f"set sr rtlsdr tuner type {self._tuner_type}, {allowed_tuner_types[self._tuner_type]}")
 
-        if (sample_rate <= 225000) or (sample_rate > 3200000) or ((sample_rate > 300000) and (sample_rate <= 900000)):
-            err = f"{module_type} invalid sample rate, {sample_rate}sps, 225000-3000000 and not 300000-900000"
+        new_rate = self.clamp_sample_rate(sample_rate)
+        if new_rate != sample_rate:
+            err = f"{module_type} invalid sample rate, {sample_rate}sps, clamped to {new_rate}sps"
             self._error = err
             logger.error(err)
-            sample_rate = 1e6  # something safe
+
+        sample_rate = new_rate
 
         self._rx_time = 0
         self._sample_rate_sps = sample_rate

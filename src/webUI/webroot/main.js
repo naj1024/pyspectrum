@@ -1528,16 +1528,8 @@ function Main() {
         threshold: null
       },
       {
-        key: 'delay',
-        label: 'UI Delay',
-        unit: ' sec',
-        decimals: 2,
-        max: 2.0,
-        threshold: 1.0,
-      },
-      {
         key: 'loopCpu',
-        label: 'Loop CPU',
+        label: 'Loop',
         unit: ' %',
         decimals: 1,
         max: 200,
@@ -1545,11 +1537,19 @@ function Main() {
       },
       {
         key: 'coreCpu',
-        label: 'CPU core %',
+        label: 'CPU core',
         unit: ' %',
         decimals: 1,
         max: 100,
         threshold: 90.0,
+      },
+      {
+        key: 'delay',
+        label: 'UI Delay',
+        unit: ' sec',
+        decimals: 2,
+        max: 2.0,
+        threshold: 1.0,
       },
       {
         key: 'streamCurrent',
