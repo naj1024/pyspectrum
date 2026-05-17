@@ -1523,7 +1523,7 @@ function Main() {
         key: 'effectiveSps',
         label: 'Effective sps',
         unit: ' Msps',
-        decimals: 6,
+        decimals: 3,
         max: null,
         threshold: null
       },
