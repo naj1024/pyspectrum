@@ -305,6 +305,9 @@ class Input(DataSource.DataSource):
             try:
                 self._sdr.sample_rate = sample_rate
                 self._sample_rate_sps = float(self._sdr.get_sample_rate())
+
+                self._overflows = 0
+                self._dropped_samples = 0
             except Exception as err:
                 self._error = str(err)
                 logger.debug(f"bad sr {sample_rate} now {self._sample_rate_sps}")
@@ -402,6 +405,7 @@ class Input(DataSource.DataSource):
                 raw_data = self._sdr.read_samples(number_samples)  # will return np.complex128
                 rx_time = self.get_time_ns(number_samples)
                 complex_data = raw_data.astype(np.complex64)  # (?) we need all values to be 32bit floats
+                self.drop_samples_check(len(complex_data), number_samples)
             except Exception as err:
                 print(f"read_cplx_samples() exception, {err}")
                 self._connected = False

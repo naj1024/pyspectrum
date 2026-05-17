@@ -143,7 +143,8 @@ async def main() -> None:
                                                                                                  thumbs_dir,
                                                                                                  processor,
                                                                                                  shared_status,
-                                                                                                 update_queue)
+                                                                                                 update_queue,
+                                                                                                 times_and_averages)
             if config_changed:
                 fetcher = set_sample_fetcher(data_source, sdr_config)
 
@@ -734,7 +735,8 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                        thumb_dir: pathlib.PurePath,
                        processor: ProcessSamples.ProcessSamples,
                        shared_status: dict,
-                       update_queue: multiprocessing.Queue):  # -> Tuple[DataSource, DataSink_file.FileOutput, Sdr, dict, bool]:
+                       update_queue: multiprocessing.Queue,
+                       times_and_averages: TimesAndAverages.TimesAndAverages):  # -> Tuple[DataSource, DataSink_file.FileOutput, Sdr, dict, bool]:
     """
     All changes instigated by the UI rest interfaces end up in the shared_update dictionary.
     Once the changes are made we delete the entries in the shared_update dictionary
@@ -788,6 +790,7 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                                                 'connected': sdr_config.source_connected})
                     sdr_config.input_params = data_source.get_parameters()
                     sdr_config.input_overflows = 0
+                    times_and_averages.effective_sps.set_inital(sdr_config.sample_rate / 1e6)
                     config_changed = True
                     snap_changed = True
 
@@ -856,11 +859,13 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                     data_source.set_sample_rate_sps(message_value)
                     Sdr.add_to_error(sdr_config, data_source.get_and_reset_error())
                     sdr_config.sample_rate = data_source.get_sample_rate_sps()
+
                     sdr_config.input_bw_hz = data_source.get_bandwidth_hz()  # some sources over-ride bw when setting sps
                     sdr_config.input_overflows = 0
                     fudge = (100 - sdr_config.fft_overlap) / 100
                     sdr_config.expected_one_in_n = max(
                         int(sdr_config.sample_rate / (fudge * sdr_config.fps * sdr_config.fft_size)), 1)
+                    times_and_averages.effective_sps.set_inital(sdr_config.sample_rate / 1e6)
                     config_changed = True
 
             if message_name == 'digitiserFormat':
