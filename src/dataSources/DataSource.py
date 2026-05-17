@@ -106,6 +106,12 @@ class DataSource:
         self._rx_time = 0
         self._last_time = time.time_ns()  # used in simulating elapsed samples time
 
+        self._last_check = time.monotonic()
+        self._total_check_samples = 0
+        self._check_alpha = 0.05
+        self._check_ema_error = 0
+        self._dropped_samples = 0
+
         self._min_frequency = None
         self._max_frequency = None
 
@@ -167,6 +173,8 @@ class DataSource:
             sr = 10000.0  # small default, but not too small
         self._rx_time = 0
         self._sample_rate_sps = sr
+        self._overflows = 0
+        self._dropped_samples = 0
 
     def get_sample_rate_sps(self) -> float:
         return self._sample_rate_sps
@@ -405,3 +413,27 @@ class DataSource:
                 time.sleep(wait)
         self._last_time = time.time_ns()
         return self._last_time
+
+    def drop_samples_check(self, num_samples: int, expected_num_samples: int):
+        now = time.monotonic()
+
+        self._total_check_samples += num_samples
+
+        if self._last_check is not None:
+            dt = now - self._last_check
+
+            expected = dt * self._sample_rate_sps
+            error = expected - num_samples  # can be negative (catch-up)
+
+            # smoothing
+            self._check_ema_error = (
+                    self._check_alpha * error + (1 - self._check_alpha) * self._check_ema_error
+            )
+
+            # Only count sustained positive error
+            if self._check_ema_error > expected_num_samples * 0.25:
+                dropped = int(self._check_ema_error)
+                self._dropped_samples += dropped
+                self._overflows += 1
+
+        self._last_check = now

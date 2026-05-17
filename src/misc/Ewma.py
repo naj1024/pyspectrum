@@ -28,6 +28,10 @@ class Ewma:
     def get_ewma(self) -> float:
         return self._ewma
 
+    def set_inital(self, initial: float) -> None:
+        self._initial = initial
+        self.clear()
+
     def clear(self):
         self._ewma = self._initial
         return

@@ -109,10 +109,6 @@ async def main() -> None:
     logger.info(f"Samples {sdr_config.fft_size}: {(1000000 * expected_samples_receive_time):.0f}usec")
     logger.info(f"Required FFT per second: {sdr_config.sample_rate / sdr_config.fft_size:.0f}")
 
-    # expected bits/sec on network, 8bits byte, 4 bytes per complex
-    bits_sec = 8 * sdr_config.sample_rate * data_source.get_bytes_per_complex_sample() * sdr_config.fft_size
-    logger.info(f"Minimum bit rate of input: {(bits_sec / 1e6):.0f}Mbit/sec")
-
     # Default things before the main loop
     peak_powers_since_last_display = np.full(sdr_config.fft_size, -200)
 
@@ -123,7 +119,6 @@ async def main() -> None:
     global processing
     samples = None
     config_changed = None
-    hop = None
 
     # do we need to get samples or magnitudes
     fetcher = set_sample_fetcher(data_source, sdr_config)  # fetcher is set if samples required
@@ -138,8 +133,7 @@ async def main() -> None:
             processing = False  # we will exit mow as we lost our processes
             continue
 
-        # sync the status and update from UI
-        time_start = time.perf_counter()
+        # update from the UI
         if update_queue:
             data_source, data_sink, sdr_config, snap_config, config_changed = sync_state_from_ui(sdr_config,
                                                                                                  snap_config,
@@ -149,33 +143,56 @@ async def main() -> None:
                                                                                                  thumbs_dir,
                                                                                                  processor,
                                                                                                  shared_status,
-                                                                                                 update_queue)
+                                                                                                 update_queue,
+                                                                                                 times_and_averages)
             if config_changed:
                 fetcher = set_sample_fetcher(data_source, sdr_config)
-        time_end = time.perf_counter()
-        times_and_averages.sync_from_ui.average(time_end - time_start)
 
         ###########################################
         # Get complex samples we will work on
         ######################
-        time_start = time.perf_counter()
+        samples = None
+        time_rx_nsec = 0
         if sdr_config.stop or not data_source.connected():
             time.sleep(sdr_config.fft_size / sdr_config.sample_rate)
         else:
             try:
                 # do we get complex samples or magnitudes from the source
                 if fetcher is None:
-                    samples, time_rx_nsec = data_source.read_magnitude_samples(sdr_config.fft_size)
-                    if samples is not None:
+                    mags, time_rx_nsec = data_source.read_magnitude_samples(sdr_config.fft_size)
+                    if mags is not None:
                         # make sure we all talking the same size. maybe the source can't change
-                        if len(samples) != sdr_config.fft_size:
+                        if len(mags) != sdr_config.fft_size:
                             # note this does not get to the web_ui
-                            change_fft_size(len(samples), processor, sdr_config)
+                            change_fft_size(len(mags), processor, sdr_config)
+
+                        # samples are magnitudes_squared values
+                        processor.set_powers(mags,
+                                             sdr_config.sample_rate,
+                                             sdr_config.psd,
+                                             sdr_config.dbm_offset)
+
+                        sdr_config.total_samples += len(mags)
                 else:
                     samples, time_rx_nsec, hop = fetcher.get_next_block()
+                    ###########################################
+                    # Get and process the complex/magnitude samples we will work on
+                    ######################
+                    snap_finished = False
+                    if samples is not None:
+                        # samples will be dtype=np.complex64
+                        if fetcher is not None:
+                            samples, snap_finished = handle_samples(data_sink,
+                                                                    hop,
+                                                                    plugin_manager,
+                                                                    processor,
+                                                                    samples,
+                                                                    sdr_config,
+                                                                    snap_config,
+                                                                    time_rx_nsec)
 
-                sdr_config.total_samples += len(samples) if samples is not None else 0
-                sdr_config.input_overflows = data_source.get_overflows()
+                    sdr_config.total_samples += len(samples) if samples is not None else 0
+                    sdr_config.input_overflows = data_source.get_overflows()
 
             except ValueError as mm:
                 # incorrect number of samples, probably because something closed
@@ -191,26 +208,10 @@ async def main() -> None:
                     fetcher = set_sample_fetcher(data_source, sdr_config)
                     fill_shared_status_to_ui(shared_status, sdr_config, snap_config)
                     samples = None
-        time_end = time.perf_counter()
-        times_and_averages.capture_time.average(time_end - time_start)
-
-        ###########################################
-        # Get and process the complex/magnitude samples we will work on
-        ######################
-        if samples is not None:
-            # samples will be dtype=np.complex64
-            snap_finished = False
-            if fetcher is None:
-                # samples are magnitudes_squared values
-                processor.set_powers(samples, sdr_config.sample_rate, sdr_config.psd, sdr_config.dbm_offset)
-            else:
-                samples, snap_finished = handle_samples(data_sink, hop, plugin_manager, processor, samples, sdr_config,
-                                                        snap_config, time_rx_nsec, times_and_averages)
 
             ##########################
             # the snap may of changed
             #################
-            time_start = time.perf_counter()
             snap_config_changed, data_sink = check_on_snap_config(data_sink, sdr_config, snap_config)
 
             # Has source or snap changed
@@ -218,32 +219,26 @@ async def main() -> None:
                 fill_shared_status_to_ui(shared_status, sdr_config, snap_config)
                 config_changed = False
 
-            time_end = time.perf_counter()
-            times_and_averages.plugins.average(time_end - time_start)
-
             ################################
             # Update the UI spectral data
             ###################
-            time_start = time.perf_counter()
-            peak_powers_since_last_display = await send_spectrum_to_ui(sdr_config,
-                                                                       to_ui_queue,
-                                                                       processor.get_powers(False),
-                                                                       peak_powers_since_last_display,
-                                                                       time_rx_nsec)
-            time_end = time.perf_counter()
-            times_and_averages.ui_time.average(time_end - time_start)
+            if samples is not None:
+                peak_powers_since_last_display = await send_spectrum_to_ui(sdr_config,
+                                                                           to_ui_queue,
+                                                                           processor.get_powers(False),
+                                                                           peak_powers_since_last_display,
+                                                                           time_rx_nsec)
 
+        #################################
+        #
+        # fps stuff and source stats
+        #
+        ####################
         now = time.time()
-
-        time_start = time.perf_counter()
         if update_fps(now, sdr_config, times_and_averages):
             fill_status_fast_to_ui(shared_status, sdr_config, snap_config)
 
-        if now > times_and_averages.debug_time:
-            debug_print(sdr_config, times_and_averages)
-            times_and_averages.debug_time = now + 60
-
-        update_source_stats(data_source, now, samples, sdr_config, shared_status, times_and_averages)
+        update_source_stats(data_source, now, samples, sdr_config, times_and_averages)
 
         if sdr_config.stop or not data_source.connected():
             times_and_averages.loop_time.clear()
@@ -252,13 +247,9 @@ async def main() -> None:
             loop_multiplier = int(100 / (100 - sdr_config.fft_overlap))
             _ = times_and_averages.loop_time.average(loop_multiplier * (loop_end - loop_start))
 
-        time_end = time.perf_counter()
-        times_and_averages.misc.average(time_end - time_start)
-
-        # don't spin
         if samples is None:
             sdr_config.loop_cpu_pc = 0
-            time.sleep(0.1)
+            await asyncio.sleep(0.0001)
 
     ####################
     #
@@ -302,27 +293,21 @@ def change_fft_size(size: int, processor: ProcessSamples.ProcessSamples, sdr_con
 def handle_samples(data_sink: DataSink_file.FileOutput, hop: Any | None, plugin_manager: PluginManager.PluginManager,
                    processor: ProcessSamples.ProcessSamples,
                    samples: complex | Any, sdr_config: Sdr.Sdr, snap_config: Snapper.Snapper,
-                   time_rx_nsec: int | float | Any,
-                   times_and_averages: TimesAndAverages.TimesAndAverages) -> tuple[complex | Any, bool]:
+                   time_rx_nsec: int | float | Any) -> tuple[complex | Any, bool]:
     ##########################
     # save the samples for snapshots
     #
     # Allows us to save pre-trigger samples by saving everything off always
     ##########################
-    time_start = time.perf_counter()
     patched_rx_time_nsec = time_rx_nsec + int((hop * 1e9) / sdr_config.sample_rate)
 
-    #
-    snap_finished = save_samples(data_sink, samples[-hop:], snap_config, patched_rx_time_nsec, times_and_averages)
+    snap_finished = save_samples(data_sink, samples[-hop:], snap_config, patched_rx_time_nsec)
     snap_config.currentSizeMbytes = data_sink.get_current_size_mbytes()
     snap_config.expectedSizeMbytes = data_sink.get_size_mbytes()
-    time_end = time.perf_counter()
-    times_and_averages.save_samples.average(time_end - time_start)
 
     ##########################
     # dc input offset calculation
     ##########################
-    time_start = time.perf_counter()
     if sdr_config.dc_removal != "Off":
         # remove the average value to reduce the dc component
         # weighted towards newest average quickly with previous error less significant than current
@@ -334,24 +319,17 @@ def handle_samples(data_sink: DataSink_file.FileOutput, hop: Any | None, plugin_
         else:
             # copy it
             samples = samples - sdr_config.dc_error
-    time_end = time.perf_counter()
-    times_and_averages.dc_offset.average(time_end - time_start)
 
     ##########################
     # Calculate the spectrum
     #################
-    time_start = time.perf_counter()
     processor.process(samples, sdr_config.sample_rate, sdr_config.psd, sdr_config.dbm_offset)
-    time_end = time.perf_counter()
-    times_and_averages.process_time.average(time_end - time_start)
 
     ##########################
     # plugins
     #################
-    time_start = time.perf_counter()
-    call_plugins(plugin_manager, processor, sdr_config, times_and_averages, time_rx_nsec)
-    time_end = time.perf_counter()
-    times_and_averages.plugins.average(time_end - time_start)
+    call_plugins(plugin_manager, processor, sdr_config, time_rx_nsec)
+
     return samples, snap_finished
 
 
@@ -395,23 +373,25 @@ def check_on_snap_config(data_sink: DataSink_file.FileOutput, sdr_config: Sdr.Sd
 
 
 def update_source_stats(data_source: DataSource.DataSource, now: float, samples: np.ndarray, sdr_config: Sdr.Sdr,
-                        shared_status: dict, times_and_averages: TimesAndAverages.TimesAndAverages):
+                        times_and_averages: TimesAndAverages.TimesAndAverages):
     # Occasionally check on the source, maybe the gain changed etc
-    if now > times_and_averages.config_time:
+    if now > times_and_averages.source_stats_time:
         sdrStuff.update_source_state(sdr_config, data_source)
-        times_and_averages.config_time = now + 1
+        times_and_averages.source_stats_time = now + 0.1
         data_time = (sdr_config.fft_size / sdr_config.sample_rate)
         sdr_config.loop_cpu_pc = 100.0 * (times_and_averages.loop_time.get_ewma() / data_time)
 
         # effective sample rate, TODO: doesn't work when we have fft overlap
         diff_time = now - sdr_config.time_last_effective_calc
         new_effective = (sdr_config.total_samples / max(diff_time, 0.000001)) / 1e6
-        sdr_config.effective_sample_rate = 0.99999 * new_effective + (1 - 0.99999) * sdr_config.effective_sample_rate
+        _ = times_and_averages.effective_sps.average(new_effective)
+        sdr_config.effective_sample_rate = times_and_averages.effective_sps.get_ewma()
         sdr_config.time_last_effective_calc = now
         sdr_config.total_samples = 0
 
         # cpu load
-        sdr_config.max_cpu_core_pc = max(psutil.cpu_percent(percpu=True))
+        _ = times_and_averages.cpu_core.average(max(psutil.cpu_percent(percpu=True)))
+        sdr_config.max_cpu_core_pc = times_and_averages.cpu_core.get_ewma()
 
         # update the input level
         if samples is not None:
@@ -437,11 +417,10 @@ def update_fps(now: float, sdr_config: Sdr.Sdr, times_and_averages: TimesAndAver
 
 
 def save_samples(data_sink: DataSink_file.FileOutput, samples: np.ndarray, snap_config: Snapper.Snapper,
-                 time_rx_nsec: float, times_and_averages: TimesAndAverages.TimesAndAverages) -> bool:
+                 time_rx_nsec: float) -> bool:
     ##########################
     # Handle snapshots, due to pre-trigger we need to always give the samples
     #################
-    time_start = time.perf_counter()
     finished = data_sink.write(snap_config.triggered, samples, time_rx_nsec)
 
     if finished:
@@ -449,30 +428,23 @@ def save_samples(data_sink: DataSink_file.FileOutput, samples: np.ndarray, snap_
         snap_config.triggerState = "wait"
         snap_config.directory_list = snapStuff.list_snap_files(global_vars.SNAPSHOT_DIRECTORY)
 
-    time_end = time.perf_counter()
-    times_and_averages.snap_time.average(time_end - time_start)
-
     return finished
 
 
 def call_plugins(plugin_manager, processor: ProcessSamples.ProcessSamples, sdr_config: Sdr.Sdr,
-                 times_and_averages: TimesAndAverages.TimesAndAverages, time_rx_nsec: float) -> None:
+                 time_rx_nsec: float) -> None:
     ###########################
     # analysis of the spectrum
     #################
-    time_start = time.perf_counter()
     results = plugin_manager.call_plugin_method(method="analysis",
                                                 args={"powers": processor.get_powers(False),
                                                       "noise_floors": processor.get_long_average(False),
                                                       "reordered": False})
-    time_end = time.perf_counter()
-    times_and_averages.plugins.average(time_end - time_start)
 
     if results is not None:
         #####################
         # reporting results, plugin stuff
         #############
-        time_start = time.perf_counter()
         if "peaks" in results and len(results["peaks"]) > 0:
             freqs = ProcessSamples.convert_to_frequencies(results["peaks"], sdr_config.sample_rate, sdr_config.fft_size)
             _ = plugin_manager.call_plugin_method(method="report",
@@ -480,8 +452,6 @@ def call_plugins(plugin_manager, processor: ProcessSamples.ProcessSamples, sdr_c
                                                         "frequencies": freqs,
                                                         "centre_frequency_hz":
                                                             sdr_config.centre_frequency_hz})
-        time_end = time.perf_counter()
-        times_and_averages.reporting_time.average(time_end - time_start)
 
 
 def setup() -> Tuple[Sdr.Sdr, Snapper.Snapper, pathlib.PurePath]:
@@ -765,7 +735,8 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                        thumb_dir: pathlib.PurePath,
                        processor: ProcessSamples.ProcessSamples,
                        shared_status: dict,
-                       update_queue: multiprocessing.Queue):  # -> Tuple[DataSource, DataSink_file.FileOutput, Sdr, dict, bool]:
+                       update_queue: multiprocessing.Queue,
+                       times_and_averages: TimesAndAverages.TimesAndAverages):  # -> Tuple[DataSource, DataSink_file.FileOutput, Sdr, dict, bool]:
     """
     All changes instigated by the UI rest interfaces end up in the shared_update dictionary.
     Once the changes are made we delete the entries in the shared_update dictionary
@@ -819,6 +790,7 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                                                 'connected': sdr_config.source_connected})
                     sdr_config.input_params = data_source.get_parameters()
                     sdr_config.input_overflows = 0
+                    times_and_averages.effective_sps.set_inital(sdr_config.sample_rate / 1e6)
                     config_changed = True
                     snap_changed = True
 
@@ -887,11 +859,13 @@ def sync_state_from_ui(sdr_config: Sdr.Sdr,
                     data_source.set_sample_rate_sps(message_value)
                     Sdr.add_to_error(sdr_config, data_source.get_and_reset_error())
                     sdr_config.sample_rate = data_source.get_sample_rate_sps()
+
                     sdr_config.input_bw_hz = data_source.get_bandwidth_hz()  # some sources over-ride bw when setting sps
                     sdr_config.input_overflows = 0
                     fudge = (100 - sdr_config.fft_overlap) / 100
                     sdr_config.expected_one_in_n = max(
                         int(sdr_config.sample_rate / (fudge * sdr_config.fps * sdr_config.fft_size)), 1)
+                    times_and_averages.effective_sps.set_inital(sdr_config.sample_rate / 1e6)
                     config_changed = True
 
             if message_name == 'digitiserFormat':
@@ -1122,49 +1096,6 @@ async def watchdog(sdr_config: Sdr.Sdr):
         except asyncio.TimeoutError:
             # woof
             sdr_config.fps_send_flag = True
-
-
-def debug_print(sdr_config: Sdr.Sdr, times_and_averages: TimesAndAverages.TimesAndAverages) -> None:
-    """
-    Various useful profiling prints
-
-    :return: None
-    """
-    data_time = (sdr_config.fft_size / sdr_config.sample_rate)
-    loop_cpu_pc = 100.0 * (times_and_averages.loop_time.get_ewma() / data_time)
-
-    total = times_and_averages.process_time.get_ewma()
-    total += times_and_averages.capture_time.get_ewma()
-    total += times_and_averages.reporting_time.get_ewma()
-    total += times_and_averages.reporting_time.get_ewma()
-    total += times_and_averages.snap_time.get_ewma()
-    total += times_and_averages.ui_time.get_ewma()
-    total += times_and_averages.sync_from_ui.get_ewma()
-    total += times_and_averages.save_samples.get_ewma()
-    total += times_and_averages.dc_offset.get_ewma()
-    total += times_and_averages.plugins.get_ewma()
-    total += times_and_averages.snap_config.get_ewma()
-    total += times_and_averages.misc.get_ewma()
-
-    logger.debug(f'SPS:{sdr_config.sample_rate:.0f}, '
-                 f'FFT:{sdr_config.fft_size} '
-                 f'{1e6 * data_time:.0f}usec, '
-                 f'overlap: {sdr_config.fft_overlap}%, '
-                 f'loop:{(times_and_averages.loop_time.get_ewma() * 1000000):.0f}usec {loop_cpu_pc:.0f}%, '
-                 f'fps/mfps:{sdr_config.fps}/{sdr_config.measured_fps}, '
-                 f'total:{1e6 * total:.0f}us: '
-                 f'read:{1e6 * times_and_averages.capture_time.get_ewma():.0f}us, '
-                 f'proc:{1e6 * times_and_averages.process_time.get_ewma():.0f}us, '
-                 f'report:{1e6 * times_and_averages.reporting_time.get_ewma():.0f}us, '
-                 f'snap:{1e6 * times_and_averages.snap_time.get_ewma():.0f}us, '
-                 f'from_ui:{1e6 * times_and_averages.sync_from_ui.get_ewma():.0f}us, '
-                 f'save:{1e6 * times_and_averages.save_samples.get_ewma():.0f}us, '
-                 f'dc:{1e6 * times_and_averages.dc_offset.get_ewma():.0f}us, '
-                 f'plugins:{1e6 * times_and_averages.plugins.get_ewma():.0f}us, '
-                 f'config:{1e6 * times_and_averages.snap_config.get_ewma():.0f}us, '
-                 f'misc:{1e6 * times_and_averages.misc.get_ewma():.0f}us, '
-                 f'ui:{1e6 * times_and_averages.ui_time.get_ewma():.0f}us'
-                 )
 
 
 if __name__ == '__main__':
