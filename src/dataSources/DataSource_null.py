@@ -47,7 +47,7 @@ class Input(DataSource.DataSource):
         super().__init__(parameters, data_type, sample_rate, centre_frequency, input_bw)
 
         self._name = module_type
-        self._sample_rate_sps = 1.0
+        self._sample_rate_sps = 1.0e6
         self._connected = True
         super().set_help(help_string)
         super().set_web_help(web_help_string)
