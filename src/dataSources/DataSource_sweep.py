@@ -61,6 +61,8 @@ class Input(DataSource.DataSource):
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 
+        self._adc_bits = 16  # TODO: what to do with floats
+
         self._offset = 10  # To make peak signal above noise correct
         try:
             self._snr_db = float(self._parameters) + self._offset
@@ -69,7 +71,7 @@ class Input(DataSource.DataSource):
             logger.error(f"Test data source defaulting snr as '{self._parameters}' not a number")
         logger.info(f"Test source using snr of {self._snr_db}dB")
 
-        self._max_amp = 0.0001    # dont really want +-1.0 for the samples
+        self._max_amp = 0.1    # dont really want +-1.0 for the samples
 
         self._current_freq = -sample_rate / 8.0  # starts 1/8 of way from negative extreme
         self._osc_phase = np.complex64(1 + 0j)
@@ -157,6 +159,16 @@ class Input(DataSource.DataSource):
 
         # add gain
         signal_noisy *= 10 ** (self._gain / 20.0)
+
+        # --- 16-bit ADC quantisation, 98dB (6.02 * 16 + 1.76)---
+        # Scale float [-1.0, 1.0] range to int16 [-32768, 32767]
+        ADC_SCALE = np.float32(32767.0)
+        i_int = np.clip(np.round(signal_noisy.real * ADC_SCALE), -32768, 32767).astype(np.int16)
+        q_int = np.clip(np.round(signal_noisy.imag * ADC_SCALE), -32768, 32767).astype(np.int16)
+
+        # Convert back to normalised float32 for downstream processing
+        signal_noisy = (i_int.astype(np.float32) + 1j * q_int.astype(np.float32)).astype(np.complex64)
+        signal_noisy /= ADC_SCALE
 
         # always set the time
         rx_time = self.simulate_sample_wait_time(number_samples)

@@ -135,7 +135,7 @@ async function syncCurrent() {
         currentStatusUi.sdrBw.text((sdrState.getSdrBwHz()/1e6).toFixed(6)+' MHz');
         currentStatusUi.ppm.text((sdrState.getPpmError()).toFixed(3));
         currentStatusUi.dcRemoval.text(sdrState.getDcRemoval());
-        currentStatusUi.inputLevel.text(sdrState.getInputLevel().toFixed(1)+'%');
+        currentStatusUi.inputLevel.text(sdrState.getInputLevel().toFixed(2)+' bits');
         currentStatusUi.dbmOffset.text((sdrState.getDBmOffset()).toFixed(3));
         currentStatusUi.gainMode.text(sdrState.getGainMode());
         currentStatusUi.fft.text(sdrState.getFftSize());
@@ -216,9 +216,9 @@ async function syncCurrentFast() {
             fastStatusUi.lastEffectiveSps = sdrState.effectiveSps;
         }
 
-        const inputLevel = sdrState.getInputLevel().toFixed(1);
+        const inputLevel = sdrState.getInputLevel().toFixed(2);
         if (fastStatusUi.lastInputLevel != inputLevel) {
-            fastStatusUi.inputLevel.text(inputLevel +'%');
+            fastStatusUi.inputLevel.text(inputLevel +' bits');
             fastStatusUi.lastInputLevel = inputLevel;
         }
 
@@ -227,13 +227,13 @@ async function syncCurrentFast() {
             fastStatusUi.lastGain = sdrState.getGain();
         }
 
-        const streamLength = sdrState.getStreamLength().toFixed(2);
+        const streamLength = sdrState.getStreamLength().toFixed(5);
         if (fastStatusUi.lastStreamLength != streamLength) {
             fastStatusUi.streamLength.text(streamLength+' sec');
             fastStatusUi.lastStreamLength = streamLength;
         }
 
-        const streamCurrent = sdrState.getStreamCurrent().toFixed(2);
+        const streamCurrent = sdrState.getStreamCurrent().toFixed(5);
         if (fastStatusUi.lastStreamCurrent != streamCurrent) {
             fastStatusUi.streamCurrent.text(streamCurrent+' sec');
             fastStatusUi.lastStreamCurrent = streamCurrent;
@@ -1523,9 +1523,25 @@ function Main() {
         key: 'effectiveSps',
         label: 'Effective sps',
         unit: ' Msps',
-        decimals: 6,
+        decimals: 3,
         max: null,
         threshold: null
+      },
+      {
+        key: 'loopCpu',
+        label: 'Loop',
+        unit: ' %',
+        decimals: 1,
+        max: 200,
+        threshold: 110,
+      },
+      {
+        key: 'coreCpu',
+        label: 'CPU core',
+        unit: ' %',
+        decimals: 1,
+        max: 100,
+        threshold: 90.0,
       },
       {
         key: 'delay',
@@ -1534,22 +1550,6 @@ function Main() {
         decimals: 2,
         max: 2.0,
         threshold: 1.0,
-      },
-      {
-        key: 'loopCpu',
-        label: 'Loop CPU',
-        unit: ' %',
-        decimals: 1,
-        max: 200,
-        threshold: 110,
-      },
-      {
-        key: 'coreCpu',
-        label: 'CPU core %',
-        unit: ' %',
-        decimals: 1,
-        max: 100,
-        threshold: 90.0,
       },
       {
         key: 'streamCurrent',
@@ -1656,8 +1656,14 @@ function Main() {
     $('#rangeDwnBut').click(function() {spectrum.rangeDecrease();});
     $('#rangeUpBut').click(function() {spectrum.rangeIncrease();});
     $('#autoRangeBut').click(function() {
-        spectrum.autoRange();
+        spectrum.autoRange(true);
         const btn = document.getElementById('scaleSpectrum');
+        btn.classList.add('active');
+        setTimeout(() => btn.classList.remove('active'), 350);
+    });
+    $('#autoRangeButM').click(function() {
+        spectrum.autoRange(false);
+        const btn = document.getElementById('scaleSpectrumM');
         btn.classList.add('active');
         setTimeout(() => btn.classList.remove('active'), 350);
     });
@@ -1681,7 +1687,12 @@ function Main() {
 
     // vertical buttons between spectrum and controls
     $('#scaleSpectrum').click(function() {
-        spectrum.autoRange();
+        spectrum.autoRange(true);
+        this.classList.add('active');
+        setTimeout(() => this.classList.remove('active'), 350);
+        });
+    $('#scaleSpectrumM').click(function() {
+        spectrum.autoRange(false);
         this.classList.add('active');
         setTimeout(() => this.classList.remove('active'), 350);
         });

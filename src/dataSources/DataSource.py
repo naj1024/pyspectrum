@@ -91,6 +91,8 @@ class DataSource:
         self._bandwidth_hz = input_bw
         self._centre_frequency_hz = centre_frequency
 
+        self._adc_bits = 8 # guess, override as required
+
         self._ppm = 0.0  # error on clock and frequency. Either removed by device or compensated by our sources
         self._hw_ppm_compensation = False  # True if the hardware does the compensation
 
@@ -103,6 +105,12 @@ class DataSource:
 
         self._rx_time = 0
         self._last_time = time.time_ns()  # used in simulating elapsed samples time
+
+        self._last_check = time.monotonic()
+        self._total_check_samples = 0
+        self._check_alpha = 0.05
+        self._check_ema_error = 0
+        self._dropped_samples = 0
 
         self._min_frequency = None
         self._max_frequency = None
@@ -165,6 +173,8 @@ class DataSource:
             sr = 10000.0  # small default, but not too small
         self._rx_time = 0
         self._sample_rate_sps = sr
+        self._overflows = 0
+        self._dropped_samples = 0
 
     def get_sample_rate_sps(self) -> float:
         return self._sample_rate_sps
@@ -217,6 +227,9 @@ class DataSource:
     def set_web_help(self, help_str: str) -> None:
         self._web_help = help_str
 
+    def get_adc_bits(self) -> int:
+        return self._adc_bits
+
     def get_sample_type(self) -> str:
         return self._data_type
 
@@ -231,16 +244,22 @@ class DataSource:
         # side effect is that we check for the types we can handle
         if data_type == '32fle':
             self._bytes_per_complex_sample = 8
+            self._adc_bits = 32  # TODO: mmm what to do with floats
         elif data_type == '32fbe':
             self._bytes_per_complex_sample = 8
+            self._adc_bits = 32
         elif data_type == '16tle':
             self._bytes_per_complex_sample = 4
+            self._adc_bits = 16
         elif data_type == '16tbe':
             self._bytes_per_complex_sample = 4
+            self._adc_bits = 16
         elif data_type == '8t':
             self._bytes_per_complex_sample = 2
+            self._adc_bits = 8
         elif data_type == '8o':
             self._bytes_per_complex_sample = 2
+            self._adc_bits = 9 # as when we use this value we expect +- 2^(n-1)
         else:
             msgs = f'Attempt to set unsupported data type "{data_type}"'
             logger.error(msgs)
@@ -394,3 +413,27 @@ class DataSource:
                 time.sleep(wait)
         self._last_time = time.time_ns()
         return self._last_time
+
+    def drop_samples_check(self, num_samples: int, expected_num_samples: int):
+        now = time.monotonic()
+
+        self._total_check_samples += num_samples
+
+        if self._last_check is not None:
+            dt = now - self._last_check
+
+            expected = dt * self._sample_rate_sps
+            error = expected - num_samples  # can be negative (catch-up)
+
+            # smoothing
+            self._check_ema_error = (
+                    self._check_alpha * error + (1 - self._check_alpha) * self._check_ema_error
+            )
+
+            # Only count sustained positive error
+            if self._check_ema_error > expected_num_samples * 0.25:
+                dropped = int(self._check_ema_error)
+                self._dropped_samples += dropped
+                self._overflows += 1
+
+        self._last_check = now

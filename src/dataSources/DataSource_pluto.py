@@ -160,6 +160,9 @@ class Input(DataSource.DataSource):
         super().set_help(help_string)
         super().set_web_help(web_help_string)
 
+        # we actually have a 1bit converter running extremely fast
+        self._adc_bits = 16 # think it is equivalent to 12 but all the decimation and filtering complicates things
+
     def open(self) -> bool:
         global import_error_msg
         if import_error_msg != "":
@@ -262,6 +265,8 @@ class Input(DataSource.DataSource):
                 self._rx_time = 0
                 self._sdr.sample_rate = sr
                 self._sample_rate_sps = self._sdr.sample_rate
+                self._dropped_samples = 0
+                self._overflows = 0
 
     def get_centre_frequency_hz(self) -> float:
         if self._sdr:
@@ -396,7 +401,11 @@ class Input(DataSource.DataSource):
                         self._block_time = time.time_ns()
                     except AttributeError:
                         self._block_time = time.time() * 1e9
+
+                    self.drop_samples_check(len(self._complex_data), self._read_block_size)
+
                     self._index = 0
+
                 except Exception as err:
                     self._connected = False
                     self._error = str(err)

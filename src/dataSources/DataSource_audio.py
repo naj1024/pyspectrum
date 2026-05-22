@@ -174,6 +174,9 @@ class Input(DataSource.DataSource):
         logger.debug(f"Audio stream started at " + str(self._sample_rate_sps) + " sps")
         self._connected = True
 
+        self._dropped_samples = 0
+        self._overflows = 0
+
         return self._connected
 
     def close(self) -> None:
@@ -262,6 +265,8 @@ class Input(DataSource.DataSource):
 
                 # drop the used samples
                 self._complex_data = np.array(self._complex_data[number_samples:], dtype=np.complex64)
+
+                self.drop_samples_check(len(self._complex_data), number_samples)
 
             self._overflows += DataSource.read_and_reset_overflow()
 

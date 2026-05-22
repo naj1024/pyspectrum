@@ -128,7 +128,7 @@ class WebSocketServer(multiprocessing.Process):
         try:
             while not self._exit_now:
                 try:
-                    sps, centre, magnitudes, time_start, time_end = self._to_ui_queue.get(timeout=0.1)
+                    sps, centre, magnitudes, time_start, time_end = self._to_ui_queue.get(timeout=1.0)
 
                     centre_mhz = float(centre) / 1e6
                     start_sec = int(time_start / 1e9)
@@ -138,6 +138,12 @@ class WebSocketServer(multiprocessing.Process):
 
                     num_floats = int(magnitudes.size)
                     data_type = 1
+                    # f"!2id5i{N}f"
+                    # !  - Network order
+                    # 2i - two integers (4bytes each)
+                    # d  - (8bytes)
+                    # 5i - five integers
+                    # {N}f - N floats
                     message = struct.pack(
                         f"!2id5i{num_floats}f",
                         int(data_type),
@@ -150,13 +156,21 @@ class WebSocketServer(multiprocessing.Process):
                         num_floats,
                         *magnitudes
                     )
-
                     await web_socket.send(message)
 
                 except queue.Empty:
-                    pass
+                    # send something to allow web ui to update
+                    message = struct.pack(
+                        f"!i",
+                        int(0),
+                    )
+                    await web_socket.send(message)
 
-                await asyncio.sleep(0.001)
+                await asyncio.sleep(0.0)  # give someone else some compute
 
+        except websockets.exceptions.ConnectionClosedOK:
+            logger.info(f"WebSocket client {client} disconnected cleanly")
+        except websockets.exceptions.ConnectionClosedError as msg:
+            logger.warning(f"WebSocket client {client} disconnected with error: {msg}")
         except Exception as msg:
             logger.error(f"WebSocket socket Tx exception for {client}, {msg}")

@@ -330,7 +330,24 @@ input[type=number] {
     color: #0056b3;
 }
 
-/* for snapshot tab make spectrum pciture larger on hover */
-img:hover{
-    width: 100px;
+/* for snapshot tab make spectrum picture larger on hover */
+td img {
+    width: 60px;
+    height: 40px;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.2s ease;
+    position: relative;
+    z-index: 1;
 }
+td img:hover {
+    transform: scale(3);
+    z-index: 999;
+    transform-origin: center center;
+}
+/* top rows — expand downward */
+td img:hover { transform-origin: top left; }
+/* bottom rows — expand upward */
+td img:hover { transform-origin: bottom left; }
+/* middle rows — centre is usually fine */
+td img:hover { transform-origin: center center; }

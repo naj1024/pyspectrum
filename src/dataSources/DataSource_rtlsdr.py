@@ -119,7 +119,9 @@ class Input(DataSource.DataSource):
 
         self._name = module_type
         self._connected = False
-        
+
+        self._adc_bits = 8
+
         self._gain_modes = ["auto", "manual"]  # would ask, but can't
         super().set_gain_mode(self._gain_modes[0])
         super().set_help(help_string)
@@ -256,6 +258,28 @@ class Input(DataSource.DataSource):
         # we can't set a different sample type on this source
         super().set_sample_type(self._constant_data_type)
 
+    def clamp_sample_rate(self, sample_rate):
+        # Define valid ranges
+        low_min, low_max = 225001, 300000
+        high_min, high_max = 900001, 3200000
+
+        # Already valid → return as-is
+        if (low_min < sample_rate <= low_max) or (high_min < sample_rate <= high_max):
+            return sample_rate
+
+        # Below lowest allowed
+        if sample_rate <= low_min:
+            return low_min
+
+        # Above highest allowed
+        if sample_rate > high_max:
+            return high_max
+
+        # In the forbidden gap (300k–900k)
+        # Snap to nearest boundary
+        if low_max < sample_rate <= high_min:
+            return low_max if (sample_rate - low_max) < (high_min - sample_rate) else high_min
+
     def set_sample_rate_sps(self, sample_rate: float) -> None:
         # rtlsdr has limits on allowed sample rates
         # from librtlsdr.c data_source.get_bytes_per_sample()
@@ -267,11 +291,13 @@ class Input(DataSource.DataSource):
         # 	}
         # logger.info(f"set sr rtlsdr tuner type {self._tuner_type}, {allowed_tuner_types[self._tuner_type]}")
 
-        if (sample_rate <= 225000) or (sample_rate > 3200000) or ((sample_rate > 300000) and (sample_rate <= 900000)):
-            err = f"{module_type} invalid sample rate, {sample_rate}sps, 225000-3000000 and not 300000-900000"
+        new_rate = self.clamp_sample_rate(sample_rate)
+        if new_rate != sample_rate:
+            err = f"{module_type} invalid sample rate, {sample_rate}sps, clamped to {new_rate}sps"
             self._error = err
             logger.error(err)
-            sample_rate = 1e6  # something safe
+
+        sample_rate = new_rate
 
         self._rx_time = 0
         self._sample_rate_sps = sample_rate
@@ -279,6 +305,9 @@ class Input(DataSource.DataSource):
             try:
                 self._sdr.sample_rate = sample_rate
                 self._sample_rate_sps = float(self._sdr.get_sample_rate())
+
+                self._overflows = 0
+                self._dropped_samples = 0
             except Exception as err:
                 self._error = str(err)
                 logger.debug(f"bad sr {sample_rate} now {self._sample_rate_sps}")
@@ -321,7 +350,10 @@ class Input(DataSource.DataSource):
 
     def get_gain(self) -> float:
         if self._sdr:
-            self._gain = self._sdr.get_gain()
+            if self._gain_mode == 'auto':
+                self._gain = 0  # we cant seem to read the actual value back in auto mode
+            else:
+                self._gain = self._sdr.get_gain()
         return self._gain
 
     def set_gain(self, gain: float) -> None:
@@ -373,6 +405,7 @@ class Input(DataSource.DataSource):
                 raw_data = self._sdr.read_samples(number_samples)  # will return np.complex128
                 rx_time = self.get_time_ns(number_samples)
                 complex_data = raw_data.astype(np.complex64)  # (?) we need all values to be 32bit floats
+                self.drop_samples_check(len(complex_data), number_samples)
             except Exception as err:
                 print(f"read_cplx_samples() exception, {err}")
                 self._connected = False
