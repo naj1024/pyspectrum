@@ -462,11 +462,20 @@ def call_plugins(plugin_manager, processor: ProcessSamples.ProcessSamples, sdr_c
     #################
     time_start = time.perf_counter()
     results = plugin_manager.call_plugin_method(method="analysis",
+<<<<<<< Updated upstream
                                                 args={"powers": processor.get_powers(False),
                                                       "noise_floors": processor.get_long_average(False),
                                                       "reordered": False})
     time_end = time.perf_counter()
     times_and_averages.plugins.average(time_end - time_start)
+=======
+                                                args={"magnitudes_squared": processor.get_magnitudes_squared(),
+                                                      "overlap": sdr_config.fft_overlap,
+                                                      "sample_rate_sps": sdr_config.sample_rate,
+                                                      "centre_frequency": sdr_config.centre_frequency_hz,
+                                                      "reordered": False,
+                                                      })
+>>>>>>> Stashed changes
 
     if results is not None:
         #####################

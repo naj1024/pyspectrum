@@ -33,11 +33,8 @@ class ProcessSamples:
         :param configuration: The configuration we want
         """
         self._spec = Spectrum.Spectrum(configuration.fft_size, configuration.window)
-
-        self._long_average = np.zeros(configuration.fft_size)
         self._powers = np.zeros(configuration.fft_size)
-        self._alpha_for_ewma = 0.01
-        # self._count = 0 debug of extra timing prints
+        self._magnitude_squared = None
 
         # easier to ignore divide by zeros than test for them
         np.seterr(divide='ignore')
@@ -52,35 +49,17 @@ class ProcessSamples:
         :param dbm_offset:
         :return: None
         """
-        magnitudes_squared = self._spec.mag_spectrum(samples, False)
-        self.set_powers(magnitudes_squared, sps, psd, dbm_offset)
+        self._magnitude_squared = self._spec.mag_spectrum(samples, False)
+        self.set_powers(self._magnitude_squared, sps, psd, dbm_offset)
 
     def set_powers(self, magnitudes_squared: ndarray[tuple[Any, ...], dtype[Any]],
                    sps: float, psd: bool, dbm_offset: float):
         # we can also arrive here when our data source produces fft magnitudes not samples
-        powers = magnitudes_squared
-        self._powers = self._spec.get_powers(magnitudes_squared, sps, psd, dbm_offset)
-        # check that the size of the arrays have not changed, i.e. FFT size changed
-        if powers.size != self._long_average.size:
-            self._long_average = np.zeros(powers.size)
-            self._powers = np.zeros(powers.size)
+        self._magnitude_squared = magnitudes_squared
+        self._powers = self._spec.get_powers(self._magnitude_squared, sps, psd, dbm_offset)
 
-        # Update a noise riding average
-        # long term average on each bin to give a per bin noise floor
-        # new = alpha * new_sample + (1-alpha) * old
-        self._long_average *= (1 - self._alpha_for_ewma)
-        self._long_average += (self._powers * self._alpha_for_ewma)
-
-    def get_long_average(self, reorder: bool = False) -> np.ndarray:
-        """
-        Return the long term average of the fft powers
-
-        :param reorder: Reorder the returned result with fftshift
-        :return: The fft bin averages in dB
-        """
-        if reorder:
-            return np.fft.fftshift(self._long_average)
-        return self._long_average
+    def get_magnitudes_squared(self) -> np.ndarray:
+        return self._magnitude_squared
 
     def get_powers(self, reorder: bool = False) -> np.ndarray:
         """The FFT bin powers
