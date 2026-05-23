@@ -34,10 +34,8 @@ def is_available() -> Tuple[str, str]:
     return module_type, import_error_msg
 
 
-# Default hop frequencies as baseband offsets in fs/2
-_DEFAULT_FREQS_HZ: List[float] = [
-    -0.4, -0.3, -0.2, -0.1, 0.1, 0.2, 0.37
-]
+# Default hop frequencies as baseband offsets - so -1/2fs to 1/2fs
+_DEFAULT_FREQS_HZ: List[float] = np.linspace(num=64, start=-0.5, stop=0.5)
 _DEFAULT_SEED        = 42
 _DEFAULT_DWELL_MS    = 345.0   # ms the signal is present
 _DEFAULT_GUARD_MS    = 67.0    # ms of silence between hops
@@ -65,8 +63,7 @@ class Input(DataSource.DataSource):
         self._constant_data_type = "32fle"
 
         if not parameters or parameters == "":
-            parameters = f"{_DEFAULT_SEED}:{_DEFAULT_DWELL_MS}:{_DEFAULT_GUARD_MS}:" \
-                         + ",".join(str(float(f)) for f in _DEFAULT_FREQS_HZ)
+            parameters = f"{_DEFAULT_SEED}:{_DEFAULT_DWELL_MS}:{_DEFAULT_GUARD_MS}"
 
         super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
 
@@ -89,7 +86,7 @@ class Input(DataSource.DataSource):
         self._guard_ms  = guard_ms
         self._hop_freqs = hop_freqs          # baseband offsets in Hz
 
-        self._hop_freqs_normalised = [f / (self._sample_rate_sps / 2.0) for f in self._hop_freqs]
+        self._hop_freqs_normalised = [f / self._sample_rate_sps for f in self._hop_freqs]
 
         self._update_rate_dependent_params()
 
@@ -139,7 +136,7 @@ class Input(DataSource.DataSource):
         """Recompute sample-count parameters that depend on sample rate."""
         self._dwell_samples = int(round(self._sample_rate_sps * self._dwell_ms / 1000.0))
         self._guard_samples = int(round(self._sample_rate_sps * self._guard_ms / 1000.0))
-        self._hop_freqs = [f * (self._sample_rate_sps / 2.0) for f in self._hop_freqs_normalised]
+        self._hop_freqs = [f * self._sample_rate_sps for f in self._hop_freqs_normalised]
 
         if hasattr(self, '_hop_order'):
             self._current_hop_freq = self._hop_freqs[self._hop_order[self._hop_index]]
@@ -169,16 +166,16 @@ class Input(DataSource.DataSource):
             logger.error("Hop source: bad seed/dwell/guard, using defaults")
             seed, dwell_ms, guard_ms = _DEFAULT_SEED, _DEFAULT_DWELL_MS, _DEFAULT_GUARD_MS
 
-        hop_freqs = _DEFAULT_FREQS_HZ[:]
-        sr_2 = float(self._sample_rate_sps) / 2.0
+        sr_2 = float(self._sample_rate_sps)
+        hop_freqs = None
         if len(parts) > 3:
             try:
                 hop_freqs = [float(f) * sr_2 for f in parts[3].split(",") if f.strip()]
             except ValueError:
                 logger.error("Hop source: bad frequency list, using defaults")
 
-        if not hop_freqs:
-            hop_freqs = _DEFAULT_FREQS_HZ[:]
+        if hop_freqs is None:
+            hop_freqs = [float(f) * sr_2 for f in _DEFAULT_FREQS_HZ]
 
         return seed, dwell_ms, guard_ms, hop_freqs
 
@@ -196,7 +193,6 @@ class Input(DataSource.DataSource):
         self._current_hop_freq = self._hop_freqs[self._hop_order[self._hop_index]]
         self._current_snr_db   = float(self._rng.uniform(_DEFAULT_SNR_MIN_DB, _DEFAULT_SNR_MAX_DB))
         self._osc_phase        = np.complex64(1 + 0j)   # reset phase at each hop
-        #logger.debug(f"Hop {self._current_hop_freq/1e6:.3f} MHz, SNR={self._current_snr_db:.1f} dB")
 
     def _signal_amplitude_for_snr(self, snr_db: float, fft_size: int = 2048) -> float:
         """
