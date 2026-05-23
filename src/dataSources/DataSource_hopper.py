@@ -39,8 +39,8 @@ _DEFAULT_FREQS_HZ: List[float] = np.linspace(num=64, start=-0.5, stop=0.5)
 _DEFAULT_SEED        = 42
 _DEFAULT_DWELL_MS    = 345.0   # ms the signal is present
 _DEFAULT_GUARD_MS    = 67.0    # ms of silence between hops
-_DEFAULT_SNR_MIN_DB  = 9.0    # minimum per-hop SNR above noise floor (dB)
-_DEFAULT_SNR_MAX_DB  = 15.0   # maximum per-hop SNR above noise floor (dB)
+_DEFAULT_SNR_MIN_DB  = 15.0    # minimum per-hop SNR above noise floor (dB)
+_DEFAULT_SNR_MAX_DB  = 25.0   # maximum per-hop SNR above noise floor (dB)
 
 
 class Input(DataSource.DataSource):
