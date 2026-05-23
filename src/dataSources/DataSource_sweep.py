@@ -17,7 +17,7 @@ from dataProcessing import Spectrum
 
 logger = logging.getLogger('spectrum_logger')
 
-module_type = "sweep"
+module_type = "simulated_sweep"
 help_string = f"{module_type}:snr_dB"
 web_help_string = "A test source with a sweeping signal at snr_db above noise"
 import_error_msg = ""
@@ -52,8 +52,6 @@ class Input(DataSource.DataSource):
 
         super().__init__(parameters, self._constant_data_type, sample_rate, centre_frequency, input_bw)
 
-        self._min_frequency = 0.0
-        self._max_frequency = 6000000000.0
         self._name = module_type
         self._connected = False
         self._gain_modes = ["manual"]
