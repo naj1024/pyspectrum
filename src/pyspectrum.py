@@ -397,7 +397,7 @@ def update_source_stats(data_source: DataSource.DataSource, now: float, samples:
         if samples is not None:
             # assume max magnitude is 1.0
             adc_peak = pow(2, data_source.get_adc_bits() - 1) * np.max(np.absolute(samples))
-            sdr_config.input_level = math.log2(adc_peak)
+            sdr_config.input_level = math.log2(adc_peak + 1e-14)
 
         # for file inputs, show where we are
         sdr_config.seconds_current = data_source.get_seconds_current()
@@ -437,9 +437,12 @@ def call_plugins(plugin_manager, processor: ProcessSamples.ProcessSamples, sdr_c
     # analysis of the spectrum
     #################
     results = plugin_manager.call_plugin_method(method="analysis",
-                                                args={"powers": processor.get_powers(False),
-                                                      "noise_floors": processor.get_long_average(False),
-                                                      "reordered": False})
+                                                args={"magnitudes_squared": processor.get_magnitudes_squared(),
+                                                      "overlap": sdr_config.fft_overlap,
+                                                      "sample_rate_sps": sdr_config.sample_rate,
+                                                      "centre_frequency": sdr_config.centre_frequency_hz,
+                                                      "reordered": False,
+                                                      })
 
     if results is not None:
         #####################
