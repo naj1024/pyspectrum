@@ -17,7 +17,7 @@ from dataProcessing import Spectrum
 
 logger = logging.getLogger('spectrum_logger')
 
-module_type = "simulated_sweep"
+module_type = "sim_sweep"
 help_string = f"{module_type}:snr_dB"
 web_help_string = "A test source with a sweeping signal at snr_db above noise"
 import_error_msg = ""

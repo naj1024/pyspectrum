@@ -24,7 +24,7 @@ from dataSources import DataSource
 
 logger = logging.getLogger('spectrum_logger')
 
-module_type = "simulated_hopper"
+module_type = "sim_hopper"
 help_string = f"{module_type}:seed:dwell_ms:guard_ms:freq_hz,freq_hz,..."
 web_help_string = "A test source with a frequency-hopping signal; random SNR per hop, constant noise floor"
 import_error_msg = ""
